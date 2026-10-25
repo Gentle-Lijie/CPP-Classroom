@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { History, Download, CodeXml, ArrowUpRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
 import RunOutput from '@/components/classroom/RunOutput.vue'
-import { exampleRuns, download, tone } from '@/data/demo'
-const run = ref(exampleRuns[0]!)
+import { loadRuns, download, tone, reportError, type RunRecord } from '@/data/demo'
+const records = ref<RunRecord[]>([])
+const run = ref<RunRecord>()
+onMounted(async () => {
+  try {
+    records.value = await loadRuns()
+    run.value = records.value[0]
+  } catch (e) {
+    reportError(e)
+  }
+})
 </script>
 <template>
   <div class="page-heading">
@@ -14,20 +23,23 @@ const run = ref(exampleRuns[0]!)
       <h1>运行历史</h1>
       <p>历史代码与当次输入、诊断一同保留，查看不需要重新执行。</p>
     </div>
-    <Button variant="outline" @click="download(run.id + '-' + run.filename, run.code)"
+    <Button
+      :disabled="!run"
+      variant="outline"
+      @click="download(run!.id + '-' + run!.filename, run!.code)"
       ><Download />下载当前快照</Button
     >
   </div>
-  <div class="history-page-layout">
+  <div v-if="run" class="history-page-layout">
     <section class="panel">
       <div class="panel-heading">
         <h2>运行历史</h2>
         <History :size="17" class="muted" />
       </div>
       <div class="history-list">
-        <span class="topic-label">今天 · 累加求和</span
+        <span class="topic-label">全部真实运行</span
         ><button
-          v-for="r in exampleRuns"
+          v-for="r in records"
           :key="r.id"
           class="history-item"
           :class="{ selected: run.id === r.id }"
@@ -39,7 +51,7 @@ const run = ref(exampleRuns[0]!)
           ><ArrowUpRight :size="14" />
         </button>
       </div>
-      <p class="history-disclaimer">本页展示预置的 UI 示例记录。</p>
+      <p class="history-disclaimer">所有记录来自服务器保存的运行快照。</p>
     </section>
     <section class="panel">
       <div class="panel-heading">
@@ -51,7 +63,7 @@ const run = ref(exampleRuns[0]!)
       </div>
       <div class="code-toolbar">
         <CodeXml :size="14" />{{ run.filename }}
-        <span class="language-label ml-auto">GCC 13.2 · C++17（示例）</span>
+        <span class="language-label ml-auto">GCC 13.3 · C++17</span>
       </div>
       <div class="history-editor">
         <CodeEditor

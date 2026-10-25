@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import {
   ArrowLeft,
@@ -27,220 +27,282 @@ import MarkdownContent from '@/components/classroom/MarkdownContent.vue'
 import LocalDirectoryPanel from '@/components/classroom/LocalDirectoryPanel.vue'
 import {
   exercises,
+  executionSettings,
   activeClassroom,
   notify,
   demo,
   download,
-  exampleRuns,
-  type RunRecord,
-  students,
-  readDraft,
-  saveDraft,
+  classPath,
+  loadRuns,
+  reportError,
   draftStorageKey,
+  currentUser,
+  type RunRecord,
 } from '@/data/demo'
+import { api, ApiError } from '@/lib/api'
 const route = useRoute()
-const selected = ref(String(route.query.exercise ?? 'e01'))
+const selected = ref(String(route.query.exercise ?? demo.recommended ?? exercises[0]?.id))
+const exercise = computed(() => exercises.find((e) => e.id === selected.value) ?? exercises[0]!)
 const code = ref('')
-const directoryPanel = ref<InstanceType<typeof LocalDirectoryPanel>>()
-const input = ref('5')
+const input = ref('')
 const panel = ref('题目')
 const help = ref(false)
 const helpText = ref('')
 const submit = ref(false)
 const submitted = ref(false)
 const reset = ref(false)
-const runDemo = ref(false)
-const scenario = ref('运行完成')
 const run = ref<RunRecord>()
 const viewing = ref<RunRecord>()
-const runtime = ref(false)
 const fontSize = ref(14)
-const saveState = ref('已保存到本机')
-const stateDemo = ref('正常')
+const saveState = ref('读取中…')
 const undo = ref('')
 const history = ref<RunRecord[]>([])
-const runTimer = ref<ReturnType<typeof setTimeout>>()
-let saveTimer: ReturnType<typeof setTimeout>
-const exercise = computed(() => exercises.find((e) => e.id === selected.value) ?? exercises[0]!)
-const isArchived = computed(() => activeClassroom.value.status === '已归档')
-const readonly = computed(
-  () => !!viewing.value || stateDemo.value === '多标签页只读' || isArchived.value,
+const interactive = ref(false)
+const revision = ref(0)
+const conflict = ref(false)
+const directoryPanel = ref<InstanceType<typeof LocalDirectoryPanel>>()
+const isArchived = computed(
+  () => activeClassroom.value.status !== '进行中' || exercise.value.status !== '已发布',
 )
-function loadCode() {
-  undo.value = ''
+const readonly = computed(() => !!viewing.value || isArchived.value || conflict.value)
+const runtime = computed(() => run.value?.status === '运行中／可输入')
+const active = () => !!run.value && ['排队', '编译中', '运行中／可输入'].includes(run.value.status)
+let loading = false
+let dirty = false
+let saving: Promise<boolean> | undefined
+let saveTimer: ReturnType<typeof setTimeout>
+let polling = false
+function backup() {
+  localStorage.setItem(
+    draftStorageKey(selected.value),
+    JSON.stringify({ code: code.value, revision: revision.value, pending: dirty }),
+  )
+}
+async function loadCode() {
+  loading = true
+  conflict.value = false
+  dirty = false
+  viewing.value = undefined
+  run.value = undefined
+  submitted.value = false
   input.value = exercise.value.sampleInput
   try {
-    code.value = readDraft(selected.value, exercise.value.code)
-  } catch {
-    code.value = exercise.value.code
-  }
-  submitted.value = false
-  const student = students.find((s) => s.id === 's01')
-  if (student) student.exerciseId = selected.value
-  run.value = undefined
-  viewing.value = undefined
-  runtime.value = false
-  history.value = []
-  clearTimeout(runTimer.value)
-}
-watch(
-  selected,
-  (_value, previous) => {
-    clearTimeout(saveTimer)
-    if (previous) {
+    const remote = await api<{ code: string; revision: number }>(
+      classPath('/workspace/' + selected.value),
+    )
+    code.value = remote.code
+    revision.value = remote.revision
+    const stored = localStorage.getItem(draftStorageKey(selected.value))
+    if (stored) {
       try {
-        saveDraft(previous, code.value)
+        const local = JSON.parse(stored)
+        if (local.pending && typeof local.code === 'string') {
+          code.value = local.code
+          dirty = true
+          if (local.revision !== remote.revision) {
+            conflict.value = true
+            saveState.value = '版本冲突：本机修改已保留'
+          }
+        }
       } catch {
-        notify('上道练习保存失败，请下载备份')
+        /* Older browser-only backups are never used as server revisions. */
       }
     }
-    loadCode()
-  },
-  { immediate: true },
-)
-watch(code, (value) => {
-  if (readonly.value) return
-  saveState.value = '保存中…'
+    if (!conflict.value) saveState.value = dirty ? '本机修改待同步' : '已同步到服务器'
+    history.value = await loadRuns(undefined, selected.value)
+    run.value = history.value.find((r) => ['排队', '编译中', '运行中／可输入'].includes(r.status))
+  } catch (e) {
+    reportError(e)
+    saveState.value = '读取失败，请刷新后重试'
+    conflict.value = true
+  }
+  await nextTick()
+  loading = false
+  if (dirty && !conflict.value) void saveNow()
+  void heartbeat()
+}
+async function saveNow(): Promise<boolean> {
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
+  if (saving) {
+    await saving
+    if (dirty) return saveNow()
+    return true
+  }
+  if (!dirty && revision.value > 0) return true
+  if (conflict.value || isArchived.value) return false
+  const content = code.value
+  const id = selected.value
+  saveState.value = '同步中…'
+  saving = (async () => {
     try {
-      saveDraft(selected.value, value)
-      saveState.value = '已保存到本机'
-    } catch {
-      saveState.value = '保存失败 · 请下载备份'
+      const result = await api<{ revision: number }>(classPath('/workspace/' + id), 'PUT', {
+        code: content,
+        revision: revision.value,
+      })
+      revision.value = result.revision
+      dirty = code.value !== content
+      backup()
+      saveState.value = dirty ? '待同步' : '已同步到服务器'
+      return true
+    } catch (e) {
+      backup()
+      saveState.value =
+        e instanceof ApiError && e.status === 409
+          ? '版本冲突：请先比较服务器版本'
+          : '网络异常：本机已备份，等待重试'
+      if (e instanceof ApiError && e.status === 409) conflict.value = true
+      return false
     }
-  }, 600)
+  })()
+  const result = await saving
+  saving = undefined
+  return result
+}
+watch(code, () => {
+  if (loading || readonly.value) return
+  dirty = true
+  saveState.value = '待同步'
+  backup()
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => void saveNow(), 600)
 })
-function startDemo() {
-  runDemo.value = false
-  viewing.value = undefined
-  runtime.value = false
-  run.value = {
-    ...exampleRuns[1]!,
-    filename: exercise.value.filename,
-    id: 'DEMO-' + (history.value.length + 1),
-    time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
-    status: '排队',
-    output: '',
-    log: '示例队列等待中…',
-    exit: '—',
-  }
-  runTimer.value = setTimeout(() => {
-    if (!run.value) return
-    run.value = { ...run.value, status: '编译中', log: '编译阶段界面演示…' }
-    runTimer.value = setTimeout(finishDemo, 500)
-  }, 450)
-  notify('正在展示固定示例，当前编辑代码未被执行')
-}
-function finishDemo() {
-  if (!run.value) return
-  const fixture =
-    scenario.value === '编译失败'
-      ? exampleRuns[0]!
-      : scenario.value === '运行失败'
-        ? exampleRuns[3]!
-        : scenario.value === '超时'
-          ? exampleRuns[2]!
-          : exampleRuns[1]!
-  const finalStatus = scenario.value
-  run.value = {
-    ...fixture,
-    filename: exercise.value.filename,
-    log: fixture.log.replaceAll(fixture.filename, exercise.value.filename),
-    id: run.value.id,
-    time: run.value.time,
-    status: finalStatus,
-    ...(finalStatus === '运行中／可输入'
-      ? { output: '请输入一个数字：\n', exit: '运行中', log: '编译成功（示例）' }
-      : {}),
-    ...(finalStatus === '平台执行失败'
-      ? {
-          output: '',
-          log: '示例：执行节点连接中断。此错误不归因于学生代码。',
-          exit: '节点不可用',
-        }
-      : {}),
-    ...(finalStatus === '资源超限' ? { output: '', exit: '超过示例内存限制 256 MB' } : {}),
-  }
-  runtime.value = finalStatus === '运行中／可输入'
-  if (!runtime.value) history.value.unshift({ ...run.value })
-}
-function stop() {
-  clearTimeout(runTimer.value)
-  if (run.value) {
-    run.value = { ...run.value, status: '已停止', exit: '用户停止（演示）' }
-    history.value.unshift({ ...run.value })
-  }
-  runtime.value = false
-}
-function sendLine(text: string) {
-  if (run.value && text.trim())
-    run.value = { ...run.value, output: run.value.output + `[示例输入] ${text}\n` }
-}
-function eof() {
-  if (run.value) {
-    run.value = {
-      ...run.value,
-      status: '运行完成',
-      output: run.value.output + '输入已结束（EOF 交互演示）\n',
-      exit: '0（示例）',
-    }
-    history.value.unshift({ ...run.value })
-  }
-  runtime.value = false
-  notify('EOF 界面演示完成，未连接执行进程')
-}
-function doSubmit() {
+watch(selected, () => void loadCode(), { immediate: true })
+async function useServer() {
   try {
-    localStorage.setItem(
-      'cpp-ui-submission-v2:' + draftStorageKey(selected.value),
-      JSON.stringify({
-        code: code.value,
-        filename: exercise.value.filename,
-        input: input.value,
-        time: new Date().toISOString(),
-      }),
+    const remote = await api<{ code: string; revision: number }>(
+      classPath('/workspace/' + selected.value),
     )
+    download('本机未同步-' + exercise.value.filename, code.value)
+    loading = true
+    code.value = remote.code
+    revision.value = remote.revision
+    dirty = false
+    conflict.value = false
+    backup()
+    await nextTick()
+    loading = false
+    saveState.value = '已采用服务器版本；本机修改已下载备份'
+  } catch (e) {
+    reportError(e)
+  }
+}
+async function startRun() {
+  try {
+    if (!(await saveNow())) throw new Error('请先完成草稿同步')
+    viewing.value = undefined
+    run.value = await api<RunRecord>(classPath('/runs'), 'POST', {
+      exerciseId: selected.value,
+      revision: revision.value,
+      input: input.value,
+      interactive: interactive.value,
+    })
+    history.value.unshift(run.value)
+  } catch (e) {
+    reportError(e)
+  }
+}
+async function stop() {
+  try {
+    await api(classPath('/runs/' + run.value?.id + '/stop'), 'POST', {})
+  } catch (e) {
+    reportError(e)
+  }
+}
+async function sendLine(text: string) {
+  try {
+    await api(classPath('/runs/' + run.value?.id + '/input'), 'POST', { text: text + '\n' })
+  } catch (e) {
+    reportError(e)
+  }
+}
+async function eof() {
+  try {
+    await api(classPath('/runs/' + run.value?.id + '/input'), 'POST', { eof: true })
+    notify('EOF 已发送，等待程序结束')
+  } catch (e) {
+    reportError(e)
+  }
+}
+async function doSubmit() {
+  try {
+    if (!(await saveNow())) throw new Error('请先同步草稿')
+    await api(classPath('/submissions'), 'POST', {
+      exerciseId: selected.value,
+      revision: revision.value,
+    })
     submitted.value = true
     submit.value = false
-    notify('当前代码已作为本机演示提交保存')
-  } catch {
-    notify('本机存储失败，请下载代码备份')
+    notify('固定版本已提交')
+  } catch (e) {
+    reportError(e)
   }
 }
 function resetCode() {
   undo.value = code.value
   code.value = exercise.value.code
   reset.value = false
-  notify('已重置，可通过工具栏撤销')
 }
-onBeforeUnmount(() => {
-  clearTimeout(saveTimer)
-  clearTimeout(runTimer.value)
+async function sendHelp() {
   try {
-    saveDraft(selected.value, code.value)
-  } catch {
-    /* Download remains available when storage is full. */
+    await api(classPath('/help'), 'POST', { exerciseId: selected.value, message: helpText.value })
+    demo.helpSent = true
+    help.value = false
+    notify('求助已发送给教师')
+  } catch (e) {
+    reportError(e)
   }
-})
-function sendHelp() {
-  demo.helpSent = true
-  help.value = false
-  notify('已记录本次演示求助，未发送至服务器')
+}
+async function heartbeat() {
+  try {
+    await api(classPath('/heartbeat'), 'POST', { exerciseId: selected.value })
+  } catch {
+    saveState.value = '无法连接课堂，请检查网络或成员权限'
+  }
 }
 async function changeExercise(event: Event) {
   const select = event.target as HTMLSelectElement
-  const next = select.value
-  if ((await directoryPanel.value?.flush()) === false) {
+  if ((await directoryPanel.value?.flush()) === false || (dirty && !(await saveNow()))) {
     select.value = selected.value
-    notify('请先处理本地文件未保存状态，或断开目录后再切换练习')
+    notify('当前修改尚未同步，请先处理保存问题')
     return
   }
-  selected.value = next
+  selected.value = select.value
 }
+const poll = setInterval(async () => {
+  if (polling || loading) return
+  polling = true
+  try {
+    if (active()) {
+      const next = await api<RunRecord>(classPath('/runs/' + run.value!.id))
+      run.value = next
+      const i = history.value.findIndex((r) => r.id === next.id)
+      if (i >= 0) history.value[i] = next
+    }
+    if (dirty && !conflict.value && !isArchived.value) await saveNow()
+  } catch {
+    /* Saved snapshots remain visible while reconnecting. */
+  } finally {
+    polling = false
+  }
+}, 500)
+const pulse = setInterval(() => void heartbeat(), 5000)
+function unload(event: BeforeUnloadEvent) {
+  if (dirty) {
+    backup()
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+window.addEventListener('beforeunload', unload)
+onBeforeUnmount(() => {
+  clearTimeout(saveTimer)
+  clearInterval(poll)
+  clearInterval(pulse)
+  window.removeEventListener('beforeunload', unload)
+})
 onBeforeRouteLeave(async () => {
   await directoryPanel.value?.flush()
-  return true
+  return !dirty || (await saveNow())
 })
 </script>
 <template>
@@ -253,7 +315,8 @@ onBeforeRouteLeave(async () => {
         ><span class="ide-divider" /><span class="desktop-only">{{ activeClassroom.name }}</span>
       </div>
       <div class="inline-items">
-        <span class="demo-tag">前端交互原型</span><span class="avatar small">陈</span>
+        <span class="demo-tag">课堂工作区</span
+        ><span class="avatar small">{{ currentUser?.name.slice(-1) }}</span>
       </div>
     </header>
     <div class="ide-actionbar">
@@ -270,14 +333,14 @@ onBeforeRouteLeave(async () => {
           >
             {{ e.title }}
           </option></select
-        ><span v-if="submitted" class="status positive"><Check :size="12" />已提交至本机</span
+        ><span v-if="submitted" class="status positive"><Check :size="12" />已提交</span
         ><span class="save-label desktop-only"><CloudCheck :size="14" />{{ saveState }}</span>
       </div>
       <div class="inline-items">
         <Button variant="ghost" size="sm" @click="panel = panel === '历史' ? '题目' : '历史'"
           ><History />历史</Button
         ><Button variant="outline" size="sm" :disabled="isArchived" @click="help = true"
-          ><Hand />{{ demo.helpSent ? '已发起演示求助' : '求助' }}</Button
+          ><Hand />{{ demo.helpSent ? '已发起求助' : '求助' }}</Button
         ><Button size="sm" :disabled="readonly" @click="submit = true"><Send />提交作品</Button>
       </div>
     </div>
@@ -296,16 +359,12 @@ onBeforeRouteLeave(async () => {
         返回当前草稿 <ArrowLeft :size="13" />
       </button>
     </div>
-    <div v-else-if="stateDemo !== '正常' || isArchived" class="workspace-alert amber">
-      <WifiOff :size="14" />{{
-        isArchived
-          ? '课堂已归档，当前工作区只读。'
-          : stateDemo === '离线／未同步'
-            ? '网络断开示例：仅保存到本机，尚未同步给教师。'
-            : stateDemo === '保存失败'
-              ? '保存失败示例：请重试或下载备份，本地代码仍然保留。'
-              : '另一标签页正在编辑，此页面为只读。'
-      }}<button v-if="!isArchived" @click="stateDemo = '正常'">恢复正常示例</button>
+    <div v-if="conflict" class="workspace-alert amber">
+      <WifiOff :size="14" />{{ saveState
+      }}<button @click="useServer">下载本机修改并读取服务器版本</button>
+    </div>
+    <div v-else-if="isArchived" class="workspace-alert amber">
+      当前课堂或练习只读，作品与历史保留。
     </div>
     <div class="ide-layout">
       <div class="ide-main">
@@ -402,8 +461,10 @@ onBeforeRouteLeave(async () => {
         </div>
         <div class="ide-runbar">
           <div class="inline-items">
-            <span class="demo-tag">示例运行</span
-            ><span class="muted text-xs desktop-only">固定示例结果，不编译当前草稿</span>
+            <label class="inline-items"
+              ><input v-model="interactive" type="checkbox" :disabled="active()" />运行时输入（最长
+              60 秒）</label
+            >
           </div>
           <div class="inline-items">
             <Button
@@ -415,8 +476,8 @@ onBeforeRouteLeave(async () => {
             ><Button
               :disabled="readonly || runtime || run?.status === '排队' || run?.status === '编译中'"
               size="sm"
-              @click="runDemo = true"
-              ><Play />演示运行</Button
+              @click="startRun"
+              ><Play />编译运行</Button
             >
           </div>
         </div>
@@ -435,7 +496,10 @@ onBeforeRouteLeave(async () => {
             {{ exercise.topic }}</span
           >
           <h1>{{ exercise.title }}</h1>
-          <div class="problem-limits"><span>2,000 ms</span><span>256 MB</span></div>
+          <div class="problem-limits">
+            <span>{{ executionSettings.runTimeMs }} ms</span
+            ><span>{{ executionSettings.runMemoryMb }} MiB</span>
+          </div>
           <MarkdownContent :source="exercise.description" />
           <h3>输入说明</h3>
           <MarkdownContent :source="exercise.input" />
@@ -463,9 +527,9 @@ onBeforeRouteLeave(async () => {
           </div>
         </div>
         <div v-else class="history-list">
-          <p class="form-hint">仅展示预置示例与本次演示记录，查看历史不会重新运行。</p>
+          <p class="form-hint">服务器固定快照，查看历史不会重新运行。</p>
           <button
-            v-for="r in [...history, ...exampleRuns]"
+            v-for="r in history"
             :key="r.id"
             class="history-item"
             :class="{ selected: viewing?.id === r.id }"
@@ -480,23 +544,20 @@ onBeforeRouteLeave(async () => {
       </aside>
     </div>
     <footer class="ide-statusbar">
-      <span><span class="live-dot" />{{ readonly ? '只读工作区' : '本机编辑模式' }}</span
-      ><label class="state-demo-select"
-        >状态预览<select v-model="stateDemo" aria-label="预览保存与冲突状态">
-          <option>正常</option>
-          <option>离线／未同步</option>
-          <option>保存失败</option>
-          <option>多标签页只读</option>
-        </select></label
+      <span><span class="live-dot" />{{ readonly ? '只读工作区' : '服务器同步' }}</span
       ><span class="ml-auto"
-        >UTF-8 <span class="desktop-only">· GCC 13.2 / C++17（配置示例）</span></span
+        >UTF-8
+        <span class="desktop-only"
+          >· GCC 13.3 /
+          {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</span
+        ></span
       >
     </footer>
   </div>
   <Modal
     v-model:open="help"
     title="告诉老师，你遇到了什么？"
-    description="教师会结合你的代码和运行上下文提供帮助。此处为本次界面演示。"
+    description="教师会结合你的代码和运行上下文提供帮助。"
     ><form class="form-stack" @submit.prevent="sendHelp">
       <label
         >求助说明<textarea
@@ -521,8 +582,7 @@ onBeforeRouteLeave(async () => {
     title="提交当前作品？"
     description="提交会保存固定代码版本，你仍然可以继续修改。"
     ><div class="info-box">
-      {{ exercise.title }} · {{ exercise.filename
-      }}<br />只保存到当前浏览器，不上传服务器。提交不等于通过判题。
+      {{ exercise.title }} · {{ exercise.filename }}<br />提交保存到服务器。提交不等于通过判题。
     </div>
     <div class="modal-actions">
       <Button variant="outline" @click="submit = false">继续修改</Button
@@ -536,29 +596,6 @@ onBeforeRouteLeave(async () => {
     ><div class="modal-actions">
       <Button variant="outline" @click="reset = false">保留当前代码</Button
       ><Button variant="destructive" @click="resetCode">确认重置</Button>
-    </div></Modal
-  >
-  <Modal
-    v-model:open="runDemo"
-    title="运行状态交互演示"
-    description="选择一个固定示例。不会编译或执行你正在编辑的 C++ 代码。"
-    ><div class="form-stack">
-      <label
-        >示例场景<select v-model="scenario">
-          <option>运行完成</option>
-          <option>编译失败</option>
-          <option>运行中／可输入</option>
-          <option>运行失败</option>
-          <option>超时</option>
-          <option>资源超限</option>
-          <option>平台执行失败</option>
-        </select></label
-      >
-      <p class="form-hint">示例展示排队、编译与最终状态；输入、EOF、停止仅演示前端交互。</p>
-      <div class="modal-actions">
-        <Button variant="outline" @click="runDemo = false">取消</Button
-        ><Button @click="startDemo"><Play />展示示例</Button>
-      </div>
     </div></Modal
   >
 </template>

@@ -72,7 +72,7 @@ async function copy() {
     <div v-if="run" class="output-body">
       <div class="output-meta">
         <span class="status" :class="tone(run.status)">{{ run.status }}</span
-        ><span>{{ run.id }} · 示例记录</span><span class="ml-auto">{{ run.time }}</span>
+        ><span>{{ run.id }} · 固定快照</span><span class="ml-auto">{{ run.time }}</span>
       </div>
       <pre
         v-if="!cleared"
@@ -96,7 +96,7 @@ async function copy() {
     <div v-else class="output-placeholder">
       <FileText :size="22" />
       <p>运行结果会显示在这里</p>
-      <small>当前为前端原型，请使用「演示运行」查看示例状态。</small>
+      <small>保存代码后点击“编译运行”，查看真实结果。</small>
     </div>
     <form
       v-if="interactive"
@@ -108,10 +108,10 @@ async function copy() {
         }
       "
     >
-      <input v-model="line" aria-label="运行时示例输入" placeholder="输入一行文本…" /><Button
+      <input v-model="line" aria-label="运行时输入" placeholder="输入一行文本…" /><Button
         type="submit"
         size="sm"
-        >发送示例</Button
+        >发送输入</Button
       ><Button type="button" variant="outline" size="sm" @click="$emit('eof')">EOF</Button>
     </form>
   </section>
