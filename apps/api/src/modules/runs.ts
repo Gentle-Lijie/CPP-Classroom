@@ -64,6 +64,8 @@ export class RunsController {
         [user.id, activeStatuses],
       )
       if (existing.rowCount) throw new ConflictException('已有运行任务，请先停止或等待完成')
+      // Share the worker's transaction lock so count + admission is atomic globally.
+      await client.query('select pg_advisory_xact_lock(782132)')
       const size = (
         await client.query('select count(*)::int as n from runs where status=any($1)', [
           activeStatuses,
