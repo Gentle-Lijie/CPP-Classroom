@@ -26,10 +26,12 @@ import {
   demo,
   exercises,
   notify,
-  readDraft,
   saveDraft,
+  classPath,
+  reportError,
   download,
 } from '@/data/demo'
+import { api } from '@/lib/api'
 import { openTeachingWindow } from '@/lib/teaching-windows'
 const route = useRoute()
 const router = useRouter()
@@ -40,20 +42,54 @@ const teacherCode = ref('')
 const fullscreen = ref(false)
 const exercise = computed(() => exercises.find((e) => e.id === selected.value) ?? exercises[0]!)
 const index = computed(() => exercises.findIndex((e) => e.id === exercise.value.id))
+let revision = 0
+let loading = false
+let timer: ReturnType<typeof setTimeout>
+let saving = false
 watch(
   () => exercise.value.id,
-  () => {
-    teacherCode.value = readDraft(exercise.value.id, exercise.value.code, 'teacher')
+  async () => {
+    loading = true
+    try {
+      const draft = await api<{ code: string; revision: number }>(
+        classPath('/workspace/' + exercise.value.id),
+      )
+      teacherCode.value = draft.code
+      revision = draft.revision
+    } catch (e) {
+      reportError(e)
+    } finally {
+      loading = false
+    }
   },
   { immediate: true },
 )
-watch(teacherCode, (value) => {
-  try {
-    saveDraft(exercise.value.id, value, 'teacher')
-  } catch {
-    notify('教师示范草稿保存失败，请下载备份')
-  }
+watch(teacherCode, () => {
+  if (loading) return
+  clearTimeout(timer)
+  timer = setTimeout(() => void persist(), 600)
 })
+async function persist() {
+  if (saving) return
+  saving = true
+  const content = teacherCode.value
+  try {
+    saveDraft(exercise.value.id, content, 'teacher')
+    const result = await api<{ revision: number }>(
+      classPath('/workspace/' + exercise.value.id),
+      'PUT',
+      { code: content, revision },
+    )
+    revision = result.revision
+    if (teacherCode.value !== content) {
+      timer = setTimeout(() => void persist(), 100)
+    }
+  } catch (e) {
+    reportError(e)
+  } finally {
+    saving = false
+  }
+}
 function next(step: number) {
   const e = exercises[index.value + step]
   if (e) selected.value = e.id
@@ -88,6 +124,7 @@ onMounted(() => {
   document.addEventListener('fullscreenchange', fullscreenChange)
 })
 onBeforeUnmount(() => {
+  clearTimeout(timer)
   document.removeEventListener('keydown', keyboard)
   document.removeEventListener('fullscreenchange', fullscreenChange)
 })
@@ -100,7 +137,7 @@ onBeforeUnmount(() => {
           ><ArrowLeft :size="19" /></RouterLink
         ><span class="teaching-mark"><Monitor :size="19" />授课模式</span
         ><span class="teaching-class-name">{{ activeClassroom.name }}</span
-        ><span class="demo-tag">前端原型</span>
+        ><span class="demo-tag">教师授课</span>
       </div>
       <div class="inline-items">
         <Button variant="outline" @click="openMonitor"

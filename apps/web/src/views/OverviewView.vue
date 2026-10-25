@@ -31,9 +31,12 @@ import {
   demo,
   tone,
   notify,
+  classPath,
+  reportError,
   download,
   type Student,
 } from '@/data/demo'
+import { api } from '@/lib/api'
 const router = useRouter()
 const search = ref('')
 const filter = ref('全部学生')
@@ -86,22 +89,22 @@ async function copyInvite() {
     notify('请手动复制邀请链接')
   }
 }
-function exportClass() {
-  download(
-    '课堂巡视-示例数据.json',
-    JSON.stringify(
-      { classroom: activeClassroom.value.name, students, note: '前端原型示例数据' },
-      null,
-      2,
-    ),
-    'application/json',
-  )
-  notify('已导出课堂示例数据')
+async function exportClass() {
+  try {
+    const data = await api(classPath('/export'))
+    download('classroom.json', JSON.stringify(data, null, 2), 'application/json')
+  } catch (e) {
+    reportError(e)
+  }
 }
-function regenerateInvite() {
-  demo.inviteCode = 'CPP' + Math.random().toString(36).slice(2, 6).toUpperCase()
-  copied.value = false
-  notify('已更新本次演示课堂码')
+async function regenerateInvite() {
+  try {
+    const result = await api<{ inviteCode: string }>(classPath('/invite'), 'POST', {})
+    demo.inviteCode = result.inviteCode
+    copied.value = false
+  } catch (e) {
+    reportError(e)
+  }
 }
 </script>
 <template>
@@ -157,7 +160,7 @@ function regenerateInvite() {
         <div class="section-heading">
           <h2>课堂巡视</h2>
           <span class="subtle-count">{{ counts.total }}</span
-          ><span class="sync-label"><Radio :size="13" />同步状态示例</span>
+          ><span class="sync-label"><Radio :size="13" />服务器状态同步</span>
         </div>
         <button class="icon-button" aria-label="列表视图" @click="notify('当前为学生列表视图')">
           <LayoutList :size="17" />
@@ -296,13 +299,7 @@ function regenerateInvite() {
             ><small>{{ s.activity }}</small>
           </div>
           <p>
-            {{
-              s.id === 's01'
-                ? '老师，这里为什么提示缺少分号？'
-                : s.id === 's04'
-                  ? '循环变量应该在哪里定义呢？'
-                  : '程序一直没有输出，可以帮我看看吗？'
-            }}
+            {{ s.summary }}
           </p>
           <button @click="router.push('/teacher/students/' + s.id)">
             查看并辅导 <ArrowUpRight :size="13" />
@@ -331,7 +328,7 @@ function regenerateInvite() {
         ><Check v-if="copied" /><Copy v-else />{{ copied ? '已复制' : '复制链接' }}</Button
       >
     </div>
-    <p class="form-hint">演示邀请 · 有效期 7 天 · 加入后由教师确认</p>
+    <p class="form-hint">课堂邀请 · 有效期 7 天 · 加入后由教师确认</p>
     <Button variant="outline" class="w-full" @click="regenerateInvite"
       >重新生成课堂码</Button
     ></Modal

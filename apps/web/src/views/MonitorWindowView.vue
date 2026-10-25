@@ -58,7 +58,7 @@ function clearFilters() {
         </div>
       </div>
       <div class="inline-items">
-        <span class="demo-tag">示例在线名册</span
+        <span class="demo-tag">课堂实时名册</span
         ><Button variant="outline" size="sm" @click="close"><X />关闭窗口</Button>
       </div>
     </header>
@@ -125,6 +125,6 @@ function clearFilters() {
         <Button variant="outline" @click="clearFilters">清除筛选</Button>
       </div>
     </div>
-    <footer class="monitor-footer">原型窗口间共享本机数据，实际在线状态和远程同步尚未接入。</footer>
+    <footer class="monitor-footer">每 2 秒刷新服务器状态；15 秒未收到学生心跳视为离线。</footer>
   </main>
 </template>

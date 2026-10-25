@@ -1,46 +1,61 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { Search, Download, FileCode2, Check, ArrowRight, PackageOpen } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-import { students, starterCode, download, notify, activeClassroom, exercises } from '@/data/demo'
+import { download, notify, classPath, reportError } from '@/data/demo'
+import { api } from '@/lib/api'
+interface Submission {
+  id: string
+  exercise_id: string
+  user_id: string
+  name: string
+  number: string
+  title: string
+  filename: string
+  code: string
+  revision: number
+  created_at: string
+}
 const search = ref('')
 const selected = ref<string[]>([])
 const includeRuns = ref(true)
-const exercise = computed(() => exercises[0]!)
+const submissions = ref<Submission[]>([])
 const visible = computed(() =>
-  students.filter((s) => s.submitted && `${s.name}${s.number}`.includes(search.value)),
+  submissions.value.filter((s) => `${s.name}${s.number}`.includes(search.value)),
 )
-function exportWorks() {
-  const members = students.filter(
-    (s) => s.submitted && (!selected.value.length || selected.value.includes(s.id)),
-  )
-  download(
-    '课堂作品-示例导出.json',
-    JSON.stringify(
-      {
-        note: '前端原型示例导出；非真实学生作品',
-        classroom: activeClassroom.value.name,
-        works: members.map((s) => ({
-          student: s.name,
-          number: s.number,
-          exercise: exercise.value.title,
-          filename: exercise.value.filename,
-          version: 'submission-v1',
-          submittedAt: '2026-10-25T14:28:00+08:00',
-          code: starterCode,
-          ...(includeRuns.value
-            ? { run: { status: '运行完成', input: '5', output: '15', exitCode: 0 } }
-            : {}),
-        })),
-      },
-      null,
-      2,
-    ),
-    'application/json',
-  )
-  notify(`已导出 ${members.length} 份示例作品`)
+onMounted(async () => {
+  try {
+    submissions.value = await api<Submission[]>(classPath('/submissions'))
+  } catch (e) {
+    reportError(e)
+  }
+})
+async function exportWorks() {
+  try {
+    const data = await api<Record<string, unknown>>(classPath('/export'))
+    if (selected.value.length) {
+      const chosen = submissions.value.filter((s) => selected.value.includes(s.id))
+      const pairs = new Set(chosen.map((s) => s.user_id + ':' + s.exercise_id))
+      for (const table of ['drafts', 'runs'])
+        data[table] = (data[table] as { user_id: string; exercise_id: string }[]).filter((r) =>
+          pairs.has(r.user_id + ':' + r.exercise_id),
+        )
+      data.submissions = (data.submissions as { id: string }[]).filter((s) =>
+        selected.value.includes(s.id),
+      )
+      data.roster = (data.roster as { id: string }[]).filter((u) =>
+        chosen.some((s) => s.user_id === u.id),
+      )
+    }
+    if (!includeRuns.value) delete data.runs
+    download('课堂作品.json', JSON.stringify(data, null, 2), 'application/json')
+    notify('真实作品与版本上下文已导出')
+  } catch (e) {
+    reportError(e)
+  }
 }
 </script>
+
 <template>
   <div class="page-heading">
     <div>
@@ -55,7 +70,7 @@ function exportWorks() {
   <div class="submission-banner">
     <span class="large-feature-icon"><FileCode2 :size="28" /></span>
     <div>
-      <h2>{{ students.filter((s) => s.submitted).length }} 份主动提交</h2>
+      <h2>{{ submissions.length }} 份主动提交</h2>
       <p>每份提交保留独立代码版本，可继续修改和再次提交。</p>
     </div>
     <label class="inline-items ml-auto"
@@ -69,7 +84,7 @@ function exportWorks() {
           v-model="search"
           aria-label="搜索提交"
           placeholder="搜索姓名或学号…" /></label
-      ><span class="muted text-xs">JSON 示例导出 · 可单独下载源文件</span>
+      ><span class="muted text-xs">JSON 作品导出 · 可单独下载源文件</span>
     </div>
     <div class="table-scroll">
       <table>
@@ -113,20 +128,20 @@ function exportWorks() {
                 >
               </div>
             </td>
-            <td>{{ exercise.title }}</td>
+            <td>{{ s.title }}</td>
             <td>
-              <span class="status positive"><Check :size="12" />提交 v1</span>
+              <span class="status positive"><Check :size="12" />提交 v{{ s.revision }}</span>
             </td>
-            <td class="muted">今天 14:28</td>
+            <td class="muted">{{ new Date(s.created_at).toLocaleString() }}</td>
             <td>
               <div class="inline-items">
                 <button
                   class="text-button"
-                  @click="download(`${s.number}-${s.name}-${exercise.filename}`, starterCode)"
+                  @click="download(`${s.number}-${s.name}-${s.filename}`, s.code)"
                 >
                   <Download :size="14" />源文件</button
                 ><RouterLink
-                  :to="'/teacher/students/' + s.id"
+                  :to="'/teacher/students/' + s.user_id"
                   class="icon-button"
                   aria-label="查看学生详情"
                   ><ArrowRight :size="15"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -23,13 +23,14 @@ import {
   students,
   exercises,
   demo,
-  readDraft,
-  exampleRuns,
-  starterCode,
+  loadRuns,
+  classPath,
+  reportError,
   notify,
   download,
   type RunRecord,
 } from '@/data/demo'
+import { api } from '@/lib/api'
 const route = useRoute()
 const router = useRouter()
 const viewing = ref<RunRecord>()
@@ -42,34 +43,91 @@ const exercise = computed(
     exercises[0]!,
 )
 const index = computed(() => students.findIndex((s) => s.id === student.value?.id))
-const currentCode = computed(() =>
-  readDraft(
-    exercise.value.id,
-    student.value?.status === '编译失败'
-      ? starterCode.replace('int sum = 0;', 'int sum = 0; // 已开始修改')
-      : exercise.value.code || starterCode,
-    student.value?.id,
-  ),
-)
+const currentCode = ref('')
+const records = ref<RunRecord[]>([])
+const helpMessage = ref('')
+const submissions = ref<RunRecord[]>([])
+let loading = false
+async function reload() {
+  if (!student.value || !exercise.value || loading) return
+  loading = true
+  try {
+    const id = student.value.id
+    const eid = exercise.value.id
+    const [draft, runs, helps, submitted] = await Promise.all([
+      api<{ code: string }>(classPath('/workspace/' + eid + '?student=' + id)),
+      loadRuns(id, eid),
+      api<{ user_id: string; message: string; resolved: boolean }[]>(classPath('/help')),
+      api<
+        {
+          id: string
+          user_id: string
+          exercise_id: string
+          filename: string
+          code: string
+          created_at: string
+        }[]
+      >(classPath('/submissions')),
+    ])
+    currentCode.value = draft.code
+    records.value = runs
+    submissions.value = submitted
+      .filter((s) => s.user_id === id && s.exercise_id === eid)
+      .map((s) => ({
+        id: s.id,
+        code: s.code,
+        filename: s.filename,
+        status: '已提交',
+        time: s.created_at,
+        input: '',
+        output: '',
+        log: '提交保存代码快照，不代表运行成功。',
+        exit: '提交快照',
+      }))
+    helpMessage.value = helps
+      .filter((h) => h.user_id === id && !h.resolved)
+      .map((h) => h.message)
+      .join('\n')
+  } catch (e) {
+    reportError(e)
+  } finally {
+    loading = false
+  }
+}
 watch(
   () => route.params.id,
   () => {
     viewing.value = undefined
+    void reload()
   },
+  { immediate: true },
 )
+const poll = setInterval(() => void reload(), 1000)
+onBeforeUnmount(() => clearInterval(poll))
 function navigate(step: number) {
   const s = students[index.value + step]
   if (s) router.push((popup.value ? '/teacher/inspect/' : '/teacher/students/') + s.id)
 }
-function project() {
-  router.push({
-    path: '/projection/' + student.value?.id,
-    query: viewing.value ? { run: viewing.value.id } : {},
-  })
+async function project() {
+  try {
+    const result = await api<{ id: string }>(classPath('/projections'), 'POST', {
+      student: student.value?.id,
+      exerciseId: exercise.value.id,
+      ...(viewing.value ? { runId: viewing.value.id } : {}),
+    })
+    await router.push({ path: '/projection/' + result.id, query: { class: demo.classroomId } })
+  } catch (e) {
+    reportError(e)
+  }
 }
-function resolveHelp() {
-  if (student.value) student.value.help = false
-  notify('已将此演示求助标记为解决')
+async function resolveHelp() {
+  try {
+    await api(classPath('/help/' + student.value?.id + '/resolve'), 'POST', {})
+    notify('求助已解决')
+    await reload()
+  } catch (e) {
+    reportError(e)
+  }
 }
 function closeWindow() {
   if (window.opener) window.close()
@@ -78,7 +136,7 @@ function closeWindow() {
 </script>
 <template>
   <div v-if="popup" class="inspect-banner">
-    <span><Monitor :size="15" />学生详情 · 独立窗口<span class="demo-tag">本机原型</span></span
+    <span><Monitor :size="15" />学生详情 · 独立窗口<span class="demo-tag">实时数据</span></span
     ><Button variant="outline" size="sm" @click="closeWindow">关闭此窗口</Button>
   </div>
   <div v-if="student" class="detail-page" :class="{ 'inspect-detail': popup }">
@@ -133,7 +191,7 @@ function closeWindow() {
               class="amber-text"
             /><strong>{{ viewing ? '运行代码快照' : '跟随当前代码' }}</strong
             ><span class="muted text-xs">{{
-              viewing ? viewing.id + ' · ' + viewing.time : '当前草稿 · 本机窗口同步'
+              viewing ? viewing.id + ' · ' + viewing.time : '当前草稿 · 服务器同步'
             }}</span>
           </div>
           <Button v-if="viewing" variant="outline" size="sm" @click="viewing = undefined"
@@ -170,12 +228,12 @@ function closeWindow() {
         <div class="detail-io">
           <section class="detail-input">
             <div class="code-toolbar">输入 <span class="muted">stdin</span></div>
-            <pre>{{ (viewing ?? exampleRuns[0])?.input }}</pre>
+            <pre>{{ (viewing ?? records[0])?.input }}</pre>
           </section>
-          <RunOutput :key="viewing?.id ?? 'current'" :run="viewing ?? exampleRuns[0]" />
+          <RunOutput :key="viewing?.id ?? 'current'" :run="viewing ?? records[0]" />
         </div>
         <div class="detail-context-note">
-          <History :size="13" />结果来自{{ viewing ? '所选历史运行' : '最近示例运行 RUN-1024' }}；{{
+          <History :size="13" />结果来自{{ viewing ? '所选历史运行' : '最近一次真实运行' }}；{{
             viewing
               ? '代码与结果对应同一快照。'
               : '当前草稿已发生修改，点击运行记录查看当时的代码。'
@@ -189,13 +247,9 @@ function closeWindow() {
             ><span class="ml-auto text-xs">待处理</span>
           </div>
           <p>
-            {{
-              student.id === 's01'
-                ? '老师，这里为什么提示缺少分号？我已经改过一次了。'
-                : '老师，可以帮我看看这段代码吗？'
-            }}
+            {{ helpMessage || '学生请求教师协助' }}
           </p>
-          <span class="muted text-xs">关联 RUN-1024 · 2 分钟前</span
+          <span class="muted text-xs">关联当前练习</span
           ><Button class="w-full" variant="outline" @click="resolveHelp"
             ><CircleCheck />标记已解决</Button
           >
@@ -212,9 +266,9 @@ function closeWindow() {
             </button>
           </div>
           <div v-if="sidebarTab === '运行记录'" class="history-list">
-            <p class="form-hint">完整保留每次代码、输入与原始结果。此处为预置示例。</p>
+            <p class="form-hint">完整保留每次代码、输入与原始结果。</p>
             <button
-              v-for="r in exampleRuns"
+              v-for="r in records"
               :key="r.id"
               class="history-item"
               :class="{ selected: viewing?.id === r.id }"
@@ -232,14 +286,13 @@ function closeWindow() {
             </button>
           </div>
           <div v-else class="history-list">
-            <div v-if="student.submitted" class="submission-mini">
-              <CircleCheck :size="22" class="positive-text" /><strong>提交版本 v1</strong>
-              <p>今天 14:28 · 累加求和</p>
-              <Button size="sm" variant="outline" @click="viewing = exampleRuns[1]"
-                >查看提交快照</Button
+            <button v-for="s in submissions" :key="s.id" class="history-item" @click="viewing = s">
+              <CircleCheck :size="22" class="positive-text" /><span
+                ><strong>固定提交快照</strong
+                ><small>{{ new Date(s.time).toLocaleString() }}</small></span
               >
-            </div>
-            <div v-else class="small-empty">
+            </button>
+            <div v-if="!submissions.length" class="small-empty">
               <History :size="25" />
               <h3>尚未主动提交</h3>
               <p>巡视不依赖学生提交。</p>
