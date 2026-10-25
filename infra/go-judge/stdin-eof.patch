@@ -1,0 +1,106 @@
+diff --git a/cmd/go-judge/stream/file.go b/cmd/go-judge/stream/file.go
+index 7b74a98..1f5e1e0 100644
+--- a/cmd/go-judge/stream/file.go
++++ b/cmd/go-judge/stream/file.go
+@@ -3,6 +3,7 @@ package stream
+ import (
+ 	"errors"
+ 	"fmt"
++"sync"
+ 
+ 	"github.com/criyle/go-judge/envexec"
+ 	"github.com/criyle/go-judge/filestore"
+@@ -21,6 +22,7 @@ type fileStreamIn struct {
+ 	index  int
+ 	fd     int
+ 	hasTTY bool
++closeOnce sync.Once
+ }
+ 
+ func newFileStreamIn(index, fd int, hasTTY bool) *fileStreamIn {
+@@ -52,7 +54,9 @@ func (f *fileStreamIn) String() string {
+ }
+ 
+ func (f *fileStreamIn) Close() error {
+-	return f.stream.Close()
++	var err error
++ f.closeOnce.Do(func(){ err = f.stream.Close() })
++ return err
+ }
+ 
+ type fileStreamOut struct {
+diff --git a/cmd/go-judge/stream/stream.go b/cmd/go-judge/stream/stream.go
+index 46feb04..8ccd806 100644
+--- a/cmd/go-judge/stream/stream.go
++++ b/cmd/go-judge/stream/stream.go
+@@ -30,6 +30,7 @@ type Request struct {
+ 	Request *model.Request
+ 	Resize  *ResizeRequest
+ 	Input   *InputRequest
++	CloseInput *InputRequest
+ 	Cancel  *struct{}
+ }
+ 
+@@ -272,7 +273,13 @@ func streamInput(ctx context.Context, s Stream, si []*fileStreamIn, execCancel f
+ 				return fmt.Errorf("write to input %d/%d: %w", in.Input.Index, in.Input.Fd, err)
+ 			}
+ 
+-		case in.Resize != nil:
++		case in.CloseInput != nil:
++            f, ok := inf[in.CloseInput.Index<<8|in.CloseInput.Fd]
++            if !ok { return fmt.Errorf("input does not exist") }
++            if err := f.Close(); err != nil { return err }
++            delete(inf, in.CloseInput.Index<<8|in.CloseInput.Fd)
++
++        case in.Resize != nil:
+ 			f, ok := inf[in.Resize.Index<<8|in.Resize.Fd]
+ 			if !ok {
+ 				return fmt.Errorf("input does not exist: %d/%d", in.Resize.Index, in.Resize.Fd)
+diff --git a/cmd/go-judge/stream/stream_test.go b/cmd/go-judge/stream/stream_test.go
+index 95977c7..3a124de 100644
+--- a/cmd/go-judge/stream/stream_test.go
++++ b/cmd/go-judge/stream/stream_test.go
+@@ -2,6 +2,7 @@ package stream
+ 
+ import (
+ 	"context"
++"io"
+ 	"sync"
+ 	"testing"
+ 
+@@ -62,3 +63,19 @@ func TestSendLoopDrainsOutputBeforeFinalResponse(t *testing.T) {
+ 		t.Fatalf("expected final response second, got %#v", s.sends[1])
+ 	}
+ }
++
++type eofInputStream struct { requests []*Request }
++func (s *eofInputStream) Send(Response) error { return nil }
++func (s *eofInputStream) Recv() (*Request,error) {
++ if len(s.requests)==0 { return nil,io.EOF }
++ r:=s.requests[0];s.requests=s.requests[1:];return r,nil
++}
++func TestCloseInputDoesNotCancelExecutionAndCleanupIsIdempotent(t *testing.T) {
++ f:=newFileStreamIn(0,0,false)
++ cancelled:=false
++ s:=&eofInputStream{requests:[]*Request{{CloseInput:&InputRequest{Index:0,Fd:0}}}}
++ if err:=streamInput(context.Background(),s,[]*fileStreamIn{f},func(){cancelled=true});err!=nil {t.Fatal(err)}
++ if cancelled {t.Fatal("EOF cancelled execution")}
++ if _,err:=f.Write([]byte("after EOF"));err!=io.EOF {t.Fatalf("stdin still open: %v",err)}
++ if err:=f.Close();err!=nil {t.Fatalf("second close failed: %v",err)}
++}
+diff --git a/cmd/go-judge/ws_executor/stream.go b/cmd/go-judge/ws_executor/stream.go
+index 1ac7b95..e87bbc2 100644
+--- a/cmd/go-judge/ws_executor/stream.go
++++ b/cmd/go-judge/ws_executor/stream.go
+@@ -122,7 +122,10 @@ func (w *streamWrapper) Recv() (*stream.Request, error) {
+ 		req.Input.Index = int(buf[1]>>4) & 0xf
+ 		req.Input.Fd = int(buf[1]) & 0xf
+ 		req.Input.Content = buf[2:]
+-	case 4:
++	case 5:
++        if len(buf) != 2 { return nil, io.ErrUnexpectedEOF }
++        req.CloseInput = &stream.InputRequest{Index: int(buf[1]>>4)&0xf, Fd: int(buf[1])&0xf}
++    case 4:
+ 		req.Cancel = new(struct{})
+ 	default:
+ 		return nil, fmt.Errorf("invalid type code: %d", buf[0])

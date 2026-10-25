@@ -81,6 +81,8 @@ export class ClassroomService {
       [id, user.id],
     )
     if (!member.rowCount) throw new ForbiddenException('尚未加入课堂或已被移除')
+    if (c.status === '已归档' && !c.settings.readonly)
+      throw new ForbiddenException('归档作品访问已关闭')
     if (write && c.status !== '进行中') throw new ForbiddenException('课堂当前只读')
     return c
   }
@@ -228,7 +230,7 @@ export class ClassroomController {
         data.recommended === undefined ? c.recommended : data.recommended,
       ],
     )
-    if (data.status && data.status !== '进行中')
+    if ((data.status && data.status !== '进行中') || data.settings?.allowRun === false)
       await this.service.pool.query(
         "update runs set stop_requested=true where classroom_id=$1 and status in ('排队','编译中','运行中／可输入')",
         [id],

@@ -1,3 +1,4 @@
+import { startExecutionQueue } from './execution.js'
 import { PgBoss } from 'pg-boss'
 import { loadEnvironment } from '@classroom/config'
 import { PROBE_QUEUE } from '@classroom/contracts'
@@ -21,12 +22,14 @@ await boss.work<ProbeJob>(PROBE_QUEUE, { pollingIntervalSeconds: 1 }, async ([jo
   console.log(`基础设施自检已处理：${job.id}`)
   return { ok: true }
 })
-console.log('Worker 已就绪，仅处理基础设施自检任务；学生代码执行尚未接入。')
+const stopExecution = startExecutionQueue(pool, environment)
+console.log('Worker 已就绪：原生 Linux 编译运行队列（4 槽）与基础设施自检。')
 
 let stopping = false
 async function shutdown() {
   if (stopping) return
   stopping = true
+  await stopExecution()
   await boss.stop({ graceful: true, timeout: 10000 })
   await pool.end()
 }

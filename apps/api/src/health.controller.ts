@@ -1,4 +1,5 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common'
+import { executionDefaults } from '@classroom/contracts'
 import type { ReadinessResponse } from '@classroom/contracts'
 import { DatabaseService } from './database.service.js'
 import { RunnerService } from './runner.service.js'
@@ -9,6 +10,21 @@ export class HealthController {
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RunnerService) private readonly runner: RunnerService,
   ) {}
+
+  @Get('environment')
+  async environment() {
+    const saved = (
+      await this.database.database.pool.query(
+        "select value from platform_settings where id='execution'",
+      )
+    ).rows[0]?.value
+    return {
+      ...executionDefaults,
+      ...saved,
+      compiler: 'GCC 13.3.0',
+      engine: 'go-judge v1.13.3-classroom-eof.1',
+    }
+  }
 
   @Get()
   live() {

@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/var/lib/cpp-classroom/go-judge
 EnvironmentFile=/etc/cpp-classroom/go-judge.env
-ExecStart=/opt/cpp-classroom/bin/go-judge -http-addr=${GO_JUDGE_LISTEN} -auth-token=${GO_JUDGE_AUTH_TOKEN} -no-fallback -parallelism=4 -mount-conf=/etc/cpp-classroom/mount.yaml
+ExecStart=/opt/cpp-classroom/bin/go-judge -http-addr=${GO_JUDGE_LISTEN} -auth-token=${GO_JUDGE_AUTH_TOKEN} -no-fallback -container-cred-start=1536 -file-timeout=10m -parallelism=4 -mount-conf=/etc/cpp-classroom/mount.yaml
 Restart=on-failure
 RestartSec=3
 KillMode=control-group

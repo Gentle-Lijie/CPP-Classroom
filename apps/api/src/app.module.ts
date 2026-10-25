@@ -1,3 +1,4 @@
+import { RunsController } from './modules/runs.js'
 import { WorkspaceController } from './modules/workspace.js'
 import { ClassroomController, ClassroomService } from './modules/classroom.js'
 import { APP_GUARD } from '@nestjs/core'
@@ -10,7 +11,13 @@ import { RunnerService } from './runner.service.js'
 import { HealthController } from './health.controller.js'
 
 @Module({
-  controllers: [HealthController, AuthController, ClassroomController, WorkspaceController],
+  controllers: [
+    HealthController,
+    AuthController,
+    ClassroomController,
+    WorkspaceController,
+    RunsController,
+  ],
   providers: [
     { provide: ENVIRONMENT, useFactory: loadEnvironment },
     DatabaseService,

@@ -17,3 +17,13 @@ export const PROBE_QUEUE = 'infrastructure.probe'
 export interface ProbeJob {
   requestedAt: string
 }
+
+export const executionDefaults = {
+  compilerProfile: 'gcc13-cpp17',
+  compileTimeMs: 10000,
+  compileMemoryMb: 512,
+  runTimeMs: 2000,
+  runMemoryMb: 256,
+  outputLimitKb: 1024,
+  executionConcurrency: 4,
+}
