@@ -1,0 +1,105 @@
+.code-editor-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.code-editor-shell > .code-editor {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.editor-language-bar {
+  min-height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 12px;
+  background: var(--ui-page);
+  border-top: 1px solid var(--ui-line);
+  color: var(--ui-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.editor-language-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ui-secondary);
+  flex-shrink: 0;
+  font-size: 10px;
+}
+.editor-switch-track {
+  display: inline-flex;
+  align-items: center;
+  width: 27px;
+  height: 15px;
+  background: var(--ui-line-strong);
+  border-radius: 12px;
+  padding: 2px;
+  transition: background 0.15s;
+}
+.editor-switch-track i {
+  display: block;
+  width: 11px;
+  height: 11px;
+  background: var(--ui-page);
+  border-radius: 50%;
+  transform: translateX(0);
+  transition: transform 0.15s;
+}
+.editor-language-toggle[aria-checked='true'] .editor-switch-track {
+  background: var(--ui-action);
+}
+.editor-language-toggle[aria-checked='true'] .editor-switch-track i {
+  transform: translateX(12px);
+}
+.editor-language-toggle[aria-checked='true'] {
+  color: var(--ui-action);
+}
+.editor-language-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editor-language-message.error {
+  color: var(--ui-error);
+}
+.editor-language-message.unsupported {
+  color: var(--ui-warning);
+}
+.editor-language-message.ready {
+  color: var(--ui-secondary);
+}
+.editor-language-bar > .text-button {
+  font-size: 10px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.editor-local-indicator {
+  margin-left: auto;
+  font-size: 9px;
+  white-space: nowrap;
+  color: var(--ui-muted);
+}
+.editor-language-bar > svg {
+  color: var(--ui-action);
+  flex-shrink: 0;
+}
+@media (max-width: 760px) {
+  .editor-language-bar {
+    padding: 5px 9px;
+    gap: 7px;
+  }
+  .editor-local-indicator {
+    display: none;
+  }
+}

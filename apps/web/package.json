@@ -10,19 +10,24 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@algoproclub/clangd-wasm": "0.1.1",
     "@classroom/contracts": "workspace:*",
     "@lucide/vue": "^1.61.0",
     "@vueuse/core": "^15.0.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cn": "^0.5.0",
+    "markdown-it": "14.1.0",
+    "monaco-editor": "0.55.1",
     "reka-ui": "2.11.0",
     "tailwind-merge": "3.7.0",
+    "vscode-jsonrpc": "8.2.0",
     "vue": "3.5.44",
     "vue-router": "4.6.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
+    "@types/markdown-it": "14.1.2",
     "@vitejs/plugin-vue": "6.0.10",
     "tailwindcss": "4.3.3",
     "vite": "8.3.5",

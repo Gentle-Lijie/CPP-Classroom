@@ -1,14 +1,70 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import ScaffoldView from './views/ScaffoldView.vue'
 import './styles.css'
+import './interface.css'
+import './platform.css'
+import './editor-language.css'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', component: ScaffoldView },
+    { path: '/', redirect: '/teacher/overview' },
+    { path: '/teacher/classes', component: () => import('./views/ClassesView.vue') },
+    { path: '/teacher/overview', component: () => import('./views/OverviewView.vue') },
+    { path: '/teacher/exercises', component: () => import('./views/ExercisesView.vue') },
+    { path: '/teacher/exercises/new', component: () => import('./views/ExerciseEditorView.vue') },
+    {
+      path: '/teacher/exercises/:id/edit',
+      component: () => import('./views/ExerciseEditorView.vue'),
+    },
+    {
+      path: '/teacher/teach',
+      component: () => import('./views/TeachingView.vue'),
+      meta: { standalone: true },
+    },
+    {
+      path: '/teacher/monitor',
+      component: () => import('./views/MonitorWindowView.vue'),
+      meta: { standalone: true },
+    },
+    {
+      path: '/teacher/inspect/:id',
+      component: () => import('./views/StudentDetailView.vue'),
+      meta: { standalone: true },
+    },
+    { path: '/teacher/roster', component: () => import('./views/RosterView.vue') },
+    { path: '/teacher/settings', component: () => import('./views/SettingsView.vue') },
+    { path: '/teacher/submissions', component: () => import('./views/SubmissionsView.vue') },
+    { path: '/teacher/students/:id', component: () => import('./views/StudentDetailView.vue') },
+    { path: '/student/classes', component: () => import('./views/ClassesView.vue') },
+    {
+      path: '/student/workspace',
+      component: () => import('./views/WorkspaceView.vue'),
+      meta: { standalone: true },
+    },
+    { path: '/student/history', component: () => import('./views/HistoryView.vue') },
+    {
+      path: '/projection/:id',
+      component: () => import('./views/ProjectionView.vue'),
+      meta: { standalone: true },
+    },
+    { path: '/login', component: () => import('./views/AuthView.vue'), meta: { standalone: true } },
+    { path: '/join', component: () => import('./views/AuthView.vue'), meta: { standalone: true } },
+    {
+      path: '/recover',
+      component: () => import('./views/AuthView.vue'),
+      meta: { standalone: true },
+    },
+    { path: '/admin/settings', component: () => import('./views/PlatformSettingsView.vue') },
+    { path: '/admin/environment', redirect: '/admin/settings?section=execution' },
+    { path: '/admin/:section', component: () => import('./views/AdminView.vue') },
+    { path: '/guide', component: () => import('./views/GuideView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
+  scrollBehavior: () => ({ top: 0 }),
+})
+router.afterEach((to) => {
+  document.title = `${to.path.startsWith('/teacher/inspect/') ? '学生详情独立窗口' : to.path === '/teacher/teach' ? '教师授课' : to.path === '/teacher/monitor' ? '在线课堂巡视' : to.path.startsWith('/student/workspace') ? '练习工作区' : to.path.startsWith('/projection') ? '课堂投屏' : '教学工作台'} · 码上课堂`
 })
 createApp(App).use(router).mount('#app')

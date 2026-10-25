@@ -5,3 +5,5 @@ coverage
 .local
 Cpp*.md
 packages/database/migrations/meta
+.playwright-cli
+output/playwright
