@@ -227,7 +227,7 @@ async function regenerateInvite() {
               </td>
               <td>
                 <span class="table-exercise">{{ studentExercise(s).title }}</span
-                ><small class="cell-secondary">{{ s.online ? '草稿已保存' : '最近保存 v8' }}</small>
+                ><small class="cell-secondary">{{ s.online ? '在线编辑' : '当前离线' }}</small>
               </td>
               <td>
                 <span class="status" :class="tone(s.status)"

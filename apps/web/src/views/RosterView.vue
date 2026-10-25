@@ -216,7 +216,7 @@ async function removeStudent() {
             </td>
             <td>{{ p.number }}</td>
             <td>
-              <span class="inline-items muted"><Clock3 :size="14" />今天 14:15</span>
+              <span class="inline-items muted"><Clock3 :size="14" />等待审批</span>
             </td>
             <td>
               <div class="inline-items">
