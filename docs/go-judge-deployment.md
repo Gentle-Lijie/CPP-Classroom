@@ -17,7 +17,7 @@
 | 工作目录   | `/var/lib/cpp-classroom/go-judge`                                   |
 | 运行身份   | 任务进程 UID/GID 从 1536 起；服务管理隔离使用 root                  |
 | 隔离       | Linux namespaces、cgroup v2、`-no-fallback`、只读工具链、受限 tmpfs |
-| 并行与缓存 | 4 槽；编译产物任务完成即清理，孤立缓存 10 分钟过期                  |
+| 并行与缓存 | 16 槽；编译产物任务完成即清理，孤立缓存 10 分钟过期                 |
 
 未新增公网执行端口映射。SSH 使用用户现有 `aim-radar` 别名；本机隧道仅监听 `127.0.0.1:15050`，转发至节点内网地址。已从业务 API 经该隧道完成真实编译和交互运行。系统 VPN 曾尝试连接但握手未成功，因此不把本机 VPN 直连写为通过项。
 
@@ -33,15 +33,9 @@ RUNNER_REMOTE_ADDRESS=10.176.29.102
 GO_JUDGE_TIMEOUT_MS=10000
 ```
 
-手动方式为 `pnpm runner:tunnel`，断线自动重连。当前已安装用户 LaunchAgent `tech.uonaim.cpp-classroom.runner-tunnel`，登录时启动；该服务运行时不需要再开第二个手动隧道。日志在 `.local/runner-tunnel.log`。当前链路探活超时设置为 10 秒，并为健康请求独立关闭 HTTP 连接，避免隧道重连后复用失效连接。
+手动运行 `pnpm runner:tunnel` 可建立隧道，并在断线后重连。此前创建的本机 API、worker、隧道 LaunchAgent 已按用户要求停用，登录配置已移出 `~/Library/LaunchAgents/`，不再登录自启；备份在项目 `.local/disabled-launchagents/`。使用开发工程时手动启动所需进程。
 
-```sh
-launchctl print gui/$(id -u)/tech.uonaim.cpp-classroom.runner-tunnel
-curl http://127.0.0.1:15050/version
-curl http://127.0.0.1:3000/api/health/readiness
-```
-
-卸载隧道服务时使用 `launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/tech.uonaim.cpp-classroom.runner-tunnel.plist`，再移除对应 plist。不会停止远端 go-judge。
+探活超时为 10 秒，健康请求独立关闭 HTTP 连接，避免隧道重连后复用失效连接。
 
 若 VPN 或同内网已经能直达该地址，可直接在服务端 `.env` 配置 `GO_JUDGE_URL=http://10.176.29.102:5050` 并重启 API／worker。内网地址若发生变化，需要同步节点监听与隧道远端地址。
 
@@ -57,8 +51,12 @@ curl http://127.0.0.1:3000/api/health/readiness
 
 可重建安装、补丁与测试命令见 [节点说明](../infra/go-judge/README.md)，功能清单见 [后端说明](backend-implementation.md)。本地验收 JSON、账号和数据库备份均位于忽略的 `.local/`，不应上传公开报告。
 
-## 压测进程的常驻方式
+## 当前并发与本机启动方式
 
-本轮压力测试将本机 API、worker 切换为编译后的原生 Node 进程，由用户 LaunchAgent `tech.uonaim.cpp-classroom.api` 与 `tech.uonaim.cpp-classroom.worker` 维护。日志在 `.local/api.log`、`.local/worker.log`，不依赖工具终端会话存活。前端仍为 Vite 开发预览。
+运行并发已从 4 提高到 16：go-judge 原生 REST 编译并行参数为 16，业务 worker 的全局编译／运行槽位为 16，管理接口和表单允许 1–16。共享 PostgreSQL 事务锁继续约束多个 worker 的总并发，活动任务上限仍为 100。每任务 CPU、内存、输出限制不变。
 
-这两个服务运行时不要同时再用 `pnpm dev` 启动 API／worker。修改后端代码后先构建，再通过 `launchctl kickstart -k gui/$(id -u)/tech.uonaim.cpp-classroom.api`（worker 同理）重启。要回到开发监听模式，先 `launchctl bootout` 对应 plist，再运行开发命令。PostgreSQL 和开发数据不受该切换影响。
+前面的 4 槽压力测试数字属于历史基准。此次调整直接采用 16 槽，不将中途停止的档位比较作为最终性能结论。
+
+本机不再使用 LaunchAgent 常驻启动。需要时手动运行 `pnpm dev` 与 `pnpm runner:tunnel`；调整验证所用的临时进程会在结束时停止。
+
+此次最小验证实际观察到 16 个任务同时运行，16/16 任务发送 EOF 后正常结束；管理表单显示 16、拒绝超过 16 的输入。类型、格式、18 项测试、构建、迁移与队列探针通过。本机临时验证进程已停止，原有三个自启项保持禁用。

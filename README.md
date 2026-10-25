@@ -24,7 +24,7 @@ pnpm dev
 - 本次交付的初始账号保存在本机 `.local/initial-accounts.json`（0600，不提交、不发布）。
 - 停止开发进程：终端 Ctrl+C；数据库状态／停止：`pnpm pg:status`、`pnpm pg:stop`。
 
-当前 API／worker 由本机原生 LaunchAgent 常驻运行。需要回到 `pnpm dev` 监听模式时，先按 [部署记录](docs/go-judge-deployment.md) 停止对应服务，避免端口冲突。
+本机 API／worker／隧道的登录自启项已按要求停用。需要使用时手动运行开发进程和隧道，见 [部署记录](docs/go-judge-deployment.md)。
 
 ## Linux 评测节点
 

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { notify, reportError } from '@/data/demo'
 import { probePlatform, type ProbeResult } from '@/lib/platform-health'
-import { executionDefaults } from '@classroom/contracts'
+import { executionDefaults, executionLimits } from '@classroom/contracts'
 const form = reactive({ ...executionDefaults, goJudgeUrl: '', goJudgeTimeoutMs: 2000 })
 const states = ref<Record<string, ProbeResult>>({}),
   busy = ref(false)
@@ -14,7 +14,7 @@ const fields = [
   { key: 'runTimeMs', name: '运行 CPU 时间（毫秒）', min: 100, max: 10000 },
   { key: 'runMemoryMb', name: '运行内存（MiB）', min: 16, max: 512 },
   { key: 'outputLimitKb', name: '输出上限（KiB）', min: 16, max: 2048 },
-  { key: 'executionConcurrency', name: '执行槽位', min: 1, max: 4 },
+  { key: 'executionConcurrency', name: '执行槽位', min: 1, max: executionLimits.maxConcurrentRuns },
 ] as const
 async function check() {
   busy.value = true

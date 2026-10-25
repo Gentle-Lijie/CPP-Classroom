@@ -1,3 +1,4 @@
+import { executionDefaults, executionLimits } from '@classroom/contracts'
 export interface PlatformDraft {
   goJudgeUrl: string
   goJudgeTimeoutMs: number
@@ -24,7 +25,7 @@ export const defaultPlatformDraft: PlatformDraft = {
   runMemoryMb: 256,
   outputLimitKb: 1024,
   classroomCapacity: 50,
-  executionConcurrency: 8,
+  executionConcurrency: executionDefaults.executionConcurrency,
   recordRetentionDays: 30,
   allowResubmit: true,
   archiveReadonly: true,
@@ -43,7 +44,7 @@ const limits: Record<
   runMemoryMb: [16, 4096],
   outputLimitKb: [16, 16384],
   classroomCapacity: [1, 50],
-  executionConcurrency: [1, 64],
+  executionConcurrency: [1, executionLimits.maxConcurrentRuns],
   recordRetentionDays: [1, 3650],
 }
 export function validatePlatformDraft(value: PlatformDraft): string | null {

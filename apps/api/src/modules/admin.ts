@@ -18,7 +18,7 @@ import { passwordHash } from './auth.js'
 import { actor, parse, role, text, type AuthRequest } from './common.js'
 import { ENVIRONMENT } from '../environment.js'
 import type { Environment } from '@classroom/config'
-import { executionDefaults } from '@classroom/contracts'
+import { executionDefaults, executionLimits } from '@classroom/contracts'
 const executeFile = promisify(execFile)
 const settings = z.object({
   compilerProfile: z.enum(['gcc13-cpp17', 'gcc13-cpp20']),
@@ -27,7 +27,7 @@ const settings = z.object({
   runTimeMs: z.number().int().min(100).max(10000),
   runMemoryMb: z.number().int().min(16).max(512),
   outputLimitKb: z.number().int().min(16).max(2048),
-  executionConcurrency: z.number().int().min(1).max(4),
+  executionConcurrency: z.number().int().min(1).max(executionLimits.maxConcurrentRuns),
 })
 @Controller('admin')
 export class AdminController {

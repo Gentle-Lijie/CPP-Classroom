@@ -3,7 +3,7 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
-import { notify, reportError } from '@/data/demo'
+import { notify, reportError, executionSettings } from '@/data/demo'
 import Modal from '@/components/classroom/Modal.vue'
 const route = useRoute()
 const section = computed(() => String(route.params.section ?? 'health'))
@@ -127,7 +127,8 @@ async function backup() {
       <h2>服务与执行环境</h2>
       <RouterLink to="/admin/settings">检查 API、数据库和 go-judge 并配置运行限额 →</RouterLink>
       <p>
-        GCC 13.3，Linux namespaces / cgroup v2，4 个执行槽。学生代码由独立工作者提交到 AIM-Radar。
+        GCC 13.3，Linux namespaces / cgroup v2，{{ executionSettings.executionConcurrency }}
+        个执行槽。学生代码由独立工作者提交到 AIM-Radar。
       </p>
     </section></template
   >

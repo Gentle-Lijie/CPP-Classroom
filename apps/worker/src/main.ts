@@ -1,7 +1,7 @@
 import { startExecutionQueue } from './execution.js'
 import { PgBoss } from 'pg-boss'
 import { loadEnvironment } from '@classroom/config'
-import { PROBE_QUEUE } from '@classroom/contracts'
+import { PROBE_QUEUE, executionDefaults } from '@classroom/contracts'
 import type { ProbeJob } from '@classroom/contracts'
 import { auditEvents, createDatabase } from '@classroom/database'
 
@@ -23,7 +23,12 @@ await boss.work<ProbeJob>(PROBE_QUEUE, { pollingIntervalSeconds: 1 }, async ([jo
   return { ok: true }
 })
 const stopExecution = startExecutionQueue(pool, environment)
-console.log('Worker 已就绪：原生 Linux 编译运行队列（4 槽）与基础设施自检。')
+const executionSettings = (
+  await pool.query("select value from platform_settings where id='execution'")
+).rows[0]?.value
+console.log(
+  `Worker 已就绪：原生 Linux 编译运行队列（${executionSettings?.executionConcurrency ?? executionDefaults.executionConcurrency} 槽，可动态调整）与基础设施自检。`,
+)
 
 let stopping = false
 async function shutdown() {

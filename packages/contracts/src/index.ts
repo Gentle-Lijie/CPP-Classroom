@@ -18,6 +18,8 @@ export interface ProbeJob {
   requestedAt: string
 }
 
+export const executionLimits = { maxConcurrentRuns: 16 } as const
+
 export const executionDefaults = {
   compilerProfile: 'gcc13-cpp17',
   compileTimeMs: 10000,
@@ -25,5 +27,5 @@ export const executionDefaults = {
   runTimeMs: 2000,
   runMemoryMb: 256,
   outputLimitKb: 1024,
-  executionConcurrency: 4,
+  executionConcurrency: 16,
 }
