@@ -18,19 +18,23 @@ import {
   LogOut,
   X,
   Menu,
+  KeyRound,
+  RefreshCw,
 } from '@lucide/vue'
-import { activeClassroom, counts, currentUser, logout } from '@/data/demo'
+import { activeClassroom, counts, currentUser, logout, reportError, refresh } from '@/data/demo'
+import { connectionState } from '@/lib/api'
+import AccountDialog from './AccountDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const mobileOpen = ref(false)
 const roleMenu = ref(false)
-const role = computed(() =>
-  route.path.startsWith('/student')
-    ? 'student'
-    : route.path.startsWith('/admin')
-      ? 'admin'
-      : 'teacher',
-)
+const accountOpen = ref(false)
+const signingOut = ref(false)
+const role = computed(() => currentUser.value?.role ?? 'student')
+function openAccount() {
+  accountOpen.value = true
+  roleMenu.value = false
+}
 const links = computed(() =>
   role.value === 'teacher'
     ? [
@@ -49,7 +53,7 @@ const links = computed(() =>
         ]
       : [
           { to: '/admin/health', title: '平台概况', icon: LayoutDashboard },
-          { to: '/admin/teachers', title: '教师账号', icon: Users },
+          { to: '/admin/teachers', title: '账号管理', icon: Users },
           { to: '/admin/settings', title: '平台配置', icon: Settings2 },
           { to: '/admin/tasks', title: '失败任务', icon: Monitor },
           { to: '/admin/backups', title: '备份与记录', icon: ShieldCheck },
@@ -58,12 +62,24 @@ const links = computed(() =>
 const sectionTitle = computed(
   () =>
     links.value.find((x) => route.path.startsWith(x.to))?.title ??
-    (route.path.includes('/students/') ? '学生详情' : '我的课堂'),
+    (route.path === '/guide'
+      ? '使用导览'
+      : route.path.includes('/students/')
+        ? '学生详情'
+        : '我的课堂'),
 )
 async function signOut() {
-  await logout()
-  roleMenu.value = false
-  await router.push('/login')
+  if (signingOut.value) return
+  signingOut.value = true
+  try {
+    await logout()
+    roleMenu.value = false
+    await router.push('/login')
+  } catch (e) {
+    reportError(e)
+  } finally {
+    signingOut.value = false
+  }
 }
 </script>
 <template>
@@ -93,7 +109,13 @@ async function signOut() {
         ><span class="class-icon"><GraduationCap :size="19" /></span
         ><span
           >{{ role === 'admin' ? '平台管理工作台' : activeClassroom.name
-          }}<small>{{ role === 'admin' ? '必要运维 · 管理员' : '2026 秋季学期' }}</small></span
+          }}<small>{{
+            role === 'admin'
+              ? '管理员'
+              : activeClassroom.id
+                ? activeClassroom.status
+                : '创建或加入课堂'
+          }}</small></span
         ><ChevronDown :size="14"
       /></RouterLink>
       <div class="nav-caption">
@@ -118,7 +140,7 @@ async function signOut() {
         >
       </nav>
       <div v-if="role === 'teacher'" class="sidebar-session">
-        <span class="live-dot" />{{
+        <span class="live-dot" :class="{ inactive: activeClassroom.status !== '进行中' }" />{{
           activeClassroom.status === '进行中'
             ? '课堂进行中'
             : activeClassroom.status === '已归档'
@@ -137,7 +159,10 @@ async function signOut() {
         <div class="profile-wrap">
           <div v-if="roleMenu" class="role-menu">
             <p>{{ currentUser?.username }}</p>
-            <button @click="signOut"><LogOut :size="14" />退出登录</button>
+            <button @click="openAccount"><KeyRound :size="14" />账号与密码</button>
+            <button :disabled="signingOut" @click="signOut">
+              <LogOut :size="14" />{{ signingOut ? '退出中…' : '退出登录' }}
+            </button>
           </div>
           <button class="profile" @click="roleMenu = !roleMenu">
             <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span
@@ -162,16 +187,28 @@ async function signOut() {
           ><ChevronRight :size="13" /><strong>{{ sectionTitle }}</strong>
         </div>
         <div class="topbar-right">
-          <span class="demo-tag">已连接服务器</span
-          ><span class="desktop-only muted">课堂实时数据</span
+          <span class="demo-tag" :class="{ disconnected: connectionState !== 'connected' }">{{
+            connectionState === 'connected'
+              ? '服务器已连接'
+              : connectionState === 'expired'
+                ? '登录已失效'
+                : '连接中断'
+          }}</span
+          ><span class="desktop-only muted">{{ role === 'admin' ? '平台管理' : '课堂数据' }}</span
           ><span class="topbar-avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
         </div>
       </header>
+      <div v-if="connectionState === 'disconnected'" class="connection-banner" role="alert">
+        <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span
+        ><button class="text-button" @click="refresh().catch(reportError)">
+          <RefreshCw :size="14" />重试连接
+        </button>
+      </div>
       <main class="page-content"><slot /></main>
       <footer class="app-footer">
-        <span>码上课堂 · C++ Classroom</span
-        ><span>原生 Linux 评测 <span class="footer-dot">·</span> 课堂数据已持久化</span>
+        <span>码上课堂 · C++ Classroom</span><span>C++ 编程与课堂协作</span>
       </footer>
     </div>
   </div>
+  <AccountDialog v-model:open="accountOpen" />
 </template>

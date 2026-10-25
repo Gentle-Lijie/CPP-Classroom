@@ -39,6 +39,10 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
     ...(await pool.query("select value from platform_settings where id='execution'")).rows[0]
       ?.value,
   } as typeof executionDefaults
+  await pool.query('update runs set compiler_profile=$2 where id=$1', [
+    run.id,
+    settings.compilerProfile,
+  ])
   const base = environment.GO_JUDGE_URL.replace(/\/$/, '')
   const headers = {
     Authorization: `Bearer ${environment.GO_JUDGE_AUTH_TOKEN}`,

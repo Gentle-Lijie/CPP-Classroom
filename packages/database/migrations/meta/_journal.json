@@ -43,6 +43,20 @@
       "when": 1792928196977,
       "tag": "0005_smiling_iron_fist",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792942649167,
+      "tag": "0006_fancy_rhino",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792942987277,
+      "tag": "0007_clumsy_red_ghost",
+      "breakpoints": true
     }
   ]
 }

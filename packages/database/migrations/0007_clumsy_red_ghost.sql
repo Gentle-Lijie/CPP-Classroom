@@ -1,0 +1,1 @@
+ALTER TABLE "runs" ADD COLUMN "compiler_profile" text;

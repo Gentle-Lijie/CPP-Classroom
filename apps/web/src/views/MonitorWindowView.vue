@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { Users, Search, ArrowUpRight, Hand, X, Monitor, Check, Radio } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { activeClassroom, demo, exercises, students, tone, type Student } from '@/data/demo'
+import Pagination from '@/components/classroom/Pagination.vue'
+import { usePagination } from '@/composables/usePagination'
 import { openTeachingWindow } from '@/lib/teaching-windows'
 const search = ref('')
 const router = useRouter()
@@ -13,13 +15,14 @@ const online = computed(() => students.filter((s) => s.online))
 const visible = computed(() =>
   online.value.filter(
     (s) =>
-      (s.name + s.number).includes(search.value) &&
+      (s.name + s.number).toLowerCase().includes(search.value.trim().toLowerCase()) &&
       (filter.value === '全部在线' ||
         (filter.value === '请求帮助' && s.help) ||
         (filter.value === '编译失败' && s.status === '编译失败') ||
         (filter.value === '已提交' && s.submitted)),
   ),
 )
+const { page, pageSize, paged } = usePagination(visible, [search, filter], 10)
 function inspect(id: string) {
   const url = '/teacher/inspect/' + id
   blocked.value = openTeachingWindow(
@@ -37,7 +40,8 @@ function close() {
 }
 function exerciseTitle(student: Student) {
   return (
-    exercises.find((e) => e.id === (student.exerciseId ?? demo.recommended))?.title ?? '累加求和'
+    exercises.find((e) => e.id === (student.exerciseId ?? demo.recommended))?.title ??
+    '尚未选择练习'
   )
 }
 function clearFilters() {
@@ -93,12 +97,7 @@ function clearFilters() {
         /></label>
       </div>
       <div class="monitor-student-grid">
-        <button
-          v-for="s in visible"
-          :key="s.id"
-          class="monitor-student-card"
-          @click="inspect(s.id)"
-        >
+        <button v-for="s in paged" :key="s.id" class="monitor-student-card" @click="inspect(s.id)">
           <div class="monitor-card-person">
             <span class="student-avatar">{{ s.name.slice(-2) }}<i class="online" /></span
             ><span
@@ -118,13 +117,55 @@ function clearFilters() {
           </div>
         </button>
       </div>
+      <Pagination
+        v-if="visible.length"
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        :total="visible.length"
+        unit="位在线学生"
+      />
       <div v-if="!visible.length" class="empty-state">
         <Monitor :size="29" />
         <h2>{{ online.length ? '没有匹配的在线学生' : '当前没有在线学生' }}</h2>
-        <p>可以清除搜索条件，或切换其他筛选。</p>
-        <Button variant="outline" @click="clearFilters">清除筛选</Button>
+        <p>
+          {{
+            online.length
+              ? '可以清除搜索条件，或切换其他筛选。'
+              : '请让学生进入已开放课堂的练习工作区，在线状态会自动更新。'
+          }}
+        </p>
+        <Button v-if="search || filter !== '全部在线'" variant="outline" @click="clearFilters"
+          >清除筛选</Button
+        >
       </div>
     </div>
     <footer class="monitor-footer">每 2 秒刷新服务器状态；15 秒未收到学生心跳视为离线。</footer>
   </main>
 </template>
+
+<style scoped>
+.monitor-student-card:focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+.monitor-student-card:hover {
+  border-color: var(--ui-action);
+  background: var(--ui-selection);
+}
+.monitor-card-person small,
+.monitor-card-footer {
+  font-size: 12px;
+}
+.monitor-student-card > p {
+  font-size: 13px;
+}
+.monitor-controls {
+  min-width: 0;
+}
+.monitor-controls > * {
+  min-width: 0;
+}
+.monitor-header .inline-items {
+  flex-wrap: wrap;
+}
+</style>

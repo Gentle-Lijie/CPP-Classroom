@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
   ChevronLeft,
@@ -26,77 +26,216 @@ import {
   demo,
   exercises,
   notify,
-  saveDraft,
-  classPath,
-  reportError,
   download,
+  currentUser,
+  executionSettings,
 } from '@/data/demo'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { openTeachingWindow } from '@/lib/teaching-windows'
 const route = useRoute()
 const router = useRouter()
-const selected = ref(String(route.query.exercise ?? demo.recommended))
-const mode = ref('题面')
-const fontSize = ref(20)
-const teacherCode = ref('')
-const fullscreen = ref(false)
-const exercise = computed(() => exercises.find((e) => e.id === selected.value) ?? exercises[0]!)
-const index = computed(() => exercises.findIndex((e) => e.id === exercise.value.id))
-let revision = 0
-let loading = false
-let timer: ReturnType<typeof setTimeout>
-let saving = false
-watch(
-  () => exercise.value.id,
-  async () => {
-    loading = true
-    try {
-      const draft = await api<{ code: string; revision: number }>(
-        classPath('/workspace/' + exercise.value.id),
-      )
-      teacherCode.value = draft.code
-      revision = draft.revision
-    } catch (e) {
-      reportError(e)
-    } finally {
-      loading = false
-    }
-  },
-  { immediate: true },
+const initial = String(route.query.exercise ?? demo.recommended)
+const selected = ref(exercises.some((e) => e.id === initial) ? initial : (exercises[0]?.id ?? ''))
+const mode = ref('题面'),
+  fontSize = ref(20),
+  teacherCode = ref(''),
+  fullscreen = ref(false)
+const loading = ref(true),
+  dirty = ref(false),
+  error = ref(''),
+  conflict = ref(false),
+  saveStatus = ref('读取中…'),
+  switching = ref(false),
+  monitorBlocked = ref(false)
+const exercise = computed(() => exercises.find((e) => e.id === selected.value))
+const index = computed(() => exercises.findIndex((e) => e.id === selected.value))
+const readonly = computed(
+  () =>
+    loading.value || !!error.value || conflict.value || activeClassroom.value.status !== '进行中',
 )
+let revision = 0,
+  generation = 0
+let timer: ReturnType<typeof setTimeout>
+let saving: Promise<boolean> | undefined
+function context() {
+  return {
+    id: selected.value,
+    classroom: demo.classroomId,
+    user: currentUser.value?.id,
+    generation,
+  }
+}
+function matches(c: ReturnType<typeof context>) {
+  return (
+    c.id === selected.value &&
+    c.classroom === demo.classroomId &&
+    c.user === currentUser.value?.id &&
+    c.generation === generation
+  )
+}
+const draftPath = (c: ReturnType<typeof context>) =>
+  '/classes/' + c.classroom + '/workspace/' + c.id
+const backupKey = (c: ReturnType<typeof context>) =>
+  `cpp-teacher-draft:${c.user}:${c.classroom}:${c.id}`
+function backup() {
+  try {
+    localStorage.setItem(
+      backupKey(context()),
+      JSON.stringify({ code: teacherCode.value, revision, pending: dirty.value }),
+    )
+  } catch {
+    saveStatus.value = '本机备份不可用，请及时下载示范代码'
+  }
+}
+async function load() {
+  generation++
+  const c = context()
+  loading.value = true
+  dirty.value = false
+  error.value = ''
+  conflict.value = false
+  teacherCode.value = ''
+  revision = 0
+  saveStatus.value = '读取中…'
+  clearTimeout(timer)
+  if (!c.id) {
+    loading.value = false
+    return
+  }
+  try {
+    const result = await api<{ code: string; revision: number }>(draftPath(c))
+    if (!matches(c)) return
+    teacherCode.value = result.code
+    revision = result.revision
+    try {
+      const stored = JSON.parse(localStorage.getItem(backupKey(c)) ?? 'null')
+      if (stored?.pending && typeof stored.code === 'string') {
+        teacherCode.value = stored.code
+        dirty.value = true
+        conflict.value = stored.revision !== revision
+      }
+    } catch {
+      /* Remote code remains available without local storage. */
+    }
+    saveStatus.value = conflict.value
+      ? '发现版本冲突，本机修改已保留'
+      : dirty.value
+        ? '本机修改待同步'
+        : '已同步到服务器'
+  } catch (e) {
+    if (matches(c)) error.value = e instanceof Error ? e.message : '示范代码读取失败'
+  } finally {
+    if (matches(c)) {
+      await nextTick()
+      loading.value = false
+    }
+  }
+  if (matches(c) && dirty.value && !conflict.value) void persist()
+}
+watch(selected, () => void load(), { immediate: true })
 watch(teacherCode, () => {
-  if (loading) return
+  if (readonly.value) return
+  dirty.value = true
+  saveStatus.value = '待同步'
+  backup()
   clearTimeout(timer)
   timer = setTimeout(() => void persist(), 600)
 })
-async function persist() {
-  if (saving) return
-  saving = true
-  const content = teacherCode.value
-  try {
-    saveDraft(exercise.value.id, content, 'teacher')
-    const result = await api<{ revision: number }>(
-      classPath('/workspace/' + exercise.value.id),
-      'PUT',
-      { code: content, revision },
-    )
-    revision = result.revision
-    if (teacherCode.value !== content) {
-      timer = setTimeout(() => void persist(), 100)
-    }
-  } catch (e) {
-    reportError(e)
-  } finally {
-    saving = false
+async function persist(): Promise<boolean> {
+  clearTimeout(timer)
+  if (saving) {
+    const ok = await saving
+    return ok && dirty.value ? persist() : ok
   }
+  if (!dirty.value) return true
+  if (readonly.value) return false
+  const c = context(),
+    content = teacherCode.value,
+    expected = revision
+  saveStatus.value = '同步中…'
+  saving = (async () => {
+    try {
+      const result = await api<{ revision: number }>(draftPath(c), 'PUT', {
+        code: content,
+        revision: expected,
+      })
+      if (!matches(c)) return false
+      revision = result.revision
+      dirty.value = teacherCode.value !== content
+      saveStatus.value = dirty.value ? '待同步' : '已同步到服务器'
+      backup()
+      return true
+    } catch (e) {
+      if (!matches(c)) return false
+      backup()
+      saveStatus.value = e instanceof Error ? e.message : '保存失败，请重试'
+      if (e instanceof ApiError && e.status === 409) conflict.value = true
+      return false
+    }
+  })()
+  const ok = await saving
+  saving = undefined
+  return ok && dirty.value ? persist() : ok
+}
+async function switchExercise(id: string) {
+  if (switching.value || loading.value || id === selected.value) return
+  switching.value = true
+  try {
+    if (!(await persist())) {
+      notify('示范代码尚未同步，请先重试或下载备份', 'error')
+      return
+    }
+    selected.value = id
+  } finally {
+    switching.value = false
+  }
+}
+function changeExercise(event: Event) {
+  const target = event.target as HTMLSelectElement
+  const id = target.value
+  target.value = selected.value
+  void switchExercise(id)
 }
 function next(step: number) {
   const e = exercises[index.value + step]
-  if (e) selected.value = e.id
+  if (e) void switchExercise(e.id)
 }
 function openMonitor() {
-  openTeachingWindow('/teacher/monitor', 'classroom-monitor-' + demo.classroomId, 1120, 820)
+  monitorBlocked.value = !openTeachingWindow(
+    '/teacher/monitor',
+    'classroom-monitor-' + demo.classroomId,
+    1120,
+    820,
+  )
 }
+async function useServer() {
+  download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
+  try {
+    localStorage.removeItem(backupKey(context()))
+  } catch {
+    /* Download already preserves the local copy. */
+  }
+  await load()
+}
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (dirty.value) {
+    backup()
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+onBeforeRouteLeave(async (to) => {
+  if (to.path === '/login' && !currentUser.value) {
+    backup()
+    return true
+  }
+  if (dirty.value && activeClassroom.value.status !== '进行中') {
+    if (!window.confirm('课堂已只读，示范修改无法上传。下载代码备份后离开？')) return false
+    download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
+    return true
+  }
+  return persist()
+})
 async function toggleFullscreen() {
   try {
     if (document.fullscreenElement) await document.exitFullscreen()
@@ -120,17 +259,20 @@ function keyboard(event: KeyboardEvent) {
   }
 }
 onMounted(() => {
+  window.addEventListener('beforeunload', beforeUnload)
   document.addEventListener('keydown', keyboard)
   document.addEventListener('fullscreenchange', fullscreenChange)
 })
 onBeforeUnmount(() => {
+  generation++
   clearTimeout(timer)
+  window.removeEventListener('beforeunload', beforeUnload)
   document.removeEventListener('keydown', keyboard)
   document.removeEventListener('fullscreenchange', fullscreenChange)
 })
 </script>
 <template>
-  <main class="teaching-page">
+  <main v-if="exercise" class="teaching-page">
     <header class="teaching-toolbar">
       <div class="inline-items">
         <RouterLink to="/teacher/exercises" class="icon-button" aria-label="结束授课"
@@ -152,6 +294,26 @@ onBeforeUnmount(() => {
       </div>
     </header>
     <div class="teaching-stage">
+      <p v-if="monitorBlocked" class="warning-box">
+        独立窗口被拦截。<a
+          href="/teacher/monitor"
+          target="_blank"
+          rel="noopener"
+          class="text-button"
+          >点此打开巡视窗口</a
+        >
+      </p>
+      <p v-if="error" class="error-box" role="alert">
+        {{ error }} <Button variant="outline" size="sm" @click="load">重试读取</Button>
+      </p>
+      <p v-if="conflict" class="warning-box" role="alert">
+        其他窗口已修改示范代码。先下载本机修改，再读取服务器版本。<Button
+          variant="outline"
+          size="sm"
+          @click="useServer"
+          >下载本机修改并读取服务器版本</Button
+        >
+      </p>
       <div class="teaching-slide-meta">
         <span class="inline-items"
           ><span class="lesson-number">{{ String(index + 1).padStart(2, '0') }}</span
@@ -177,7 +339,9 @@ onBeforeUnmount(() => {
         <section v-if="mode !== '代码'" class="teaching-problem">
           <div class="slide-title-row">
             <h1>{{ exercise.title }}</h1>
-            <span>C++17</span>
+            <span>{{
+              executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17'
+            }}</span>
           </div>
           <div class="slide-description"><MarkdownContent :source="exercise.description" /></div>
           <div class="slide-io-notes">
@@ -230,9 +394,19 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <CodeEditor v-model="teacherCode" :font-size="fontSize" :filename="exercise.filename" />
+          <CodeEditor
+            v-model="teacherCode"
+            :readonly="readonly"
+            :font-size="fontSize"
+            :filename="exercise.filename"
+          />
           <div class="teaching-code-note">
-            教师示范代码独立保存，不修改学生作品。编译执行尚未接入。
+            <span
+              role="status"
+              :class="{ 'danger-text': conflict || error, 'amber-text': dirty }"
+              >{{ loading ? '读取中…' : saveStatus }}</span
+            ><button v-if="dirty && !conflict" class="text-button" @click="persist">重试保存</button
+            ><span>教师示范代码独立保存，不修改学生作品。此处不执行程序。</span>
           </div>
         </section>
       </article>
@@ -255,18 +429,23 @@ onBeforeUnmount(() => {
         <div class="teaching-pagination">
           <button
             class="icon-button"
-            :disabled="index <= 0"
+            :disabled="index <= 0 || loading || switching"
             aria-label="上一道授课练习"
             @click="next(-1)"
           >
             <ChevronLeft :size="20" /></button
-          ><select v-model="selected" aria-label="授课练习">
+          ><select
+            :value="selected"
+            :disabled="loading || switching"
+            aria-label="授课练习"
+            @change="changeExercise"
+          >
             <option v-for="(e, i) in exercises" :key="e.id" :value="e.id">
               {{ i + 1 }} / {{ exercises.length }} · {{ e.title }}
             </option></select
           ><button
             class="icon-button"
-            :disabled="index === exercises.length - 1"
+            :disabled="index === exercises.length - 1 || loading || switching"
             aria-label="下一道授课练习"
             @click="next(1)"
           >
@@ -279,4 +458,9 @@ onBeforeUnmount(() => {
       <span>码上课堂 · 教师授课</span><span>巡视窗口可移至另一块屏幕，授课画面保持独立。</span>
     </footer>
   </main>
+  <div v-else class="empty-state">
+    <BookOpen :size="32" />
+    <h1>课堂还没有练习</h1>
+    <RouterLink to="/teacher/exercises/new">创建第一个练习</RouterLink>
+  </div>
 </template>

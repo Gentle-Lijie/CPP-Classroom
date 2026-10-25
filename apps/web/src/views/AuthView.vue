@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CodeXml, ArrowRight, ShieldCheck } from '@lucide/vue'
+import { CodeXml, ArrowRight, ShieldCheck, Eye, EyeOff } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { login, currentUser, notify } from '@/data/demo'
 import { api } from '@/lib/api'
@@ -16,22 +16,49 @@ const username = ref(''),
   error = ref(''),
   done = ref(false),
   busy = ref(false)
+const capsLock = ref(false)
+const showPassword = ref(false),
+  joinStatus = ref('pending'),
+  joinedId = ref('')
+let generation = 0
+watch(
+  () => route.fullPath,
+  () => {
+    generation++
+    error.value = ''
+    done.value = false
+    busy.value = false
+    password.value = ''
+    showPassword.value = false
+    code.value = String(route.query.code ?? '')
+  },
+)
 async function submit() {
+  if (busy.value) return
+  const token = generation,
+    activeMode = mode.value
   error.value = ''
   busy.value = true
   try {
-    if (mode.value === 'recover') {
+    if (activeMode === 'recover') {
       await api('/auth/recover', 'POST', { username: username.value })
+      if (token !== generation) return
       done.value = true
       return
     }
-    if (mode.value === 'join') {
-      const r = await api<{ status: string }>('/classes/join', 'POST', { code: code.value })
+    if (activeMode === 'join') {
+      const r = await api<{ status: string; id: string }>('/classes/join', 'POST', {
+        code: code.value,
+      })
+      if (token !== generation) return
+      joinStatus.value = r.status
+      joinedId.value = r.id
       notify(r.status === 'active' ? '你已在课堂中' : '申请已发送，等待教师审批')
       done.value = true
       return
     }
     await login(username.value, password.value)
+    if (token !== generation) return
     const to = String(
       route.query.redirect ??
         (currentUser.value?.role === 'admin'
@@ -40,9 +67,10 @@ async function submit() {
     )
     await router.push(to.startsWith('/') && !to.startsWith('//') ? to : '/')
   } catch (e) {
+    if (token !== generation) return
     error.value = e instanceof Error ? e.message : '请求失败'
   } finally {
-    busy.value = false
+    if (token === generation) busy.value = false
   }
 }
 </script>
@@ -92,13 +120,30 @@ int main() {
           ><p class="info-box">
             {{
               mode === 'join'
-                ? '入班申请已提交。批准后课堂会出现在你的课堂列表。'
+                ? joinStatus === 'active'
+                  ? '你已经是课堂成员，可以直接进入课堂。'
+                  : '入班申请已提交。课堂列表会显示待审批状态，请等待教师处理。'
                 : '恢复申请已记录，请联系平台管理员。'
             }}
           </p>
-          <Button @click="router.push(mode === 'join' ? '/student/classes' : '/login')">{{
-            mode === 'join' ? '我的课堂' : '返回登录'
-          }}</Button></template
+          <Button
+            @click="
+              router.push(
+                mode === 'join' && joinStatus === 'active'
+                  ? '/student/classes?classroom=' + joinedId
+                  : mode === 'join'
+                    ? '/student/classes'
+                    : '/login',
+              )
+            "
+            >{{
+              mode === 'join'
+                ? joinStatus === 'active'
+                  ? '进入课堂列表'
+                  : '查看申请状态'
+                : '返回登录'
+            }}</Button
+          ></template
         >
         <form v-else class="form-stack" @submit.prevent="submit">
           <label v-if="mode === 'join'"
@@ -111,13 +156,27 @@ int main() {
                 autocomplete="username"
                 maxlength="80" /></label
             ><label v-if="mode === 'login'"
-              >密码<input
-                v-model="password"
-                type="password"
-                required
-                autocomplete="current-password"
-                maxlength="200" /></label
+              >密码
+              <div class="password-field">
+                <input
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  required
+                  autocomplete="current-password"
+                  maxlength="200"
+                  @keyup="capsLock = $event.getModifierState('CapsLock')"
+                /><button
+                  type="button"
+                  class="icon-button"
+                  :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+                  @click="showPassword = !showPassword"
+                >
+                  <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
+                </button></div></label
           ></template>
+          <p v-if="capsLock && mode === 'login'" class="warning-box" role="status">
+            大写锁定已开启，请核对密码大小写。
+          </p>
           <p v-if="error" class="error-box" role="alert">{{ error }}</p>
           <Button type="submit" :disabled="busy"
             >{{

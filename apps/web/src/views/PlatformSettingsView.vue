@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import {
   Activity,
   Database,
@@ -141,6 +142,17 @@ async function save() {
 onMounted(() => {
   void load()
   void check()
+})
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (!dirty.value && !saving.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+window.addEventListener('beforeunload', beforeUnload)
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
+onBeforeRouteLeave(() => {
+  if (saving.value) return false
+  return !dirty.value || window.confirm('平台配置尚未保存。确认放弃本次更改并离开？')
 })
 </script>
 <template>

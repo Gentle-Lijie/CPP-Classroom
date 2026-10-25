@@ -2,6 +2,7 @@
 
 - Never add Dockerfiles, Compose files, container workflows, or Docker-based setup. The user explicitly requires native processes.
 - Frontend: Vue 3, TypeScript, shadcn-vue and Tailwind CSS. Use Composition API and `<script setup lang="ts">`.
+- Target desktop browsers and desktop teaching/programming workflows. Responsive and mobile adaptation are out of scope unless the user explicitly requests them; do not require them for implementation or acceptance.
 - Database: PostgreSQL. Use versioned Drizzle migrations; never silently reset developer data.
 - Execution engine: go-judge, running natively on Linux. macOS support is experimental and must not be treated as production validation.
 - Keep business API and untrusted code execution separate. Never execute student code directly in the API process.

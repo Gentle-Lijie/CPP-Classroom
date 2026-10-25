@@ -1,118 +1,280 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Copy, Trash2, CircleAlert, Terminal, FileText } from '@lucide/vue'
+import { computed, ref, watch } from 'vue'
+import { Copy, Trash2, CircleAlert, Terminal, FileText, RotateCcw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { notify, type RunRecord, tone } from '@/data/demo'
-const props = defineProps<{ run?: RunRecord; interactive?: boolean }>()
-defineEmits<{ send: [text: string]; eof: [] }>()
-const tab = ref('运行输出')
-const line = ref('')
-const cleared = ref(false)
+import { formatTime } from '@/lib/display'
+const props = defineProps<{
+  run?: RunRecord
+  interactive?: boolean
+  readonlyContext?: boolean
+  sendInput?: (text: string) => Promise<boolean>
+  closeInput?: () => Promise<boolean>
+}>()
+const tab = ref('运行输出'),
+  line = ref(''),
+  cleared = ref(false),
+  busy = ref(false),
+  error = ref('')
+const value = computed(() =>
+  !props.run
+    ? ''
+    : tab.value === '编译诊断'
+      ? props.run.log
+      : tab.value === '标准错误'
+        ? (props.run.stderr ?? '')
+        : props.run.output,
+)
+watch(
+  () => props.run?.id,
+  () => {
+    cleared.value = false
+    tab.value = props.run?.status === '编译失败' ? '编译诊断' : '运行输出'
+    error.value = ''
+    line.value = ''
+  },
+)
+watch(
+  () => props.run?.status,
+  (status) => {
+    if (status === '编译失败') {
+      tab.value = '编译诊断'
+      cleared.value = false
+    }
+  },
+)
+function select(value: string) {
+  tab.value = value
+  cleared.value = false
+}
+
 async function copy() {
   try {
-    await navigator.clipboard.writeText(
-      props.run
-        ? tab.value === '编译诊断'
-          ? props.run.log
-          : tab.value === '标准错误'
-            ? (props.run.stderr ?? '')
-            : props.run.output
-        : '',
-    )
-    notify('已复制当前内容')
+    await navigator.clipboard.writeText(cleared.value ? '' : (value.value ?? ''))
+    notify('已复制可见内容')
   } catch {
-    notify('当前浏览器无法访问剪贴板')
+    notify('无法访问剪贴板，请选中文本复制', 'error')
+  }
+}
+async function send() {
+  if (busy.value || !props.sendInput) return
+  busy.value = true
+  error.value = ''
+  try {
+    if (await props.sendInput(line.value)) line.value = ''
+    else error.value = '输入未发送，请核对后重试。'
+  } finally {
+    busy.value = false
+  }
+}
+async function eof() {
+  if (busy.value || !props.closeInput) return
+  busy.value = true
+  error.value = ''
+  try {
+    if (!(await props.closeInput())) error.value = 'EOF 未发送，请重试。'
+  } finally {
+    busy.value = false
   }
 }
 </script>
 <template>
   <section class="run-output">
-    <div class="code-toolbar">
-      <div class="output-tabs">
+    <div class="code-toolbar output-toolbar">
+      <div class="output-tabs" role="tablist" aria-label="运行结果">
         <button
+          role="tab"
+          :aria-selected="tab === '运行输出'"
           :class="{ selected: tab === '运行输出' }"
-          @click="
-            () => {
-              tab = '运行输出'
-              cleared = false
-            }
-          "
+          @click="select('运行输出')"
         >
           <Terminal :size="14" />运行输出</button
         ><button
+          role="tab"
+          :aria-selected="tab === '编译诊断'"
           :class="{ selected: tab === '编译诊断' }"
-          @click="
-            () => {
-              tab = '编译诊断'
-              cleared = false
-            }
-          "
+          @click="select('编译诊断')"
         >
           <CircleAlert :size="14" />编译诊断<span
             v-if="run?.status === '编译失败'"
             class="error-count"
-            >1</span
-          >
-        </button>
-        <button
+            >失败</span
+          ></button
+        ><button
           v-if="run?.stderr"
+          role="tab"
+          :aria-selected="tab === '标准错误'"
           :class="{ selected: tab === '标准错误' }"
-          @click="tab = '标准错误'"
+          @click="select('标准错误')"
         >
           标准错误
         </button>
       </div>
-      <div class="inline-items ml-auto">
-        <button class="icon-button" aria-label="复制输出" @click="copy"><Copy :size="14" /></button
-        ><button class="icon-button" aria-label="清空可见输出" @click="cleared = true">
-          <Trash2 :size="14" />
+      <div class="inline-items output-actions">
+        <button
+          class="icon-button"
+          aria-label="复制可见输出"
+          :disabled="!run || cleared"
+          @click="copy"
+        >
+          <Copy :size="14" /></button
+        ><button
+          class="icon-button"
+          :aria-label="cleared ? '恢复显示输出' : '清空可见输出（保留记录）'"
+          :disabled="!run"
+          @click="cleared = !cleared"
+        >
+          <RotateCcw v-if="cleared" :size="14" /><Trash2 v-else :size="14" />
         </button>
       </div>
     </div>
     <div v-if="run" class="output-body">
       <div class="output-meta">
         <span class="status" :class="tone(run.status)">{{ run.status }}</span
-        ><span>{{ run.id }} · 固定快照</span><span class="ml-auto">{{ run.time }}</span>
+        ><span v-if="run.id" :title="run.id">{{ run.id.slice(0, 8) }} · 快照</span
+        ><span>{{ formatTime(run.time) }}</span>
       </div>
       <pre
         v-if="!cleared"
         :class="{ 'diagnostic-text': tab === '编译诊断' && run.status === '编译失败' }"
         >{{
-          tab === '编译诊断'
-            ? run.log
-            : tab === '标准错误'
-              ? run.stderr
-              : run.output ||
-                (run.status === '编译失败'
-                  ? '编译失败，程序未执行。请查看编译诊断。'
-                  : '暂无标准输出。')
+          value ||
+          (tab === '编译诊断'
+            ? '没有编译诊断。'
+            : run.status === '编译失败'
+              ? '编译失败，程序未执行。请查看编译诊断。'
+              : '暂无标准输出。')
         }}</pre>
-      <p v-else class="muted text-xs">已清空可见输出，原始运行记录保留。</p>
+      <p v-else class="muted">已隐藏输出，点击恢复按钮可重新显示，原始记录保留。</p>
       <div class="output-exit">
         <span>{{ tab === '编译诊断' ? 'compiler' : tab === '标准错误' ? 'stderr' : 'stdout' }}</span
-        ><span>退出码 / 原因：{{ run.exit }}</span>
+        ><span v-if="run.exit">退出码 / 原因：{{ run.exit }}</span>
       </div>
     </div>
     <div v-else class="output-placeholder">
-      <FileText :size="22" />
-      <p>运行结果会显示在这里</p>
-      <small>保存代码后点击“编译运行”，查看真实结果。</small>
+      <FileText :size="24" />
+      <p>暂无运行结果</p>
+      <small>{{
+        readonlyContext
+          ? '该学生尚未留下运行记录。当前代码仅供只读查看。'
+          : '点击“编译运行”，结果将与当次代码一同保存。'
+      }}</small>
     </div>
-    <form
-      v-if="interactive"
-      class="runtime-input"
-      @submit.prevent="
-        () => {
-          $emit('send', line)
-          line = ''
-        }
-      "
-    >
-      <input v-model="line" aria-label="运行时输入" placeholder="输入一行文本…" /><Button
-        type="submit"
+    <p v-if="run?.eof" class="stdin-closed">stdin 已关闭 · 等待程序结束，可随时停止运行。</p>
+    <form v-if="interactive && !run?.eof" class="runtime-input" @submit.prevent="send">
+      <input
+        v-model="line"
+        aria-label="运行时输入"
+        placeholder="输入一行文本…"
+        :disabled="busy"
+        maxlength="4095"
+      /><Button type="submit" size="sm" :disabled="busy">{{ busy ? '发送中…' : '发送' }}</Button
+      ><Button
+        type="button"
+        variant="outline"
         size="sm"
-        >发送输入</Button
-      ><Button type="button" variant="outline" size="sm" @click="$emit('eof')">EOF</Button>
+        :disabled="busy"
+        title="关闭标准输入，之后不能继续发送文本"
+        @click="eof"
+        >EOF</Button
+      >
     </form>
+    <p v-if="error" class="input-error" role="alert">{{ error }}</p>
   </section>
 </template>
+<style scoped>
+.run-output {
+  min-width: 0;
+  min-height: 0;
+}
+.output-toolbar {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 42px;
+  gap: 6px;
+}
+.output-tabs {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  gap: 14px;
+  height: 40px;
+}
+.output-tabs button {
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.output-tabs button.selected {
+  color: var(--ui-action);
+  border-bottom-color: var(--ui-action);
+}
+.output-actions {
+  margin-left: auto;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.error-count {
+  color: var(--ui-error);
+  background: var(--ui-error-bg);
+  font-size: 11px;
+}
+.output-meta {
+  flex-wrap: wrap;
+  font-size: 12px;
+  line-height: 1.6;
+  gap: 8px;
+}
+.output-body {
+  min-width: 0;
+}
+.output-body pre {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.output-body pre.diagnostic-text {
+  color: var(--ui-error);
+  font-size: 12px;
+}
+.output-exit {
+  font-size: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.output-placeholder p {
+  font-size: 14px;
+}
+.output-placeholder small {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.runtime-input {
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.runtime-input input {
+  min-width: 80px;
+  flex: 1;
+  width: 0;
+  font-size: 13px;
+}
+.runtime-input [data-slot='button'] {
+  font-size: 12px;
+}
+.stdin-closed,
+.input-error {
+  font-size: 12px;
+  padding: 8px 12px;
+  line-height: 1.6;
+  border-top: 1px solid var(--ui-line);
+}
+.stdin-closed {
+  color: var(--ui-secondary);
+  background: var(--ui-surface);
+}
+.input-error {
+  color: var(--ui-error);
+  background: var(--ui-error-bg);
+}
+</style>

@@ -17,6 +17,8 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const container = ref<HTMLElement>()
+const editorError = ref(''),
+  editorLoading = ref(true)
 let editor: Monaco.editor.IStandaloneCodeEditor | undefined
 let disposed = false
 let monacoApi: typeof import('monaco-editor/esm/vs/editor/editor.api.js') | undefined
@@ -106,71 +108,88 @@ function markError() {
     editor.revealLineInCenter(props.errorLine)
   }
 }
-onMounted(async () => {
-  const monaco = await import('monaco-editor/esm/vs/editor/editor.api.js')
-  await import('monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution.js')
-  if (disposed || !container.value) return
-  monacoApi = monaco
-  self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
-  const palette = getComputedStyle(document.documentElement)
-  const color = (name: string, fallback: string) => {
-    const value = palette.getPropertyValue(name).trim() || fallback
-    // Production CSS minification uses #fff; Monaco's token theme requires
-    // full hex colors even for its editor background/foreground defaults.
-    return /^#[\da-f]{3,4}$/i.test(value)
-      ? '#' + [...value.slice(1)].map((digit) => digit + digit).join('')
-      : value
+async function initializeEditor() {
+  editorError.value = ''
+  editorLoading.value = true
+  try {
+    const monaco = await import('monaco-editor/esm/vs/editor/editor.api.js')
+    await import('monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution.js')
+    if (disposed || !container.value) return
+    monacoApi = monaco
+    self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
+    const palette = getComputedStyle(document.documentElement)
+    const color = (name: string, fallback: string) => {
+      const value = palette.getPropertyValue(name).trim() || fallback
+      // Production CSS minification uses #fff; Monaco's token theme requires
+      // full hex colors even for its editor background/foreground defaults.
+      return /^#[\da-f]{3,4}$/i.test(value)
+        ? '#' + [...value.slice(1)].map((digit) => digit + digit).join('')
+        : value
+    }
+    monaco.editor.defineTheme('classroom-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: color('--ui-muted', '#71717a').slice(1) },
+        { token: 'keyword', foreground: color('--ui-action', '#2563eb').slice(1) },
+        { token: 'number', foreground: color('--ui-code-number', '#0550ae').slice(1) },
+        { token: 'string', foreground: color('--ui-code-string', '#9f1239').slice(1) },
+        { token: 'delimiter', foreground: color('--ui-secondary', '#52525b').slice(1) },
+      ],
+      colors: {
+        'editor.background': color('--ui-page', '#ffffff'),
+        'editor.foreground': color('--ui-ink', '#18181b'),
+        'editorLineNumber.foreground': color('--ui-faint', '#a1a1aa'),
+        'editorLineNumber.activeForeground': color('--ui-secondary', '#52525b'),
+        'editor.lineHighlightBackground': color('--ui-surface', '#fafafa'),
+        'editor.selectionBackground': color('--ui-editor-selection', '#dbeafe'),
+        'editorCursor.foreground': color('--ui-action', '#2563eb'),
+        'editorBracketHighlight.foreground1': color('--ui-secondary', '#52525b'),
+        'editorBracketHighlight.foreground2': color('--ui-secondary', '#52525b'),
+        'editorBracketHighlight.foreground3': color('--ui-secondary', '#52525b'),
+        'editorBracketHighlight.foreground4': color('--ui-secondary', '#52525b'),
+        'editorBracketHighlight.foreground5': color('--ui-secondary', '#52525b'),
+        'editorBracketHighlight.foreground6': color('--ui-secondary', '#52525b'),
+      },
+    })
+    editor = monaco.editor.create(container.value, {
+      model: createModel(),
+      theme: 'classroom-light',
+      readOnly: props.readonly,
+      fontSize: props.fontSize,
+      fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
+      minimap: { enabled: false },
+      automaticLayout: true,
+      scrollBeyondLastLine: false,
+      lineNumbersMinChars: 3,
+      padding: { top: 22, bottom: 20 },
+      tabSize: 4,
+      bracketPairColorization: { enabled: false },
+      // Avoid async WordHighlighter requests outliving models during rapid exercise switches.
+      occurrencesHighlight: 'off',
+      selectionHighlight: false,
+      renderLineHighlight: 'line',
+      overviewRulerLanes: 0,
+      hideCursorInOverviewRuler: true,
+      lineHeight: Math.round(props.fontSize * 1.75),
+      fixedOverflowWidgets: true,
+    })
+    const currentEditor = editor
+    currentEditor.onDidChangeModelContent(() => emit('update:modelValue', currentEditor.getValue()))
+    markError()
+    if (languageEnabled.value) void startLanguageService()
+  } catch (error) {
+    editorError.value = error instanceof Error ? error.message : '编辑器资源加载失败'
+    const failedModel = editor?.getModel()
+    editor?.setModel(null)
+    editor?.dispose()
+    failedModel?.dispose()
+    editor = undefined
+  } finally {
+    editorLoading.value = false
   }
-  monaco.editor.defineTheme('classroom-light', {
-    base: 'vs',
-    inherit: true,
-    rules: [
-      { token: 'comment', foreground: color('--ui-muted', '#71717a').slice(1) },
-      { token: 'keyword', foreground: color('--ui-action', '#2563eb').slice(1) },
-      { token: 'number', foreground: color('--ui-code-number', '#0550ae').slice(1) },
-      { token: 'string', foreground: color('--ui-code-string', '#9f1239').slice(1) },
-      { token: 'delimiter', foreground: color('--ui-secondary', '#52525b').slice(1) },
-    ],
-    colors: {
-      'editor.background': color('--ui-page', '#ffffff'),
-      'editor.foreground': color('--ui-ink', '#18181b'),
-      'editorLineNumber.foreground': color('--ui-faint', '#a1a1aa'),
-      'editorLineNumber.activeForeground': color('--ui-secondary', '#52525b'),
-      'editor.lineHighlightBackground': color('--ui-surface', '#fafafa'),
-      'editor.selectionBackground': color('--ui-editor-selection', '#dbeafe'),
-      'editorCursor.foreground': color('--ui-action', '#2563eb'),
-      'editorBracketHighlight.foreground1': color('--ui-secondary', '#52525b'),
-      'editorBracketHighlight.foreground2': color('--ui-secondary', '#52525b'),
-      'editorBracketHighlight.foreground3': color('--ui-secondary', '#52525b'),
-      'editorBracketHighlight.foreground4': color('--ui-secondary', '#52525b'),
-      'editorBracketHighlight.foreground5': color('--ui-secondary', '#52525b'),
-      'editorBracketHighlight.foreground6': color('--ui-secondary', '#52525b'),
-    },
-  })
-  editor = monaco.editor.create(container.value, {
-    model: createModel(),
-    theme: 'classroom-light',
-    readOnly: props.readonly,
-    fontSize: props.fontSize,
-    fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
-    minimap: { enabled: false },
-    automaticLayout: true,
-    scrollBeyondLastLine: false,
-    lineNumbersMinChars: 3,
-    padding: { top: 22, bottom: 20 },
-    tabSize: 4,
-    bracketPairColorization: { enabled: false },
-    renderLineHighlight: 'line',
-    overviewRulerLanes: 0,
-    hideCursorInOverviewRuler: true,
-    lineHeight: Math.round(props.fontSize * 1.75),
-    fixedOverflowWidgets: true,
-  })
-  const currentEditor = editor
-  currentEditor.onDidChangeModelContent(() => emit('update:modelValue', currentEditor.getValue()))
-  markError()
-  if (languageEnabled.value) void startLanguageService()
-})
+}
+onMounted(() => void initializeEditor())
 watch(
   () => props.modelValue,
   (value) => {
@@ -190,8 +209,10 @@ watch(
     if (!editor || !monacoApi || disposed) return
     stopLanguageService()
     const previous = editor.getModel()
-    editor.setModel(createModel())
+    errorDecoration?.clear()
+    editor.setModel(null)
     previous?.dispose()
+    editor.setModel(createModel())
     markError()
     if (languageEnabled.value) void startLanguageService()
   },
@@ -209,12 +230,22 @@ onBeforeUnmount(() => {
   disposed = true
   stopLanguageService()
   const model = editor?.getModel()
+  editor?.setModel(null)
   editor?.dispose()
   model?.dispose()
 })
 </script>
 <template>
   <div class="code-editor-shell">
+    <div v-if="editorError" class="editor-resource-state" role="alert">
+      <strong>代码编辑器加载失败</strong>
+      <p>{{ editorError }}</p>
+      <button class="text-button" @click="initializeEditor">重新加载编辑器</button>
+      <p>草稿内容仍保留在页面，重试不会清空。</p>
+    </div>
+    <div v-else-if="editorLoading" class="editor-resource-state" role="status">
+      正在加载代码编辑器…
+    </div>
     <div
       ref="container"
       class="code-editor"
@@ -244,7 +275,7 @@ onBeforeUnmount(() => {
           !languageEnabled
             ? '补全与诊断已关闭'
             : languageStatus?.state === 'ready'
-              ? `C++17 · ${languageStatus.errors} 个错误 / ${languageStatus.warnings} 个警告`
+              ? `浏览器分析 · ${languageStatus.errors} 个错误 / ${languageStatus.warnings} 个警告`
               : (languageStatus?.message ?? '正在准备…')
         }}</span
       ><button

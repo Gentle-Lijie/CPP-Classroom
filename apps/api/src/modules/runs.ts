@@ -16,7 +16,14 @@ import { ClassroomService } from './classroom.js'
 import { actor, parse, role, type AuthRequest } from './common.js'
 export const activeStatuses = ['排队', '编译中', '运行中／可输入']
 export function runDto(r: Record<string, unknown>) {
-  return { ...r, time: r.created_at, exerciseId: r.exercise_id, userId: r.user_id }
+  return {
+    ...r,
+    time: r.created_at,
+    exerciseId: r.exercise_id,
+    userId: r.user_id,
+    classroomId: r.classroom_id,
+    compilerProfile: r.compiler_profile ?? null,
+  }
 }
 @Controller('classes/:id')
 export class RunsController {
@@ -58,7 +65,40 @@ export class RunsController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
-      await client.query('select id from users where id=$1 for update', [user.id])
+      // Lock the same records changed by permission revocation before admission.
+      // A revoker either precedes this check, or waits until the new run is visible
+      // to its stop-request scan. Lock classrooms first, like classroom mutations.
+      const classroom = (
+        await client.query('select status,settings from classrooms where id=$1 for share', [id])
+      ).rows[0]
+      const exercise = (
+        await client.query(
+          'select status from exercises where classroom_id=$1 and id=$2 for share',
+          [id, e.id],
+        )
+      ).rows[0]
+      const membership = (
+        await client.query(
+          'select status from memberships where classroom_id=$1 and user_id=$2 for share',
+          [id, user.id],
+        )
+      ).rows[0]
+      const account = (
+        await client.query('select disabled,role from users where id=$1 for update', [user.id])
+      ).rows[0]
+      if (
+        !account ||
+        account.disabled ||
+        account.role !== 'student' ||
+        membership?.status !== 'active'
+      )
+        throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
+      if (
+        classroom?.status !== '进行中' ||
+        classroom.settings?.allowRun === false ||
+        exercise?.status !== '已发布'
+      )
+        throw new ForbiddenException('课堂或练习已停止接受运行，请刷新')
       const existing = await client.query(
         'select id from runs where user_id=$1 and status=any($2)',
         [user.id, activeStatuses],
@@ -99,21 +139,38 @@ export class RunsController {
     @Param('id') id: string,
     @Query('student') student: string | undefined,
     @Query('exercise') exercise: string | undefined,
+    @Query('page') page: string | undefined,
+    @Query('pageSize') pageSize: string | undefined,
+    @Query('active') active: string | undefined,
+    @Query('status') status: string | undefined,
+    @Query('scope') scope: string | undefined,
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
     await this.service.access(user, id)
     if (student && student !== user.id) await this.service.access(user, id, true)
-    return (
-      await this.service.pool.query(
-        'select * from runs where classroom_id=$1 and user_id=$2 and ($3::uuid is null or exercise_id=$3) order by created_at desc limit 100',
-        [
-          id,
-          student ? parse(z.uuid(), student) : user.id,
-          exercise ? parse(z.uuid(), exercise) : null,
-        ],
-      )
-    ).rows.map(runDto)
+    const paging = page !== undefined || pageSize !== undefined
+    const currentPage = parse(z.coerce.number().int().min(1).max(100000).default(1), page)
+    const size = parse(z.coerce.number().int().min(1).max(100).default(20), pageSize)
+    const params = [
+      id,
+      student ? parse(z.uuid(), student) : user.id,
+      exercise ? parse(z.uuid(), exercise) : null,
+      active === 'true',
+      status ? parse(z.string().max(40), status) : null,
+      scope === 'all' && active === 'true' && (!student || student === user.id),
+    ]
+    const where =
+      "($6::boolean or classroom_id=$1) and user_id=$2 and ($3::uuid is null or exercise_id=$3) and (not $4::boolean or status in ('排队','编译中','运行中／可输入')) and ($5::text is null or status=$5)"
+    const result = await this.service.pool.query(
+      `select * from runs where ${where} order by created_at desc,id desc limit $7 offset $8`,
+      [...params, paging ? size : 100, paging ? (currentPage - 1) * size : 0],
+    )
+    if (!paging) return result.rows.map(runDto)
+    const total = (
+      await this.service.pool.query(`select count(*)::int as n from runs where ${where}`, params)
+    ).rows[0].n
+    return { items: result.rows.map(runDto), total, page: currentPage, pageSize: size }
   }
   @Get('runs/:runId') async get(
     @Param('id') id: string,

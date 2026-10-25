@@ -250,8 +250,8 @@ export function useLocalDirectory(options: Options) {
     busy.value = true
     try {
       clearTimeout(writeTimer)
-      await flush()
-      if (conflict.value) return
+      const saved = await flush()
+      if (!saved || conflict.value) return
       file.value = undefined
       let forgetFailed = false
       await rememberDirectory(options.classroomId.value).catch(() => {

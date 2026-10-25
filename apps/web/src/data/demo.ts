@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from 'vue'
-import { api } from '@/lib/api'
+import { api, ApiError, connectionState } from '@/lib/api'
 import { executionDefaults } from '@classroom/contracts'
 export const executionSettings = reactive({ ...executionDefaults })
 export const starterCode =
@@ -16,6 +16,11 @@ export interface Student {
   activity: string
   summary: string
   exerciseId?: string
+  helpMessage?: string
+  helpCreatedAt?: string
+  helpExerciseId?: string
+  helpRequestId?: string
+  recommendedSubmitted?: boolean
 }
 export interface Exercise {
   id: string
@@ -42,6 +47,8 @@ export interface Classroom {
   exercises?: number
   teacher?: string
   inviteCode?: string
+  inviteExpiresAt?: string
+  membershipStatus?: string
   settings?: Record<string, unknown>
   recommended?: string
 }
@@ -56,6 +63,10 @@ export interface RunRecord {
   log: string
   stderr?: string
   exit: string
+  exerciseId?: string
+  compilerProfile?: string
+  classroomId?: string
+  eof?: boolean
 }
 
 export interface User {
@@ -66,6 +77,7 @@ export interface User {
   role: string
 }
 export const currentUser = ref<User>()
+export const bootstrapError = ref('')
 export const students = reactive<Student[]>([])
 export const exercises = reactive<Exercise[]>([])
 export const classrooms = reactive<Classroom[]>([])
@@ -74,6 +86,7 @@ export const demo = reactive({
   classroomId: '',
   recommended: '',
   notice: '',
+  noticeKind: 'success' as 'success' | 'error' | 'info',
   role: '',
   inviteCode: '',
   helpSent: false,
@@ -103,12 +116,23 @@ let initialized = false
 let refreshing: Promise<void> | undefined
 export async function initialize() {
   if (initialized) return
+  bootstrapError.value = ''
   try {
-    currentUser.value = await api<User>('/auth/me')
+    try {
+      currentUser.value = await api<User>('/auth/me')
+    } catch (error) {
+      if (!(error instanceof ApiError) || (error.status !== 0 && error.status < 500)) throw error
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      currentUser.value = await api<User>('/auth/me')
+    }
     demo.role = currentUser.value.role
-    await refresh()
-  } catch {
-    currentUser.value = undefined
+    await refresh().catch(() => notify('账号已登录，课堂数据读取失败，请重试连接', 'error'))
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) currentUser.value = undefined
+    else {
+      bootstrapError.value = '暂时无法连接服务器，请重试后继续。'
+      return
+    }
   }
   initialized = true
 }
@@ -116,15 +140,30 @@ export async function login(username: string, password: string) {
   currentUser.value = await api<User>('/auth/login', 'POST', { username, password })
   demo.role = currentUser.value.role
   initialized = true
-  await refresh()
+  await refresh().catch(() => notify('登录成功，课堂数据读取失败，请重试连接', 'error'))
 }
 export async function logout() {
   await api('/auth/logout', 'POST', {})
+  clearSession()
+}
+export function clearSession() {
   currentUser.value = undefined
   classrooms.splice(0)
   students.splice(0)
   exercises.splice(0)
   initialized = false
+  demo.classroomId = ''
+  demo.recommended = ''
+  demo.helpSent = false
+  demo.inviteCode = ''
+  demo.notice = ''
+  bootstrapError.value = ''
+  try {
+    for (const key of Object.keys(sessionStorage))
+      if (key.startsWith('cpp-credentials:')) sessionStorage.removeItem(key)
+  } catch {
+    /* Server logout still succeeds when browser storage is unavailable. */
+  }
 }
 export async function refresh(): Promise<void> {
   if (!currentUser.value) return
@@ -136,45 +175,66 @@ export async function refresh(): Promise<void> {
     refreshing = undefined
   }
 }
-async function refreshData() {
+async function refreshData(preferred?: string) {
   if (!currentUser.value) return
-  {
-    Object.assign(executionSettings, await api('/health/environment'))
-    const list = await api<Classroom[]>('/classes')
-    classrooms.splice(0, classrooms.length, ...list)
-    const stored = localStorage.getItem('cpp-class:' + currentUser.value.id)
-    if (!list.some((c) => c.id === demo.classroomId))
-      demo.classroomId = list.find((c) => c.id === stored)?.id ?? list[0]?.id ?? ''
-    if (!demo.classroomId) {
-      students.splice(0)
-      exercises.splice(0)
-      return
-    }
-    const c = activeClassroom.value
-    demo.inviteCode = c.inviteCode ?? ''
-    demo.recommended = c.recommended ?? ''
-    const content = await api<Exercise[]>(classPath('/exercises'))
-    exercises.splice(0, exercises.length, ...content)
-    if (!demo.recommended)
-      demo.recommended = content.find((e) => e.status === '已发布')?.id ?? content[0]?.id ?? ''
-    if (currentUser.value.role === 'teacher') {
-      const roster = await api<Student[]>(classPath('/overview'))
-      students.splice(
-        0,
-        students.length,
-        ...roster.map((s) => ({
-          ...s,
-          activity: s.activity ? new Date(s.activity).toLocaleTimeString('zh-CN') : '尚未访问',
-        })),
-      )
-    }
+  const user = currentUser.value
+  const [environment, list] = await Promise.all([
+    api('/health/environment'),
+    api<Classroom[]>('/classes'),
+  ])
+  let stored: string | null = null
+  try {
+    stored = localStorage.getItem('cpp-class:' + user.id)
+  } catch {
+    /* Optional preference. */
   }
+  const available = list.filter((c) => c.membershipStatus !== 'pending')
+  const selected =
+    available.find((c) => c.id === (preferred ?? demo.classroomId)) ??
+    available.find((c) => c.id === stored) ??
+    available.find((c) => c.status === '进行中') ??
+    available[0]
+  const path = selected ? '/classes/' + selected.id : ''
+  const [content, roster] = selected
+    ? await Promise.all([
+        api<Exercise[]>(path + '/exercises'),
+        user.role === 'teacher' ? api<Student[]>(path + '/overview') : Promise.resolve([]),
+      ])
+    : [[], []]
+  if (currentUser.value?.id !== user.id) return
+  Object.assign(executionSettings, environment)
+  classrooms.splice(0, classrooms.length, ...list)
+  demo.classroomId = selected?.id ?? ''
+  demo.inviteCode = selected?.inviteCode ?? ''
+  demo.recommended =
+    content.find((e) => e.id === selected?.recommended && e.status === '已发布')?.id ??
+    content.find((e) => e.status === '已发布')?.id ??
+    content[0]?.id ??
+    ''
+  exercises.splice(0, exercises.length, ...content)
+  students.splice(
+    0,
+    students.length,
+    ...roster.map((s) => ({
+      ...s,
+      activity: s.activity ? new Date(s.activity).toLocaleTimeString('zh-CN') : '尚未访问',
+    })),
+  )
+  connectionState.value = 'connected'
 }
 export async function selectClass(id: string) {
   if (refreshing) await refreshing
-  demo.classroomId = id
-  localStorage.setItem('cpp-class:' + currentUser.value!.id, id)
-  await refresh()
+  refreshing = refreshData(id)
+  try {
+    await refreshing
+  } finally {
+    refreshing = undefined
+  }
+  try {
+    localStorage.setItem('cpp-class:' + currentUser.value!.id, id)
+  } catch {
+    /* Optional preference. */
+  }
 }
 export async function saveExercise(exercise: Exercise) {
   const { id, ...value } = exercise
@@ -183,12 +243,13 @@ export async function saveExercise(exercise: Exercise) {
     id ? 'PATCH' : 'POST',
     value,
   )
-  await refresh()
+  Object.assign(exercise, result)
+  await refresh().catch(() => notify('练习已保存，列表刷新失败，请稍后重试', 'error'))
   return id || result.id!
 }
 export async function updateClass(value: unknown) {
   await api(classPath(), 'PATCH', value)
-  await refresh()
+  await refresh().catch(() => notify('课堂设置已保存，列表刷新失败，请稍后重试', 'error'))
 }
 export async function loadRuns(student?: string, exercise?: string) {
   const params = new URLSearchParams()
@@ -221,13 +282,14 @@ export function saveDraft(
   drafts[key] = code
 }
 let timer: ReturnType<typeof setTimeout>
-export function notify(message: string) {
+export function notify(message: string, kind: 'success' | 'error' | 'info' = 'success') {
   demo.notice = message
+  demo.noticeKind = kind
   clearTimeout(timer)
   timer = setTimeout(() => (demo.notice = ''), 6000)
 }
 export function reportError(error: unknown) {
-  notify(error instanceof Error ? error.message : '请求失败，请重试')
+  notify(error instanceof Error ? error.message : '请求失败，请重试', 'error')
 }
 export function tone(status: string) {
   if (['运行完成', '已发布', '进行中', '已解决', '正常', '已提交'].includes(status))

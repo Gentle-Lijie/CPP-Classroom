@@ -1208,3 +1208,127 @@
     flex-basis: calc(100% - 35px);
   }
 }
+
+/* Bounded teaching surfaces: content scrolls inside the slide at desktop sizes. */
+.teaching-stage {
+  min-width: 0;
+}
+.teaching-slide {
+  height: clamp(520px, calc(100dvh - 250px), 810px);
+  aspect-ratio: auto;
+}
+.teaching-problem {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+.slide-title-row h1,
+.teaching-slide-meta,
+.teaching-class-name {
+  overflow-wrap: anywhere;
+}
+.teaching-slide-meta,
+.teaching-slide-meta > .inline-items {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.teaching-slide-meta > .inline-items:last-child {
+  justify-content: flex-end;
+}
+.slide-io-notes > div,
+.slide-samples > div {
+  min-width: 0;
+}
+.slide-samples {
+  flex-shrink: 0;
+}
+.teaching-code-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.teaching-code-note > span:last-child {
+  margin-left: auto;
+}
+.teaching-pagination {
+  min-width: 0;
+}
+.teaching-pagination select {
+  min-width: 0;
+}
+.teaching-toolbar > .inline-items {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.monitor-header p,
+.monitor-explainer,
+.monitor-footer,
+.teaching-footer {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.local-directory-status strong {
+  font-size: 13px;
+}
+.local-directory-status > span,
+.local-poll-hint {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.local-directory-panel .text-button,
+.local-directory-panel [data-slot='button'] {
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .teaching-slide {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .teaching-problem {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .teaching-slide.with-code {
+    overflow: hidden;
+  }
+  .teaching-split .teaching-problem {
+    min-height: 0;
+  }
+  .slide-title-row h1 {
+    font-size: 26px;
+  }
+  .slide-samples {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .teaching-slide-meta > .inline-items:last-child {
+    justify-content: flex-start;
+  }
+  .teaching-code-note > span:last-child {
+    margin-left: 0;
+  }
+  .teaching-pagination {
+    max-width: 100%;
+  }
+  .local-directory-status strong,
+  .local-directory-status > span {
+    font-size: 12px;
+  }
+  .local-directory-status > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .local-directory-panel > .inline-items {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .file-conflict-comparison h3,
+  .file-conflict-comparison pre,
+  .file-conflict-actions [data-slot='button'] {
+    font-size: 12px;
+  }
+}

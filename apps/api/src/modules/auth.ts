@@ -16,7 +16,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import type { Response } from 'express'
 import { z } from 'zod'
 import { DatabaseService } from '../database.service.js'
-import { actor, parse, text, type AuthRequest } from './common.js'
+import { actor, parse, text, type Actor, type AuthRequest } from './common.js'
 
 export function passwordHash(password: string) {
   const salt = randomBytes(16).toString('hex')
@@ -86,18 +86,38 @@ export class AuthController {
       [key],
     )
     if (attempt.rows[0].count > 20) throw new HttpException('登录尝试过多，请 15 分钟后重试', 429)
-    const user = (
-      await db.query('select * from users where username=$1 and not disabled', [data.username])
-    ).rows[0]
-    if (!verifyPassword(data.password, user?.password_hash ?? 'dummy:' + '00'.repeat(64)) || !user)
-      throw new UnauthorizedException('账号或密码不正确')
-    await db.query('delete from login_attempts where key=$1', [key])
-    const token = randomBytes(32).toString('hex')
-    await db.query(`delete from sessions where expires_at<now()`)
-    await db.query(
-      `insert into sessions(token,user_id,expires_at) values($1,$2,now()+interval '7 days')`,
-      [digest(token), user.id],
-    )
+    const client = await db.connect()
+    let authenticated: { user: Actor; token: string }
+    try {
+      await client.query('begin')
+      // Serialize password verification and session creation with password resets,
+      // personal password changes and account disabling, which lock the same user.
+      const user = (
+        await client.query('select * from users where username=$1 and not disabled for update', [
+          data.username,
+        ])
+      ).rows[0]
+      if (
+        !verifyPassword(data.password, user?.password_hash ?? 'dummy:' + '00'.repeat(64)) ||
+        !user
+      )
+        throw new UnauthorizedException('账号或密码不正确')
+      const token = randomBytes(32).toString('hex')
+      await client.query('delete from login_attempts where key=$1', [key])
+      await client.query('delete from sessions where user_id=$1 and expires_at<now()', [user.id])
+      await client.query(
+        `insert into sessions(token,user_id,expires_at) values($1,$2,now()+interval '7 days')`,
+        [digest(token), user.id],
+      )
+      await client.query('commit')
+      authenticated = { user, token }
+    } catch (e) {
+      await client.query('rollback')
+      throw e
+    } finally {
+      client.release()
+    }
+    const { user, token } = authenticated
     res.cookie('classroom_session', token, {
       httpOnly: true,
       sameSite: 'strict',
@@ -125,23 +145,50 @@ export class AuthController {
   }
   @Post('password') async password(@Body() body: unknown, @Req() req: AuthRequest) {
     const data = parse(
-      z.object({ current: text(200), password: z.string().min(10).max(200) }),
+      z.object({ current: z.string().min(1).max(200), password: z.string().min(12).max(200) }),
       body,
     )
-    const db = this.database.database.pool
-    const user = (await db.query('select password_hash from users where id=$1', [actor(req).id]))
-      .rows[0]
-    if (!verifyPassword(data.current, user.password_hash))
-      throw new ConflictException('当前密码不正确')
-    await db.query('update users set password_hash=$1 where id=$2', [
-      passwordHash(data.password),
-      actor(req).id,
-    ])
-    await db.query('delete from sessions where user_id=$1', [actor(req).id])
-    return { ok: true }
+    const client = await this.database.database.pool.connect()
+    try {
+      await client.query('begin')
+      const user = (
+        await client.query('select password_hash from users where id=$1 for update', [
+          actor(req).id,
+        ])
+      ).rows[0]
+      if (!verifyPassword(data.current, user.password_hash))
+        throw new ConflictException('当前密码不正确')
+      await client.query('update users set password_hash=$1 where id=$2', [
+        passwordHash(data.password),
+        actor(req).id,
+      ])
+      await client.query('delete from sessions where user_id=$1', [actor(req).id])
+      await client.query('update recovery_requests set resolved=true where username=$1', [
+        actor(req).username,
+      ])
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'user.password_changed',
+        actor(req).id,
+        JSON.stringify({ userId: actor(req).id }),
+      ])
+      await client.query('commit')
+      return { ok: true }
+    } catch (e) {
+      await client.query('rollback')
+      throw e
+    } finally {
+      client.release()
+    }
   }
-  @Post('recover') async recover(@Body() body: unknown) {
+  @Post('recover') async recover(@Body() body: unknown, @Req() req: AuthRequest) {
     const data = parse(z.object({ username: text(80) }), body)
+    const key = digest(`recovery:${req.ip}`)
+    const attempt = await this.database.database.pool.query(
+      `insert into login_attempts(key,count) values($1,1) on conflict(key) do update set count=case when login_attempts.since<now()-interval '1 hour' then 1 else login_attempts.count+1 end,since=case when login_attempts.since<now()-interval '1 hour' then now() else login_attempts.since end returning count`,
+      [key],
+    )
+    if (attempt.rows[0].count > 10)
+      throw new HttpException('恢复申请过于频繁，请 1 小时后重试或联系管理员', 429)
     await this.database.database.pool.query(
       `insert into recovery_requests(username) select $1 where not exists(select 1 from recovery_requests where username=$1 and created_at>now()-interval '1 hour')`,
       [data.username],

@@ -192,7 +192,7 @@ revision = (await student(workspace, 'PUT', { code: '// modified after submissio
 assert.equal((await teacher(path + '/submissions')).find((s) => s.id === sub.id).code, code)
 await student(path + '/help', 'POST', { exerciseId: e.id, message: '请帮助检查' }, 201)
 assert.equal((await teacher(path + '/overview')).find((s) => s.id === studentUser.id).help, true)
-await teacher(path + '/help/' + studentUser.id + '/resolve', 'POST', {}, 201)
+await teacher(path + '/help/' + studentUser.id + '/resolve', 'POST', { exerciseId: e.id }, 201)
 assert.equal((await teacher(path + '/overview')).find((s) => s.id === studentUser.id).help, false)
 const projection = await teacher(
   path + '/projections',

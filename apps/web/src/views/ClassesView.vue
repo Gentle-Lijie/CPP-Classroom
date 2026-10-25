@@ -15,7 +15,9 @@ import {
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
-import { classrooms, tone, notify, refresh, selectClass, reportError } from '@/data/demo'
+import Pagination from '@/components/classroom/Pagination.vue'
+import { usePagination } from '@/composables/usePagination'
+import { classrooms, tone, notify, selectClass, reportError } from '@/data/demo'
 import { api } from '@/lib/api'
 const route = useRoute()
 const router = useRouter()
@@ -25,30 +27,60 @@ const filter = ref('全部课堂')
 const create = ref(false)
 const name = ref('')
 const description = ref('')
+const busy = ref(false),
+  error = ref('')
+const entering = ref('')
+function openCreate() {
+  error.value = ''
+  create.value = true
+}
 const visible = computed(() =>
   classrooms.filter(
     (c) =>
-      c.name.includes(search.value) && (filter.value === '全部课堂' || c.status === filter.value),
+      c.name.toLowerCase().includes(search.value.trim().toLowerCase()) &&
+      (filter.value === '全部课堂' || c.status === filter.value),
   ),
 )
+const { page, pageSize, paged } = usePagination(visible, [search, filter], 10)
 async function add() {
+  if (busy.value) return
+  if (!name.value.trim()) {
+    error.value = '请输入课堂名称'
+    return
+  }
+  busy.value = true
+  error.value = ''
   try {
-    await api('/classes', 'POST', { name: name.value.trim(), description: description.value })
-    await refresh()
+    const created = await api<{ id: string }>('/classes', 'POST', {
+      name: name.value.trim(),
+      description: description.value,
+    })
     create.value = false
     name.value = ''
     description.value = ''
     notify('课堂已创建')
+    try {
+      await selectClass(created.id)
+      await router.push('/teacher/overview')
+    } catch {
+      notify('课堂已创建，列表刷新失败，请重试连接后进入', 'error')
+    }
   } catch (e) {
-    reportError(e)
+    error.value = e instanceof Error ? e.message : '创建失败'
+  } finally {
+    busy.value = false
   }
 }
 async function enter(id: string) {
+  if (entering.value) return
+  entering.value = id
   try {
     await selectClass(id)
     await router.push(student.value ? '/student/workspace' : '/teacher/overview')
   } catch (e) {
     reportError(e)
+  } finally {
+    entering.value = ''
   }
 }
 </script>
@@ -63,14 +95,14 @@ async function enter(id: string) {
         {{ student ? '查看已加入的课堂和当前练习。' : '管理课堂、学生名单与练习。' }}
       </p>
     </div>
-    <Button @click="student ? router.push('/join') : (create = true)"
+    <Button @click="student ? router.push('/join') : openCreate()"
       ><KeyRound v-if="student" /><Plus v-else />{{ student ? '加入课堂' : '创建课堂' }}</Button
     >
   </div>
   <div class="class-toolbar">
     <div class="segmented">
       <button
-        v-for="f in ['全部课堂', '进行中', '未开始', '已归档']"
+        v-for="f in ['全部课堂', '进行中', '未开始', '已关闭', '已归档']"
         :key="f"
         :class="{ selected: filter === f }"
         @click="filter = f"
@@ -83,16 +115,16 @@ async function enter(id: string) {
     /></label>
   </div>
   <div class="class-grid">
-    <article v-for="c in visible" :key="c.id" class="class-card">
+    <article v-for="c in paged" :key="c.id" class="class-card">
       <div class="class-card-cover">
         <span class="status" :class="tone(c.status)"
-          ><span class="status-dot" />{{ c.status }}</span
+          ><span class="status-dot" />{{
+            c.membershipStatus === 'pending' ? '等待审批' : c.status
+          }}</span
         >
       </div>
       <div class="class-card-body">
-        <span class="muted text-xs"
-          >{{ c.status === '已归档' ? '2026 夏季学期' : '2026 秋季学期' }} · {{ c.teacher }}</span
-        >
+        <span class="muted text-xs">{{ c.teacher ?? '课堂教师' }}</span>
         <h2>{{ c.name }}</h2>
         <p>{{ c.description }}</p>
         <div class="class-card-meta">
@@ -106,25 +138,58 @@ async function enter(id: string) {
                 ? '课堂已开放'
                 : c.status === '已归档'
                   ? '作品只读保留'
-                  : '等待课堂开放'
+                  : c.status === '已关闭'
+                    ? '课堂已关闭，可查看作品'
+                    : '等待课堂开放'
             }}</span
-          ><Button variant="ghost" @click="enter(c.id)"
-            >{{ c.status === '已归档' ? '查看作品' : '进入课堂' }}<ArrowUpRight
+          ><Button
+            variant="outline"
+            :disabled="!!entering || c.membershipStatus === 'pending' || (student && !c.exercises)"
+            @click="enter(c.id)"
+            >{{
+              entering === c.id
+                ? '正在进入…'
+                : c.membershipStatus === 'pending'
+                  ? '等待教师审批'
+                  : student && !c.exercises
+                    ? '等待教师发布练习'
+                    : c.status === '已归档' || c.status === '已关闭'
+                      ? '查看作品'
+                      : '进入课堂'
+            }}<ArrowUpRight
           /></Button>
         </div>
       </div>
     </article>
-    <button v-if="!student" class="create-class-card" @click="create = true">
+    <button v-if="!student && visible.length" class="create-class-card" @click="openCreate">
       <span><Plus :size="25" /></span>
       <h3>新建课堂</h3>
       <p>创建课堂，邀请学生一起写代码</p>
       <strong>创建课堂 <ArrowRight :size="14" /></strong>
     </button>
   </div>
+  <Pagination
+    v-if="visible.length > 10"
+    v-model:page="page"
+    v-model:page-size="pageSize"
+    :total="visible.length"
+    unit="个课堂"
+  />
   <div v-if="!visible.length" class="panel empty-state">
     <FolderOpen :size="30" />
-    <h3>这里还没有课堂</h3>
-    <p>调整筛选条件，或者创建你的第一个课堂。</p>
+    <h3>{{ search || filter !== '全部课堂' ? '没有找到匹配的课堂' : '这里还没有课堂' }}</h3>
+    <p>
+      {{
+        student
+          ? '通过教师提供的课堂码申请加入，或调整筛选条件。'
+          : '调整筛选条件，或者创建你的第一个课堂。'
+      }}
+    </p>
+    <Button
+      v-if="!search && filter === '全部课堂'"
+      @click="student ? router.push('/join') : openCreate()"
+      >{{ student ? '申请加入课堂' : '创建第一个课堂' }}</Button
+    >
   </div>
   <div class="class-tip">
     <GraduationCap :size="21" />
@@ -143,20 +208,27 @@ async function enter(id: string) {
     v-model:open="create"
     title="创建新课堂"
     description="填写课堂名称和说明，创建后可继续设置。"
+    :busy="busy"
     ><form class="form-stack" @submit.prevent="add">
       <label
         >课堂名称<input
           v-model="name"
           required
-          maxlength="50"
+          maxlength="100"
           placeholder="例如：C++ 基础 · 秋季二班" /></label
       ><label
-        >课堂说明<textarea v-model="description" rows="3" placeholder="介绍课程目标、上课安排…" />
+        >课堂说明<textarea
+          v-model="description"
+          rows="3"
+          maxlength="5000"
+          placeholder="介绍课程目标、上课安排…"
+        />
       </label>
-      <div class="info-box">默认 C++17 · 源文件名由题目指定 · 最多 50 人</div>
+      <div class="info-box">创建后可添加学生、准备练习，再将课堂状态设为“进行中”。</div>
+      <p v-if="error" role="alert" class="error-box">{{ error }}</p>
       <div class="modal-actions">
         <Button type="button" variant="outline" @click="create = false">取消</Button
-        ><Button type="submit">创建课堂</Button>
+        ><Button type="submit" :disabled="busy">{{ busy ? '正在创建…' : '创建课堂' }}</Button>
       </div>
     </form></Modal
   >

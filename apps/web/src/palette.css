@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --ui-page: #ffffff;
+  --ui-canvas: #f6f8fc;
   --ui-surface: #fafafa;
   --ui-hover: #f4f4f5;
   --ui-ink: #18181b;
@@ -18,6 +19,12 @@
   --ui-error-bg: #fef2f2;
   --ui-warning: #b45309;
   --ui-warning-bg: #fff7ed;
+  --ui-warning-line: #fed7aa;
+  --ui-success: #15803d;
+  --ui-success-hover: #166534;
+  --ui-success-bg: #f0fdf4;
+  --ui-success-line: #bbf7d0;
+  --ui-blue-line: #bfdbfe;
   --ui-icon-slate: #64748b;
   --ui-icon-orange: #c2410c;
   --ui-code-string: #9f1239;

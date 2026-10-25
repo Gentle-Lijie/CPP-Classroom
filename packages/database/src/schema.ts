@@ -8,6 +8,7 @@ import {
   timestamp,
   uuid,
   uniqueIndex,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 
 // Operational and classroom audit records; secrets are never stored in event details.
@@ -30,6 +31,7 @@ export const users = pgTable('users', {
   number: text('number').notNull().default(''),
   role: text('role').notNull(),
   passwordHash: text('password_hash').notNull(),
+  createdBy: uuid('created_by').references((): AnyPgColumn => users.id),
   disabled: boolean('disabled').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
@@ -134,6 +136,7 @@ export const runs = pgTable(
       .references(() => users.id),
     code: text('code').notNull(),
     filename: text('filename').notNull(),
+    compilerProfile: text('compiler_profile'),
     revision: integer('revision').notNull(),
     input: text('input').notNull(),
     status: text('status').notNull().default('排队'),

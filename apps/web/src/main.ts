@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import { initialize, currentUser, demo, exercises } from './data/demo'
+import { initialize, currentUser, demo, exercises, bootstrapError } from './data/demo'
 import './styles.css'
 import './interface.css'
 import './platform.css'
@@ -67,9 +67,18 @@ const router = createRouter({
 })
 router.beforeEach(async (to) => {
   await initialize()
+  if (bootstrapError.value) return true
   if (['/login', '/recover'].includes(to.path)) return true
   if (!currentUser.value) return { path: '/login', query: { redirect: to.fullPath } }
   const role = currentUser.value.role
+  if (to.path === '/guide') return true
+  if (
+    to.path.startsWith('/admin/') &&
+    !['health', 'teachers', 'settings', 'environment', 'tasks', 'backups'].includes(
+      to.path.split('/')[2]!,
+    )
+  )
+    return '/admin/health'
   if (to.path === '/join' && role === 'student') return true
   const prefix = to.path.startsWith('/projection') ? 'teacher' : to.path.split('/')[1]
   if (['teacher', 'student', 'admin'].includes(prefix!) && prefix !== role)
