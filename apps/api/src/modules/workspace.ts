@@ -57,7 +57,7 @@ export class WorkspaceController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    role(user, 'student')
+    role(user, 'student', 'teacher')
     await this.service.exercise(user, id, exerciseId, true)
     const data = parse(
       z.object({ code: z.string().max(100000), revision: z.number().int().min(0) }),
