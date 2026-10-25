@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { Search, UserPlus, Upload, Download, UserMinus, Check, Users, Clock3 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import { students, notify, download, classPath, refresh, reportError } from '@/data/demo'
 import { api } from '@/lib/api'
 const search = ref('')
@@ -116,13 +117,17 @@ async function removeStudent() {
       ><Button @click="add = true"><UserPlus />添加学生</Button>
     </div>
   </div>
-  <section v-if="credentials.length" class="panel form-stack">
-    <h2>新建账号凭据（请立即保存）</h2>
+  <ContentPanel
+    v-if="credentials.length"
+    title="新建账号凭据"
+    description="初始密码仅在本次显示，请保存后再关闭。"
+    class="roster-credentials"
+  >
     <p v-for="item in credentials" :key="item.username">
       {{ item.username }} · {{ item.password ?? '账号已存在，密码未修改' }}
     </p>
     <Button @click="credentials = []">我已保存，关闭显示</Button>
-  </section>
+  </ContentPanel>
   <section class="panel">
     <div class="panel-heading">
       <div class="filter-tabs borderless">
@@ -283,3 +288,9 @@ async function removeStudent() {
     </form></Modal
   >
 </template>
+
+<style scoped>
+.roster-credentials {
+  margin-bottom: 24px;
+}
+</style>

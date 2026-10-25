@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import { currentUser } from '@/data/demo'
 </script>
 <template>
-  <section class="panel form-stack">
+  <ContentPanel>
     <h1>码上课堂使用指南</h1>
     <p>使用教师或管理员分配的账号登录，服务器验证每次请求的课堂权限。</p>
     <template v-if="currentUser?.role === 'teacher'"
@@ -33,5 +34,5 @@ import { currentUser } from '@/data/demo'
       <p>备份使用原生 pg_dump，在独立临时数据库恢复验证，不覆盖现有数据。</p>
       <RouterLink to="/admin/health">平台概况 →</RouterLink></template
     >
-  </section>
+  </ContentPanel>
 </template>
