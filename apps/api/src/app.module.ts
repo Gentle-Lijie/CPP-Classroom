@@ -1,3 +1,5 @@
+import { WorkspaceController } from './modules/workspace.js'
+import { ClassroomController, ClassroomService } from './modules/classroom.js'
 import { APP_GUARD } from '@nestjs/core'
 import { AuthController, AuthGuard } from './modules/auth.js'
 import { Module } from '@nestjs/common'
@@ -8,10 +10,11 @@ import { RunnerService } from './runner.service.js'
 import { HealthController } from './health.controller.js'
 
 @Module({
-  controllers: [HealthController, AuthController],
+  controllers: [HealthController, AuthController, ClassroomController, WorkspaceController],
   providers: [
     { provide: ENVIRONMENT, useFactory: loadEnvironment },
     DatabaseService,
+    ClassroomService,
     { provide: APP_GUARD, useClass: AuthGuard },
     RunnerService,
   ],
