@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
 import MarkdownEditor from '@/components/classroom/MarkdownEditor.vue'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
-import { exercises, starterCode, notify, type Exercise } from '@/data/demo'
+import { exercises, starterCode, notify, saveExercise, type Exercise } from '@/data/demo'
 import { validSourceFilename } from '@/lib/source-file'
 const route = useRoute()
 const router = useRouter()
@@ -63,7 +63,7 @@ function settleLeave(allowed: boolean) {
   leaveDialog.value = false
   resolve?.(allowed)
 }
-function save(publish: boolean) {
+async function save(publish: boolean) {
   error.value = ''
   const filename = draft.filename.trim()
   if (!draft.title.trim() || !draft.description.trim()) error.value = '请填写题目标题和题面。'
@@ -89,12 +89,16 @@ function save(publish: boolean) {
     id: draft.id || 'e-' + crypto.randomUUID(),
     status: publish ? '已发布' : draft.status,
   }
-  const index = exercises.findIndex((e) => e.id === value.id)
-  if (index >= 0) Object.assign(exercises[index]!, value)
-  else exercises.push(value)
-  Object.assign(draft, value)
-  initial.value = JSON.stringify(draft)
-  notify(publish ? '练习已发布到本机原型，各演示窗口会同步更新' : '练习已保存到本机')
+  try {
+    value.id = draft.id
+    value.id = await saveExercise(value)
+    Object.assign(draft, value)
+    initial.value = JSON.stringify(draft)
+    notify(publish ? '练习已发布' : '练习已保存')
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '保存失败'
+    return
+  }
   router.push('/teacher/exercises?exercise=' + value.id)
 }
 </script>

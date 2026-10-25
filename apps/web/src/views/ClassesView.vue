@@ -15,7 +15,8 @@ import {
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
-import { classrooms, demo, tone, notify } from '@/data/demo'
+import { classrooms, tone, notify, refresh, selectClass, reportError } from '@/data/demo'
+import { api } from '@/lib/api'
 const route = useRoute()
 const router = useRouter()
 const student = computed(() => route.path.startsWith('/student'))
@@ -30,24 +31,25 @@ const visible = computed(() =>
       c.name.includes(search.value) && (filter.value === '全部课堂' || c.status === filter.value),
   ),
 )
-function add() {
-  if (!name.value.trim()) return
-  classrooms.unshift({
-    id: 'class-' + Date.now(),
-    name: name.value.trim(),
-    description: description.value,
-    status: '未开始',
-    color: 'green',
-    students: 0,
-  })
-  create.value = false
-  name.value = ''
-  description.value = ''
-  notify('演示课堂已创建')
+async function add() {
+  try {
+    await api('/classes', 'POST', { name: name.value.trim(), description: description.value })
+    await refresh()
+    create.value = false
+    name.value = ''
+    description.value = ''
+    notify('课堂已创建')
+  } catch (e) {
+    reportError(e)
+  }
 }
-function enter(id: string) {
-  demo.classroomId = id
-  router.push(student.value ? '/student/workspace' : '/teacher/overview')
+async function enter(id: string) {
+  try {
+    await selectClass(id)
+    await router.push(student.value ? '/student/workspace' : '/teacher/overview')
+  } catch (e) {
+    reportError(e)
+  }
 }
 </script>
 <template>
@@ -89,13 +91,13 @@ function enter(id: string) {
       </div>
       <div class="class-card-body">
         <span class="muted text-xs"
-          >{{ c.status === '已归档' ? '2026 夏季学期' : '2026 秋季学期' }} · 周老师</span
+          >{{ c.status === '已归档' ? '2026 夏季学期' : '2026 秋季学期' }} · {{ c.teacher }}</span
         >
         <h2>{{ c.name }}</h2>
         <p>{{ c.description }}</p>
         <div class="class-card-meta">
           <span><Users :size="15" />{{ c.students }} 位学生</span
-          ><span><BookOpen :size="15" />{{ c.id === 'cpp-algorithm' ? 0 : 4 }} 个练习</span>
+          ><span><BookOpen :size="15" />{{ c.exercises ?? 0 }} 个练习</span>
         </div>
         <div class="class-card-footer">
           <span
@@ -151,7 +153,7 @@ function enter(id: string) {
       ><label
         >课堂说明<textarea v-model="description" rows="3" placeholder="介绍课程目标、上课安排…" />
       </label>
-      <div class="info-box">默认 C++17 · 源文件名由题目指定 · 最多 50 人（示例配置）</div>
+      <div class="info-box">默认 C++17 · 源文件名由题目指定 · 最多 50 人</div>
       <div class="modal-actions">
         <Button type="button" variant="outline" @click="create = false">取消</Button
         ><Button type="submit">创建课堂</Button>

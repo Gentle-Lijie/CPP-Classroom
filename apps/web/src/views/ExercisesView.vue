@@ -19,29 +19,57 @@ import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
 import MarkdownContent from '@/components/classroom/MarkdownContent.vue'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
-import { exercises, demo, tone, notify, type Exercise } from '@/data/demo'
+import {
+  exercises,
+  demo,
+  tone,
+  notify,
+  saveExercise,
+  updateClass,
+  reportError,
+  type Exercise,
+} from '@/data/demo'
 const router = useRouter()
 const route = useRoute()
 const selected = ref(String(route.query.exercise ?? exercises[0]?.id ?? 'e01'))
 const preview = ref(false)
 const exercise = computed(() => exercises.find((e) => e.id === selected.value) ?? exercises[0]!)
-function recommend() {
-  demo.recommended = exercise.value.id
-  notify('已设为当前推荐练习')
+async function recommend() {
+  try {
+    await updateClass({ recommended: exercise.value.id })
+    notify('已设为当前推荐练习')
+  } catch (e) {
+    reportError(e)
+  }
 }
-function publish() {
-  exercise.value.status = '已发布'
-  notify('练习已在本机原型中发布')
+async function publish() {
+  try {
+    await saveExercise({ ...exercise.value, status: '已发布' })
+    notify('练习已发布')
+  } catch (e) {
+    reportError(e)
+  }
 }
-function close() {
-  exercise.value.status = exercise.value.status === '已关闭' ? '草稿' : '已关闭'
-  notify('练习状态已更新')
+async function close() {
+  try {
+    await saveExercise({
+      ...exercise.value,
+      status: exercise.value.status === '已关闭' ? '草稿' : '已关闭',
+    })
+    notify('状态已更新')
+  } catch (e) {
+    reportError(e)
+  }
 }
-function move() {
-  const index = exercises.indexOf(exercise.value)
-  if (index > 0) {
-    const e = exercises.splice(index, 1)[0]!
-    exercises.splice(index - 1, 0, e)
+async function move() {
+  try {
+    const index = exercises.findIndex((e) => e.id === exercise.value.id)
+    if (index > 0) {
+      const before = exercises[index - 1]!
+      await saveExercise({ ...exercise.value, position: (before.position ?? index) - 1 })
+    }
+  } catch (e) {
+    reportError(e)
   }
 }
 function edit(e: Exercise) {

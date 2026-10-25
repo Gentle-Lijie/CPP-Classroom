@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { Search, UserPlus, Upload, Download, UserMinus, Check, Users, Clock3 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
-import { students, notify, download } from '@/data/demo'
+import { students, notify, download, classPath, refresh, reportError } from '@/data/demo'
+import { api } from '@/lib/api'
 const search = ref('')
 const tab = ref('全部成员')
 const add = ref(false)
@@ -12,76 +13,95 @@ const number = ref('')
 const remove = ref('')
 const importing = ref(false)
 const csv = ref('')
-const pending = ref([
-  { id: 'p01', name: '刘亦安', number: '2026013' },
-  { id: 'p02', name: '方可欣', number: '2026014' },
-])
+const pending = ref<{ id: string; name: string; number: string }[]>([])
+const credentials = ref<{ username: string; password?: string }[]>([])
+async function loadPending() {
+  const members = await api<{ id: string; name: string; number: string; membership: string }[]>(
+    classPath('/members'),
+  )
+  pending.value = members.filter((m) => m.membership === 'pending')
+}
+onMounted(() => void loadPending().catch(reportError))
 const visible = computed(() =>
   students.filter(
     (s) => `${s.name}${s.number}`.includes(search.value) && (tab.value !== '在线成员' || s.online),
   ),
 )
-function addMember(n: string, no: string) {
-  if (students.some((s) => s.number === no)) {
-    notify('学号重复，请核对成员')
-    return false
-  }
-  students.push({
-    id: 's' + Date.now() + no,
+async function addMember(n: string, no: string) {
+  const result = await api<{ username: string; password?: string }>(classPath('/members'), 'POST', {
     name: n,
     number: no,
-    online: false,
-    status: '编写中',
-    help: false,
-    submitted: false,
-    activity: '尚未访问',
-    summary: '尚未运行',
   })
-  return true
+  credentials.value.push(result)
+  await refresh()
 }
-function save() {
-  if (addMember(name.value.trim(), number.value.trim())) {
+async function save() {
+  try {
+    await addMember(name.value.trim(), number.value.trim())
     add.value = false
     name.value = ''
     number.value = ''
-    notify('演示成员已添加')
+    notify('学生账号已创建，请保存下方初始密码')
+  } catch (e) {
+    reportError(e)
   }
 }
-function approve(id: string) {
-  const member = pending.value.find((p) => p.id === id)!
-  addMember(member.name, member.number)
-  pending.value = pending.value.filter((p) => p.id !== id)
-  notify('已批准本次演示入班申请')
+async function approve(id: string) {
+  try {
+    await api(classPath('/members/' + id), 'PATCH', { status: 'active' })
+    await loadPending()
+    await refresh()
+    notify('已批准加入')
+  } catch (e) {
+    reportError(e)
+  }
 }
-function importRows() {
+async function reject(id: string) {
+  try {
+    await api(classPath('/members/' + id), 'PATCH', { status: 'removed' })
+    await loadPending()
+    notify('已拒绝申请')
+  } catch (e) {
+    reportError(e)
+  }
+}
+async function importRows() {
   const rows = csv.value
     .trim()
     .split('\n')
-    .map((row) => row.split(',').map((v) => v.trim()))
+    .map((r) => r.split(',').map((v) => v.trim()))
   if (rows.some((r) => r.length !== 2 || !r[0] || !r[1])) {
-    notify('请按每行“姓名,学号”填写')
+    notify('请按每行姓名,学号填写')
     return
   }
-  let count = 0
-  rows.forEach((r) => {
-    if (addMember(r[0]!, r[1]!)) count++
-  })
-  importing.value = false
-  notify(`已导入 ${count} 位演示成员`)
+  try {
+    for (const r of rows) await addMember(r[0]!, r[1]!)
+    importing.value = false
+    notify('已导入，请保存初始凭据')
+  } catch (e) {
+    reportError(e)
+  }
 }
 function exportRoster() {
+  const quote = (s: string) => '"' + s.replaceAll('"', '""') + '"'
   download(
-    '课堂名册-示例.csv',
+    '课堂名册.csv',
     '\uFEFF姓名,学号,在线状态\n' +
-      students.map((s) => `${s.name},${s.number},${s.online ? '在线' : '离线'}`).join('\n'),
+      students
+        .map((s) => [s.name, s.number, s.online ? '在线' : '离线'].map(quote).join(','))
+        .join('\n'),
     'text/csv;charset=utf-8',
   )
 }
-function removeStudent() {
-  const index = students.findIndex((s) => s.id === remove.value)
-  if (index >= 0) students.splice(index, 1)
-  remove.value = ''
-  notify('已从演示名册移除')
+async function removeStudent() {
+  try {
+    await api(classPath('/members/' + remove.value), 'PATCH', { status: 'removed' })
+    await refresh()
+    remove.value = ''
+    notify('成员已移除，历史作品保留')
+  } catch (e) {
+    reportError(e)
+  }
 }
 </script>
 <template>
@@ -96,6 +116,13 @@ function removeStudent() {
       ><Button @click="add = true"><UserPlus />添加学生</Button>
     </div>
   </div>
+  <section v-if="credentials.length" class="panel form-stack">
+    <h2>新建账号凭据（请立即保存）</h2>
+    <p v-for="item in credentials" :key="item.username">
+      {{ item.username }} · {{ item.password ?? '账号已存在，密码未修改' }}
+    </p>
+    <Button @click="credentials = []">我已保存，关闭显示</Button>
+  </section>
   <section class="panel">
     <div class="panel-heading">
       <div class="filter-tabs borderless">
@@ -194,17 +221,7 @@ function removeStudent() {
             <td>
               <div class="inline-items">
                 <Button size="sm" @click="approve(p.id)">批准加入</Button
-                ><Button
-                  size="sm"
-                  variant="ghost"
-                  @click="
-                    () => {
-                      pending = pending.filter((x) => x.id !== p.id)
-                      notify('已拒绝此演示申请')
-                    }
-                  "
-                  >拒绝</Button
-                >
+                ><Button size="sm" variant="ghost" @click="reject(p.id)">拒绝</Button>
               </div>
             </td>
           </tr>
@@ -220,12 +237,13 @@ function removeStudent() {
       </div>
     </div>
     <div class="table-footer">
-      共 {{ tab === '待审批' ? pending.length : visible.length }} 位学生<span
-        >名册示例 · 未连接身份服务</span
-      >
+      共 {{ tab === '待审批' ? pending.length : visible.length }} 位学生<span>服务器名册</span>
     </div>
   </section>
-  <Modal v-model:open="add" title="添加学生" description="此处仅创建演示名册记录，不创建真实账号。"
+  <Modal
+    v-model:open="add"
+    title="添加学生"
+    description="创建真实学生账号；初始密码仅显示一次，请妥善交付。"
     ><form class="form-stack" @submit.prevent="save">
       <label>学生姓名<input v-model="name" required maxlength="20" placeholder="真实姓名" /></label
       ><label>学号<input v-model="number" required maxlength="30" placeholder="唯一学号" /></label>
@@ -238,7 +256,7 @@ function removeStudent() {
   <Modal
     :open="!!remove"
     title="移除这位学生？"
-    description="将撤销该成员后续课堂访问权限。历史作品保留，此原型仅更新本地列表。"
+    description="将撤销该成员后续课堂访问权限。历史作品保留，后续请求立即失去访问权限。"
     @update:open="!$event && (remove = '')"
     ><div class="modal-actions">
       <Button variant="outline" @click="remove = ''">取消</Button

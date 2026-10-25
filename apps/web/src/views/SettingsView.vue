@@ -3,29 +3,41 @@ import { reactive, ref } from 'vue'
 import { Save, Copy, RefreshCw, ShieldCheck, Archive, Settings2, ChevronRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
-import { activeClassroom, demo, notify } from '@/data/demo'
+import { activeClassroom, demo, notify, updateClass, classPath, reportError } from '@/data/demo'
+import { api } from '@/lib/api'
 const form = reactive({
   name: activeClassroom.value.name,
   description: activeClassroom.value.description,
   state: activeClassroom.value.status,
-  access: 'approval',
+  access: String(activeClassroom.value.settings?.access ?? 'approval'),
   compiler: 'GCC 13.2 · C++17',
   capacity: 50,
-  allowJoin: true,
-  allowRun: true,
-  allowResubmit: true,
+  allowJoin: activeClassroom.value.settings?.allowJoin !== false,
+  allowRun: activeClassroom.value.settings?.allowRun !== false,
+  allowResubmit: activeClassroom.value.settings?.allowResubmit !== false,
   readonly: true,
 })
 const tab = ref('基本信息')
 const archive = ref(false)
-function save() {
-  if (!form.name.trim()) return
-  Object.assign(activeClassroom.value, {
-    name: form.name.trim(),
-    description: form.description,
-    status: form.state,
-  })
-  notify('课堂设置已保存到本次演示')
+async function save() {
+  try {
+    await updateClass({
+      name: form.name.trim(),
+      description: form.description,
+      status: form.state,
+      settings: {
+        access: form.access,
+        allowJoin: form.allowJoin,
+        allowRun: form.allowRun,
+        allowResubmit: form.allowResubmit,
+        readonly: form.readonly,
+        capacity: form.capacity,
+      },
+    })
+    notify('课堂设置已保存')
+  } catch (e) {
+    reportError(e)
+  }
 }
 async function copy() {
   try {
@@ -35,9 +47,19 @@ async function copy() {
     notify('请手动复制课堂码 ' + demo.inviteCode)
   }
 }
-function regenerateInvite() {
-  demo.inviteCode = 'CPP' + Math.random().toString(36).slice(2, 6).toUpperCase()
-  notify('已重新生成演示课堂码')
+async function regenerateInvite() {
+  try {
+    const data = await api<{ inviteCode: string }>(classPath('/invite'), 'POST', {})
+    demo.inviteCode = data.inviteCode
+    notify('课堂码已更新，旧邀请失效')
+  } catch (e) {
+    reportError(e)
+  }
+}
+async function archiveClass() {
+  form.state = '已归档'
+  await save()
+  archive.value = false
 }
 </script>
 <template>
@@ -101,7 +123,7 @@ function regenerateInvite() {
             >
           </div></label
         >
-        <p class="form-hint">示例有效期：7 天。重新生成后，原演示课堂码失效。</p>
+        <p class="form-hint">有效期：7 天。重新生成后，原课堂码失效。</p>
         <Button variant="outline" class="self-start" @click="regenerateInvite"
           ><RefreshCw />重新生成</Button
         >
@@ -111,7 +133,7 @@ function regenerateInvite() {
           <Settings2 :size="19" />
           <h2>统一编程环境</h2>
         </div>
-        <div class="info-box">以下为 UI 示例配置，实际编译器与运行限制尚未接入。</div>
+        <div class="info-box">GCC 13.3 / C++17；运行限制由平台管理员统一配置。</div>
         <label
           >环境版本<select v-model="form.compiler">
             <option>GCC 13.2 · C++17</option>
@@ -169,24 +191,11 @@ function regenerateInvite() {
   <Modal
     v-model:open="archive"
     title="结束并归档课堂？"
-    description="本次演示将课堂设为已归档，保留示例作品与记录。"
+    description="归档后关闭加入、编辑与运行，保留作品和历史记录。"
     ><p class="body-copy">归档后不再接受新成员和新的运行任务。请先按需导出课堂作品。</p>
     <div class="modal-actions">
       <Button variant="outline" @click="archive = false">继续教学</Button
-      ><Button
-        variant="destructive"
-        @click="
-          () => {
-            activeClassroom.status = '已归档'
-            form.state = '已归档'
-            form.allowJoin = false
-            form.allowRun = false
-            archive = false
-            notify('演示课堂已归档')
-          }
-        "
-        >确认归档</Button
-      >
+      ><Button variant="destructive" @click="archiveClass">确认归档</Button>
     </div></Modal
   >
 </template>
