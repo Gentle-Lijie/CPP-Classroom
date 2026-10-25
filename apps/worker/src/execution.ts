@@ -281,6 +281,7 @@ export function startExecutionQueue(pool: Pool, environment: Environment) {
   let closing = false
   let scanning = false
   const tasks = new Set<Promise<void>>()
+  const runIds = new Set<string>()
   const scan = async () => {
     if (scanning || closing) return
     scanning = true
@@ -298,17 +299,39 @@ export function startExecutionQueue(pool: Pool, environment: Environment) {
           ?.value,
       } as typeof executionDefaults
       while (tasks.size < settings.executionConcurrency && !closing) {
-        const r = (
-          await pool.query(
-            `update runs set status='编译中',updated_at=now() where id=(select id from runs where status='排队' and not stop_requested order by created_at for update skip locked limit 1) returning *`,
-          )
-        ).rows[0] as Run | undefined
+        const client = await pool.connect()
+        let r: Run | undefined
+        try {
+          await client.query('begin')
+          await client.query('select pg_advisory_xact_lock(782132)')
+          const count = (
+            await client.query('select count(*)::int as n from runs where status=any($1)', [active])
+          ).rows[0].n
+          if (count < settings.executionConcurrency) {
+            r = (
+              await client.query(
+                `update runs set status='编译中',updated_at=now() where id=(select id from runs where status='排队' and not stop_requested order by created_at for update skip locked limit 1) returning *`,
+              )
+            ).rows[0] as Run | undefined
+          }
+          await client.query('commit')
+        } catch (e) {
+          await client.query('rollback')
+          throw e
+        } finally {
+          client.release()
+        }
         if (!r) break
         const task = execute(pool, environment, r).catch(() =>
           console.error('运行结果写入失败；由过期任务检测恢复'),
         )
         tasks.add(task)
-        void task.finally(() => tasks.delete(task))
+        runIds.add(r.id)
+        const id = r.id
+        void task.finally(() => {
+          tasks.delete(task)
+          runIds.delete(id)
+        })
       }
     } finally {
       scanning = false
@@ -321,7 +344,10 @@ export function startExecutionQueue(pool: Pool, environment: Environment) {
   return async () => {
     closing = true
     clearInterval(timer)
-    await pool.query('update runs set stop_requested=true where status=any($1)', [active])
+    await pool.query(
+      'update runs set stop_requested=true where id=any($1::uuid[]) and status=any($2)',
+      [[...runIds], active],
+    )
     await Promise.allSettled(tasks)
   }
 }
