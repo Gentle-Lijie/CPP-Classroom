@@ -164,9 +164,19 @@ assert.match(interactive.output, /ready/)
 assert.match(interactive.output, /sum=12/)
 checks.push('运行中输入、真实 stdin EOF、继续收集输出')
 await runCode('int main(){while(true){}}', { expected: '超时' })
-await runCode('#include <iostream>\nint main(){while(true)std::cout<<"abcdef0123456789";}', {
-  expected: '资源超限',
-})
+const flooded = await runCode(
+  '#include <iostream>\nint main(){while(true)std::cout<<"abcdef0123456789";}',
+  {
+    expected: '资源超限',
+  },
+)
+const outputLimit = (await student('/health/environment')).outputLimitKb * 1024
+assert.ok(Buffer.byteLength(flooded.output) + Buffer.byteLength(flooded.stderr) <= outputLimit)
+const unicode = await runCode(
+  '#include <iostream>\nint main(){while(true)std::cout<<"中文输出测试";}',
+  { expected: '资源超限' },
+)
+assert.ok(Buffer.byteLength(unicode.output) + Buffer.byteLength(unicode.stderr) <= outputLimit)
 await runCode('int main(){while(true){}}', {
   expected: '已停止',
   during: async (r) => {

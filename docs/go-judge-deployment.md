@@ -30,9 +30,10 @@ GO_JUDGE_URL=http://127.0.0.1:15050
 RUNNER_SSH_HOST=aim-radar
 RUNNER_LOCAL_PORT=15050
 RUNNER_REMOTE_ADDRESS=10.176.29.102
+GO_JUDGE_TIMEOUT_MS=10000
 ```
 
-手动方式为 `pnpm runner:tunnel`，断线自动重连。当前已安装用户 LaunchAgent `tech.uonaim.cpp-classroom.runner-tunnel`，登录时启动；该服务运行时不需要再开第二个手动隧道。日志在 `.local/runner-tunnel.log`。
+手动方式为 `pnpm runner:tunnel`，断线自动重连。当前已安装用户 LaunchAgent `tech.uonaim.cpp-classroom.runner-tunnel`，登录时启动；该服务运行时不需要再开第二个手动隧道。日志在 `.local/runner-tunnel.log`。当前链路探活超时设置为 10 秒，并为健康请求独立关闭 HTTP 连接，避免隧道重连后复用失效连接。
 
 ```sh
 launchctl print gui/$(id -u)/tech.uonaim.cpp-classroom.runner-tunnel

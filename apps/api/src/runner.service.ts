@@ -13,7 +13,7 @@ export class RunnerService {
     }
     const start = performance.now()
     try {
-      const headers: Record<string, string> = {}
+      const headers: Record<string, string> = { Connection: 'close' }
       if (this.environment.GO_JUDGE_AUTH_TOKEN) {
         headers.Authorization = `Bearer ${this.environment.GO_JUDGE_AUTH_TOKEN}`
       }
@@ -21,6 +21,7 @@ export class RunnerService {
         headers,
         signal: AbortSignal.timeout(this.environment.GO_JUDGE_TIMEOUT_MS),
       })
+      await response.arrayBuffer()
       if (!response.ok) throw new Error('Unhealthy execution node')
       return {
         status: 'healthy',
