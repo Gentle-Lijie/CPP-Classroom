@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent } from 'reka-ui'
 import { FolderOpen, FolderCheck, Unplug, Download, RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from './Modal.vue'
@@ -10,6 +11,7 @@ const props = defineProps<{
   exerciseId: string
   filename: string
   readonly: boolean
+  compact?: boolean
 }>()
 const code = defineModel<string>({ required: true })
 const local = useLocalDirectory({
@@ -23,50 +25,65 @@ const { root, file, conflict, status, needsPermission, busy, backup } = local
 defineExpose({ flush: local.flush })
 </script>
 <template>
-  <section
-    class="local-directory-panel"
-    :class="{ linked: !!file && !needsPermission }"
-    aria-label="本地工作目录"
-  >
-    <FolderCheck v-if="file && !needsPermission" :size="17" /><FolderOpen v-else :size="17" />
-    <div class="local-directory-status">
-      <strong>{{ root ? root.name + ' / ' + filename : '本地工作目录' }}</strong
-      ><span role="status">{{
-        local.supported
-          ? status
-          : '此浏览器不支持目录读写，可使用 Chrome / Edge；浏览器草稿与下载仍可用。'
-      }}</span>
-    </div>
-    <span v-if="file && !needsPermission" class="local-poll-hint"
-      >自动写入 · 每 2 秒检查外部修改</span
-    >
-    <div class="inline-items ml-auto">
-      <button
-        v-if="backup !== undefined"
-        class="text-button"
-        @click="download('backup-' + filename, backup)"
+  <PopoverRoot>
+    <PopoverTrigger v-if="compact" as-child>
+      <Button variant="outline" size="sm" :title="status" aria-label="本地工作目录">
+        <FolderCheck v-if="file && !needsPermission" /><FolderOpen v-else />工作目录
+      </Button>
+    </PopoverTrigger>
+    <PopoverPortal :disabled="!compact">
+      <component
+        :is="compact ? PopoverContent : 'div'"
+        v-bind="compact ? { sideOffset: 8, align: 'end' } : {}"
+        :class="compact ? 'local-directory-popover' : undefined"
       >
-        <Download :size="14" />下载读取前草稿</button
-      ><Button
-        v-if="local.supported && (!file || needsPermission)"
-        variant="outline"
-        size="sm"
-        :disabled="readonly || busy"
-        @click="local.connect"
-        ><RefreshCw v-if="needsPermission" /><FolderOpen v-else />{{
-          needsPermission ? '重新授权' : root ? '关联当前文件' : '选择工作目录'
-        }}</Button
-      ><button
-        v-if="root"
-        class="icon-button"
-        :disabled="busy"
-        aria-label="断开本地目录"
-        @click="local.disconnect"
-      >
-        <Unplug :size="15" />
-      </button>
-    </div>
-  </section>
+        <section
+          class="local-directory-panel"
+          :class="{ linked: !!file && !needsPermission }"
+          aria-label="本地工作目录"
+        >
+          <FolderCheck v-if="file && !needsPermission" :size="17" /><FolderOpen v-else :size="17" />
+          <div class="local-directory-status">
+            <strong>{{ root ? root.name + ' / ' + filename : '本地工作目录' }}</strong
+            ><span role="status">{{
+              local.supported
+                ? status
+                : '此浏览器不支持目录读写，可使用 Chrome / Edge；浏览器草稿与下载仍可用。'
+            }}</span>
+          </div>
+          <span v-if="file && !needsPermission" class="local-poll-hint"
+            >自动写入 · 每 2 秒检查外部修改</span
+          >
+          <div class="inline-items ml-auto">
+            <button
+              v-if="backup !== undefined"
+              class="text-button"
+              @click="download('backup-' + filename, backup)"
+            >
+              <Download :size="14" />下载读取前草稿</button
+            ><Button
+              v-if="local.supported && (!file || needsPermission)"
+              variant="outline"
+              size="sm"
+              :disabled="readonly || busy"
+              @click="local.connect"
+              ><RefreshCw v-if="needsPermission" /><FolderOpen v-else />{{
+                needsPermission ? '重新授权' : root ? '关联当前文件' : '选择工作目录'
+              }}</Button
+            ><button
+              v-if="root"
+              class="icon-button"
+              :disabled="busy"
+              aria-label="断开本地目录"
+              @click="local.disconnect"
+            >
+              <Unplug :size="15" />
+            </button>
+          </div>
+        </section>
+      </component>
+    </PopoverPortal>
+  </PopoverRoot>
   <Modal
     :open="!!conflict"
     :title="conflict?.reason === 'existing' ? '本地已有同名文件' : '磁盘与编辑器都有修改'"
@@ -98,3 +115,34 @@ defineExpose({ flush: local.flush })
     ></Modal
   >
 </template>
+
+<style scoped>
+.local-directory-popover {
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  z-index: 60;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--ui-shadow);
+  background: var(--ui-page);
+}
+.local-directory-popover .local-directory-panel {
+  flex-wrap: wrap;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+}
+.local-directory-popover .local-directory-status {
+  flex: 1;
+}
+.local-directory-popover .local-directory-status strong {
+  max-width: 320px;
+}
+.local-directory-popover .local-poll-hint {
+  margin-left: 0;
+}
+.local-directory-popover .local-directory-panel > .inline-items {
+  flex-wrap: wrap;
+  margin-left: 0;
+}
+</style>

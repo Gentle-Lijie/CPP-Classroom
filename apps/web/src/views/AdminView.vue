@@ -508,7 +508,7 @@ async function backup() {
                     }
                   "
                   >{{ u.disabled ? '启用' : '停用' }}</Button
-                ><Button size="sm" variant="ghost" @click="openReset(u)"
+                ><Button class="ml-2" size="sm" variant="ghost" @click="openReset(u)"
                   >重设密码</Button
                 > </template
               ><span v-else class="muted">当前账号 · 在个人设置改密</span>

@@ -19,6 +19,7 @@ import {
   WifiOff,
   Monitor,
 } from '@lucide/vue'
+import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'reka-ui'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
@@ -558,71 +559,95 @@ onBeforeRouteLeave(async (to) => {
 </script>
 <template>
   <div v-if="exercise" class="ide-page">
-    <header class="ide-header">
-      <div class="inline-items">
-        <RouterLink to="/student/classes" class="icon-button" aria-label="返回我的课堂"
-          ><ArrowLeft :size="18" /></RouterLink
-        ><span class="ide-brand"><CodeXml :size="21" />码上课堂</span
-        ><span class="ide-divider" /><span class="desktop-only">{{ activeClassroom.name }}</span>
-      </div>
-      <div class="inline-items">
-        <span class="demo-tag">课堂工作区</span
-        ><span class="avatar small">{{ currentUser?.name.slice(-1) }}</span>
-      </div>
-    </header>
-    <div class="ide-actionbar">
-      <div class="inline-items">
-        <BookOpen :size="17" class="positive-text" /><select
-          :value="selected"
-          aria-label="选择练习"
-          :disabled="loading || switching || runningRequest"
-          @change="changeExercise"
-        >
-          <option
-            v-for="e in exercises.filter((e) => e.status === '已发布' || e.id === selected)"
-            :key="e.id"
-            :value="e.id"
+    <header class="workspace-toolbar">
+      <RouterLink to="/student/classes" class="icon-button" aria-label="返回我的课堂"
+        ><ArrowLeft :size="18"
+      /></RouterLink>
+      <div class="workspace-context">
+        <span class="workspace-classroom" :title="activeClassroom.name">{{
+          activeClassroom.name
+        }}</span>
+        <label class="workspace-exercise"
+          ><BookOpen :size="16" /><select
+            :value="selected"
+            aria-label="选择练习"
+            :disabled="loading || switching || runningRequest"
+            @change="changeExercise"
           >
-            {{ e.title }}
-          </option></select
-        ><span v-if="submitted" class="status positive"><Check :size="12" />已提交</span
-        ><span
-          class="save-label"
-          :class="{
-            'save-error':
-              conflict ||
-              loadError ||
-              saveState.includes('异常') ||
-              saveState.includes('无法') ||
-              saveState.includes('不可用'),
-            'save-pending': dirty || loading,
-          }"
-          role="status"
-          ><WifiOff
-            v-if="
-              conflict ||
-              loadError ||
-              saveState.includes('异常') ||
-              saveState.includes('无法') ||
-              saveState.includes('不可用')
-            "
-            :size="14"
-          /><CloudCheck v-else :size="14" />{{ saveState }}</span
+            <option
+              v-for="e in exercises.filter((e) => e.status === '已发布' || e.id === selected)"
+              :key="e.id"
+              :value="e.id"
+            >
+              {{ e.title }}
+            </option>
+          </select></label
         >
       </div>
-      <div class="inline-items">
-        <Button variant="ghost" size="sm" @click="panel = panel === '历史' ? '题目' : '历史'"
-          ><History />历史</Button
-        ><Button variant="outline" size="sm" :disabled="readonly" @click="openHelp"
-          ><Hand />{{ helpSent ? '已发起求助' : '求助' }}</Button
-        ><Button
+      <span v-if="submitted" class="status positive"><Check :size="12" />已提交</span>
+      <span
+        class="save-label workspace-save"
+        :class="{
+          'save-error':
+            conflict ||
+            loadError ||
+            saveState.includes('异常') ||
+            saveState.includes('无法') ||
+            saveState.includes('不可用'),
+          'save-pending': dirty || loading,
+        }"
+        role="status"
+        :title="saveState"
+        ><WifiOff
+          v-if="
+            conflict ||
+            loadError ||
+            saveState.includes('异常') ||
+            saveState.includes('无法') ||
+            saveState.includes('不可用')
+          "
+          :size="15"
+        /><CloudCheck v-else :size="15" /><span>{{ saveState }}</span></span
+      >
+      <div class="workspace-actions">
+        <LocalDirectoryPanel
+          ref="directoryPanel"
+          v-model="code"
+          :classroom-id="demo.classroomId"
+          :exercise-id="selected"
+          :filename="exercise.filename"
+          :readonly="readonly"
+          compact
+        />
+        <Button variant="outline" size="sm" :disabled="readonly" @click="openHelp"
+          ><Hand />{{ helpSent ? '已求助' : '求助' }}</Button
+        >
+        <Button
+          variant="outline"
           size="sm"
           :disabled="readonly || (submitted && activeClassroom.settings?.allowResubmit === false)"
           @click="openSubmit"
           ><Send />提交作品</Button
         >
+        <Button
+          v-if="runtime || run?.status === '排队' || run?.status === '编译中'"
+          variant="destructive"
+          size="sm"
+          :disabled="stopping"
+          @click="stop"
+          ><Square />{{ stopping ? '停止中…' : '停止' }}</Button
+        >
+        <Button
+          :disabled="readonly || runningRequest || active() || !!otherRun"
+          size="sm"
+          @click="startRun"
+          ><Play />{{ runningRequest ? '正在创建…' : '编译运行' }}</Button
+        >
+        <span class="avatar small" :title="currentUser?.name">{{
+          currentUser?.name.slice(-1)
+        }}</span>
       </div>
-    </div>
+    </header>
     <div v-if="otherRun" class="workspace-alert amber">
       {{
         classrooms.find((c) => c.id === otherRun?.classroomId)?.name ?? '另一道练习'
@@ -634,14 +659,6 @@ onBeforeRouteLeave(async (to) => {
     <div v-if="loadError" class="workspace-alert amber" role="alert">
       {{ loadError }}<button @click="loadCode">重新读取</button>
     </div>
-    <LocalDirectoryPanel
-      ref="directoryPanel"
-      v-model="code"
-      :classroom-id="demo.classroomId"
-      :exercise-id="selected"
-      :filename="exercise.filename"
-      :readonly="readonly"
-    />
     <div v-if="viewing" class="workspace-alert amber">
       <History :size="14" />正在查看 {{ viewing.id }} 的只读代码快照，当前草稿独立保留。<button
         @click="viewing = undefined"
@@ -656,129 +673,20 @@ onBeforeRouteLeave(async (to) => {
     <div v-else-if="isArchived" class="workspace-alert amber">
       当前课堂或练习只读，作品与历史保留。
     </div>
-    <div class="ide-layout">
-      <div class="ide-main">
-        <section class="editor-area">
-          <div class="code-toolbar">
-            <span class="file-tab"
-              ><CodeXml :size="15" />{{ viewing?.filename ?? exercise.filename }}
-              <i v-if="!readonly" class="file-dot" /><span v-if="readonly" class="muted"
-                >只读</span
-              ></span
-            >
-            <div class="inline-items ml-auto">
-              <label class="compact-select"
-                ><Settings2 :size="13" /><select v-model.number="fontSize" aria-label="编辑器字号">
-                  <option :value="14">14 px</option>
-                  <option :value="16">16 px</option>
-                  <option :value="18">18 px</option>
-                </select></label
-              ><button
-                class="icon-button"
-                aria-label="下载当前代码"
-                @click="download(viewing?.filename ?? exercise.filename, viewing?.code ?? code)"
-              >
-                <Download :size="14" /></button
-              ><button
-                v-if="undo !== undefined"
-                class="text-button"
-                :disabled="readonly"
-                @click="
-                  () => {
-                    code = undo ?? code
-                    undo = undefined
-                    notify('已恢复重置前的本机代码')
-                  }
-                "
-              >
-                撤销重置</button
-              ><button
-                v-else
-                class="icon-button"
-                aria-label="重置初始代码"
-                :disabled="readonly"
-                @click="reset = true"
-              >
-                <RotateCcw :size="14" /></button
-              ><span class="language-label"
-                >{{
-                  compilerLabel(
-                    viewing ? viewing.compilerProfile : executionSettings.compilerProfile,
-                  )
-                }}<ChevronDown :size="11"
-              /></span>
-            </div>
-          </div>
-          <CodeEditor
-            :model-value="viewing?.code ?? code"
-            :readonly="readonly"
-            :font-size="fontSize"
-            :filename="viewing?.filename ?? exercise.filename"
-            @update:model-value="!readonly && (code = $event)"
-          />
-        </section>
-        <div class="ide-bottom">
-          <section class="stdin-panel">
-            <div class="code-toolbar">
-              <span>输入</span><span class="muted text-xs">stdin</span
-              ><button
-                class="text-button ml-auto"
-                :disabled="!!viewing"
-                @click="
-                  () => {
-                    input = exercise?.sampleInput ?? ''
-                    notify('已填入题目样例')
-                  }
-                "
-              >
-                填入样例
-              </button>
-            </div>
-            <textarea
-              v-if="!viewing"
-              v-model="input"
-              aria-label="标准输入"
-              placeholder="运行前填写标准输入…"
-              :readonly="isArchived"
-            />
-            <pre v-else class="snapshot-input">{{ viewing.input }}</pre>
-            <div class="stdin-note">
-              {{ viewing ? '本次运行使用的固定输入' : '预填输入与运行快照关联' }}
-            </div>
-          </section>
-          <RunOutput
-            :key="(viewing ?? run)?.id"
-            :run="viewing ?? run"
-            :interactive="runtime && !viewing && !run?.eof"
-            :send-input="sendLine"
-            :close-input="eof"
-          />
-        </div>
-        <div class="ide-runbar">
-          <div class="inline-items">
-            <label class="inline-items"
-              ><input v-model="interactive" type="checkbox" :disabled="active()" />运行时输入（最长
-              60 秒）</label
-            >
-          </div>
-          <div class="inline-items">
-            <Button
-              v-if="runtime || run?.status === '排队' || run?.status === '编译中'"
-              variant="destructive"
-              size="sm"
-              :disabled="stopping"
-              @click="stop"
-              ><Square />{{ stopping ? '停止中…' : '停止' }}</Button
-            ><Button
-              :disabled="readonly || runningRequest || active() || !!otherRun"
-              size="sm"
-              @click="startRun"
-              ><Play />{{ runningRequest ? '正在创建运行…' : '编译运行' }}</Button
-            >
-          </div>
-        </div>
-      </div>
-      <aside class="ide-problem">
+    <SplitterGroup
+      direction="horizontal"
+      auto-save-id="student-workspace-columns"
+      class="workspace-layout"
+      :keyboard-resize-by="2"
+    >
+      <SplitterPanel
+        id="workspace-problem"
+        as="aside"
+        class="ide-problem"
+        :default-size="34"
+        :min-size="26"
+        :max-size="50"
+      >
         <div class="problem-tabs">
           <button :class="{ selected: panel === '题目' }" @click="panel = '题目'">
             <BookOpen :size="15" />题目说明</button
@@ -853,8 +761,161 @@ onBeforeRouteLeave(async (to) => {
             unit="条记录"
           />
         </div>
-      </aside>
-    </div>
+      </SplitterPanel>
+      <SplitterResizeHandle
+        class="workspace-resize-handle"
+        aria-label="调整题目与代码区宽度"
+        aria-orientation="vertical"
+      />
+      <SplitterPanel id="workspace-main" :default-size="66" :min-size="50" class="workspace-main">
+        <SplitterGroup
+          direction="vertical"
+          auto-save-id="student-workspace-rows"
+          class="workspace-editor-split"
+          :keyboard-resize-by="2"
+        >
+          <SplitterPanel
+            id="workspace-editor"
+            as="section"
+            class="editor-area"
+            :default-size="64"
+            :min-size="35"
+          >
+            <div class="code-toolbar">
+              <span class="file-tab"
+                ><CodeXml :size="15" />{{ viewing?.filename ?? exercise.filename }}
+                <i v-if="!readonly" class="file-dot" /><span v-if="readonly" class="muted"
+                  >只读</span
+                ></span
+              >
+              <div class="inline-items ml-auto">
+                <label class="compact-select"
+                  ><Settings2 :size="13" /><select
+                    v-model.number="fontSize"
+                    aria-label="编辑器字号"
+                  >
+                    <option :value="14">14 px</option>
+                    <option :value="16">16 px</option>
+                    <option :value="18">18 px</option>
+                  </select></label
+                ><button
+                  class="icon-button"
+                  aria-label="下载当前代码"
+                  @click="download(viewing?.filename ?? exercise.filename, viewing?.code ?? code)"
+                >
+                  <Download :size="14" /></button
+                ><button
+                  v-if="undo !== undefined"
+                  class="text-button"
+                  :disabled="readonly"
+                  @click="
+                    () => {
+                      code = undo ?? code
+                      undo = undefined
+                      notify('已恢复重置前的本机代码')
+                    }
+                  "
+                >
+                  撤销重置</button
+                ><button
+                  v-else
+                  class="icon-button"
+                  aria-label="重置初始代码"
+                  :disabled="readonly"
+                  @click="reset = true"
+                >
+                  <RotateCcw :size="14" /></button
+                ><span class="language-label"
+                  >{{
+                    compilerLabel(
+                      viewing ? viewing.compilerProfile : executionSettings.compilerProfile,
+                    )
+                  }}<ChevronDown :size="11"
+                /></span>
+              </div>
+            </div>
+            <CodeEditor
+              :model-value="viewing?.code ?? code"
+              :readonly="readonly"
+              :font-size="fontSize"
+              :filename="viewing?.filename ?? exercise.filename"
+              @update:model-value="!readonly && (code = $event)"
+            />
+          </SplitterPanel>
+          <SplitterResizeHandle
+            class="workspace-resize-handle"
+            aria-label="调整代码与输入输出高度"
+            aria-orientation="horizontal"
+          />
+          <SplitterPanel id="workspace-io" class="workspace-io" :default-size="36" :min-size="22">
+            <SplitterGroup
+              direction="horizontal"
+              auto-save-id="student-workspace-input-output"
+              class="workspace-io-split"
+              :keyboard-resize-by="2"
+            >
+              <SplitterPanel
+                id="workspace-input"
+                as="section"
+                class="stdin-panel"
+                :default-size="30"
+                :min-size="22"
+                :max-size="55"
+              >
+                <div class="code-toolbar">
+                  <span>输入</span><span class="muted text-xs">stdin</span
+                  ><button
+                    class="text-button ml-auto"
+                    :disabled="!!viewing"
+                    @click="
+                      () => {
+                        input = exercise?.sampleInput ?? ''
+                        notify('已填入题目样例')
+                      }
+                    "
+                  >
+                    填入样例
+                  </button>
+                </div>
+                <textarea
+                  v-if="!viewing"
+                  v-model="input"
+                  aria-label="标准输入"
+                  placeholder="运行前填写标准输入…"
+                  :readonly="isArchived"
+                />
+                <pre v-else class="snapshot-input">{{ viewing.input }}</pre>
+                <div class="stdin-note">
+                  <span v-if="viewing">本次运行使用的固定输入</span>
+                  <label v-else class="inline-items" title="运行后可逐行发送输入，最长 60 秒">
+                    <input v-model="interactive" type="checkbox" :disabled="active()" />运行时输入
+                  </label>
+                </div>
+              </SplitterPanel>
+              <SplitterResizeHandle
+                class="workspace-resize-handle"
+                aria-label="调整输入与输出宽度"
+                aria-orientation="vertical"
+              />
+              <SplitterPanel
+                id="workspace-output"
+                :default-size="70"
+                :min-size="45"
+                class="workspace-output"
+              >
+                <RunOutput
+                  :key="(viewing ?? run)?.id"
+                  :run="viewing ?? run"
+                  :interactive="runtime && !viewing && !run?.eof"
+                  :send-input="sendLine"
+                  :close-input="eof"
+                />
+              </SplitterPanel>
+            </SplitterGroup>
+          </SplitterPanel>
+        </SplitterGroup>
+      </SplitterPanel>
+    </SplitterGroup>
     <footer class="ide-statusbar">
       <span
         ><span
@@ -955,24 +1016,60 @@ onBeforeRouteLeave(async (to) => {
 
 <style scoped>
 .ide-page {
-  min-width: 0;
+  min-width: 1000px;
+  min-height: 600px;
+  height: 100dvh;
+  overflow: hidden;
 }
-.ide-actionbar {
-  flex-wrap: wrap;
-}
-.ide-actionbar > .inline-items {
-  min-width: 0;
-  flex-wrap: wrap;
-}
-.ide-actionbar .save-label {
-  display: inline-flex;
+.workspace-toolbar {
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ui-line);
+}
+.workspace-context {
+  min-width: 120px;
+  flex: 1;
+}
+.workspace-classroom {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--ui-muted);
+}
+.workspace-exercise {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ui-action);
+}
+.workspace-exercise select {
+  width: 100%;
+  max-width: 320px;
+  border: 0;
+  padding: 2px 18px 2px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-ink);
+  text-overflow: ellipsis;
+}
+.workspace-save {
+  margin-left: 0;
   font-size: 12px;
-  color: var(--ui-success, #15803d);
-  margin-left: 8px;
-  max-width: 100%;
-  overflow-wrap: anywhere;
+  color: var(--ui-success);
+  min-width: 0;
+}
+.workspace-save > span {
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .save-label.save-error {
   color: var(--ui-error);
@@ -980,16 +1077,107 @@ onBeforeRouteLeave(async (to) => {
 .save-label.save-pending {
   color: var(--ui-warning);
 }
-.ide-runbar {
-  flex-wrap: wrap;
-  min-height: 52px;
-  height: auto;
+.workspace-actions {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  flex-shrink: 0;
 }
-.ide-runbar label {
+.workspace-layout {
+  flex: 1;
+  min-height: 0;
+}
+.workspace-main,
+.workspace-editor-split,
+.workspace-io,
+.workspace-io-split,
+.workspace-output {
+  min-width: 0;
+  min-height: 0;
+}
+.workspace-resize-handle {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  touch-action: none;
+}
+.workspace-resize-handle[data-orientation='horizontal'] {
+  width: 7px;
+  cursor: col-resize;
+}
+.workspace-resize-handle[data-orientation='vertical'] {
+  height: 7px;
+  cursor: row-resize;
+}
+.workspace-resize-handle::after {
+  content: '';
+  position: absolute;
+  background: var(--ui-line-strong);
+  border-radius: 3px;
+  inset: calc(50% - 18px) 2px;
+}
+.workspace-resize-handle[data-orientation='vertical']::after {
+  inset: 2px calc(50% - 18px);
+}
+.workspace-resize-handle:hover,
+.workspace-resize-handle[data-state='drag'],
+.workspace-resize-handle:focus-visible {
+  background: var(--ui-selection);
+}
+.workspace-resize-handle:hover::after,
+.workspace-resize-handle[data-state='drag']::after,
+.workspace-resize-handle:focus-visible::after {
+  background: var(--ui-action);
+}
+.editor-area {
+  min-width: 0;
+  min-height: 0;
+}
+.editor-area > .code-toolbar {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.file-tab {
+  min-width: 0;
+  max-width: 45%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.file-tab > svg {
+  flex-shrink: 0;
+}
+.language-label {
+  font-size: 11px;
+}
+.stdin-panel {
+  min-height: 0;
+  border: 0;
+}
+.stdin-panel .code-toolbar {
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.stdin-panel textarea {
+  min-height: 0;
+  width: 100%;
+  padding: 12px;
+}
+.stdin-note {
   font-size: 12px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--ui-line);
+}
+.workspace-output :deep(.output-toolbar) {
+  padding: 0 10px;
+}
+.workspace-output :deep(.output-placeholder) {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
 }
 .live-dot.sync-unavailable {
   background: var(--ui-warning);
@@ -1008,16 +1196,26 @@ onBeforeRouteLeave(async (to) => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  border: 0;
+  overflow: hidden;
 }
 .problem-tabs {
   flex-shrink: 0;
+  gap: 20px;
+  padding: 0 16px;
+}
+.problem-tabs button {
+  white-space: nowrap;
+  font-size: 12px;
 }
 .ide-problem .problem-content {
   overflow: auto;
   min-height: 0;
+  padding: 20px;
 }
 .workspace-history {
   min-height: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -1031,6 +1229,7 @@ onBeforeRouteLeave(async (to) => {
   padding: 10px;
   gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 .workspace-history :deep(.pagination-controls) {
   flex-wrap: wrap;
@@ -1039,48 +1238,5 @@ onBeforeRouteLeave(async (to) => {
   overflow: auto;
   min-height: 0;
   flex: 1;
-}
-@media (max-width: 760px) {
-  .ide-main {
-    min-width: 0;
-  }
-  .ide-bottom {
-    grid-template-columns: minmax(0, 1fr);
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    resize: none;
-  }
-  .stdin-panel {
-    height: 180px;
-    border-right: 0;
-    border-bottom: 1px solid var(--ui-line);
-  }
-  .ide-bottom :deep(.run-output) {
-    min-height: 260px;
-    max-height: 440px;
-  }
-  .ide-main {
-    min-height: 900px;
-  }
-  .ide-problem .problem-content {
-    overflow: visible;
-  }
-  .workspace-history .history-list {
-    max-height: 420px;
-  }
-  .ide-header .demo-tag {
-    display: none;
-  }
-  .ide-actionbar .save-label {
-    margin-left: 0;
-    width: 100%;
-  }
-  .ide-actionbar select {
-    max-width: min(260px, 72vw);
-  }
-  .ide-runbar > .inline-items {
-    flex-wrap: wrap;
-  }
 }
 </style>
