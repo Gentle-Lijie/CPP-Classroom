@@ -1,8 +1,10 @@
 # 原生 Linux 执行节点
 
-本项目不使用 Docker。go-judge 固定上游 v1.13.3（commit `4ebd2ffe9474639c665fa21cfb438f68820fe77c`），加本仓库 `stdin-eof.patch`，构建版本为 `v1.13.3-classroom-eof.1`。
+本项目不使用 Docker。go-judge 固定上游 v1.13.3（commit `4ebd2ffe9474639c665fa21cfb438f68820fe77c`），加本仓库 `stdin-eof.patch`，构建版本为 `v1.13.3-classroom-eof.2`。
 
 补丁为 `/stream` 增加二进制 `[5, cmdIndex << 4 | fd]` 关闭输入帧。它只关闭指定 stdin，继续读取 stdout／stderr；输入关闭及最终清理保持幂等。上游取消帧 `[4]` 仍表示终止运行。补丁包含 EOF 不取消执行、关闭后拒绝写入及重复清理测试。
+
+输出流现在在 Linux 节点读取 stdout／stderr 时按 `streamOut.max` 字节限制截断并终止任务，返回 `Output Limit Exceeded`；先发送有界缓冲输出，再发送终态，防止无限输出挤占 SSH 链路。网关另外限制合计输出字节数。
 
 ## 构建和安装
 

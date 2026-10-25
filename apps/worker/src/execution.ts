@@ -172,7 +172,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
     const result = await new Promise<Result>((resolve, reject) => {
       socket = new WebSocket(`${base.replace(/^http/, 'ws')}/stream`, {
         headers,
-        handshakeTimeout: 5000,
+        handshakeTimeout: 15000,
         maxPayload: 2 * MiB,
       })
       const decoders = { 1: new StringDecoder('utf8'), 2: new StringDecoder('utf8') }
@@ -192,7 +192,11 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
                   {
                     args: ['/w/program'],
                     env,
-                    files: [{ streamIn: true }, { streamOut: true }, { streamOut: true }],
+                    files: [
+                      { streamIn: true },
+                      { streamOut: true, max: settings.outputLimitKb * 1024 },
+                      { streamOut: true, max: settings.outputLimitKb * 1024 },
+                    ],
                     cpuLimit: settings.runTimeMs * 1e6,
                     clockLimit: run.interactive ? 60e9 : 5e9,
                     memoryLimit: settings.runMemoryMb * MiB,
@@ -238,6 +242,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
               error?: string
             }
             if (response.error || !response.results?.[0]) throw new Error('执行节点未返回运行结果')
+            if (response.results[0].status === 'Output Limit Exceeded') outputLimit = true
             if (!outputLimit) {
               output += decoders[1].end()
               stderr += decoders[2].end()

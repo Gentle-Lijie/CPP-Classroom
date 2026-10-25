@@ -22,7 +22,7 @@ export class HealthController {
       ...executionDefaults,
       ...saved,
       compiler: 'GCC 13.3.0',
-      engine: 'go-judge v1.13.3-classroom-eof.1',
+      engine: 'go-judge v1.13.3-classroom-eof.2',
     }
   }
 

@@ -9,10 +9,10 @@
 | 主机       | AIM-RADAR / Ubuntu 24.04 系列 / Linux 7.0.0-38-generic / amd64      |
 | 内网服务   | `10.176.29.102:5050`，仅绑定该内网接口                              |
 | systemd    | `go-judge.service`，enabled / active                                |
-| 引擎       | `v1.13.3-classroom-eof.1`，Go 1.26.0 构建                           |
+| 引擎       | `v1.13.3-classroom-eof.2`，Go 1.26.0 构建                           |
 | 编译器     | GCC 13.3.0，C++17 或 C++20 受控 profile                             |
 | 二进制     | `/opt/cpp-classroom/bin/go-judge`                                   |
-| SHA-256    | `17f95a19402ee625e59ca5d4f4defb63a0fe75ce900211591f1bc45eacba1d99`  |
+| SHA-256    | `196806d166fc4ab0b63576ef39bfb7a41b6bb91996c84d427312d51499e6bb40`  |
 | 配置       | `/etc/cpp-classroom/go-judge.env` 与 `mount.yaml`，root / 0600      |
 | 工作目录   | `/var/lib/cpp-classroom/go-judge`                                   |
 | 运行身份   | 任务进程 UID/GID 从 1536 起；服务管理隔离使用 root                  |
@@ -56,3 +56,9 @@ curl http://127.0.0.1:3000/api/health/readiness
 - 最新 50 人 HTTP 基准：50/50 输出正确，最大并行 4、峰值排队 50，保存与心跳 P95 35 ms，集中运行总耗时 P95 13,206 ms。数字包含本次开发机到节点的 SSH 链路，不代表长期或多班性能保证。
 
 可重建安装、补丁与测试命令见 [节点说明](../infra/go-judge/README.md)，功能清单见 [后端说明](backend-implementation.md)。本地验收 JSON、账号和数据库备份均位于忽略的 `.local/`，不应上传公开报告。
+
+## 压测进程的常驻方式
+
+本轮压力测试将本机 API、worker 切换为编译后的原生 Node 进程，由用户 LaunchAgent `tech.uonaim.cpp-classroom.api` 与 `tech.uonaim.cpp-classroom.worker` 维护。日志在 `.local/api.log`、`.local/worker.log`，不依赖工具终端会话存活。前端仍为 Vite 开发预览。
+
+这两个服务运行时不要同时再用 `pnpm dev` 启动 API／worker。修改后端代码后先构建，再通过 `launchctl kickstart -k gui/$(id -u)/tech.uonaim.cpp-classroom.api`（worker 同理）重启。要回到开发监听模式，先 `launchctl bootout` 对应 plist，再运行开发命令。PostgreSQL 和开发数据不受该切换影响。

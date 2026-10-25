@@ -1,5 +1,5 @@
 diff --git a/cmd/go-judge/stream/file.go b/cmd/go-judge/stream/file.go
-index 7b74a98..1f5e1e0 100644
+index 7b74a98..b3e9ca6 100644
 --- a/cmd/go-judge/stream/file.go
 +++ b/cmd/go-judge/stream/file.go
 @@ -3,6 +3,7 @@ package stream
@@ -18,7 +18,7 @@ index 7b74a98..1f5e1e0 100644
  }
  
  func newFileStreamIn(index, fd int, hasTTY bool) *fileStreamIn {
-@@ -52,7 +54,9 @@ func (f *fileStreamIn) String() string {
+@@ -52,10 +54,13 @@ func (f *fileStreamIn) String() string {
  }
  
  func (f *fileStreamIn) Close() error {
@@ -29,8 +29,12 @@ index 7b74a98..1f5e1e0 100644
  }
  
  type fileStreamOut struct {
++ max int64
+ 	stream envexec.FileStreamOut
+ 	index  int
+ 	fd     int
 diff --git a/cmd/go-judge/stream/stream.go b/cmd/go-judge/stream/stream.go
-index 46feb04..8ccd806 100644
+index 46feb04..a50aab0 100644
 --- a/cmd/go-judge/stream/stream.go
 +++ b/cmd/go-judge/stream/stream.go
 @@ -30,6 +30,7 @@ type Request struct {
@@ -41,7 +45,42 @@ index 46feb04..8ccd806 100644
  	Cancel  *struct{}
  }
  
-@@ -272,7 +273,13 @@ func streamInput(ctx context.Context, s Stream, si []*fileStreamIn, execCancel f
+@@ -119,7 +120,10 @@ func Start(baseCtx context.Context, s Stream, w worker.Worker, srcPrefix []strin
+ 	if len(streamOut) > 0 {
+ 		for _, so := range streamOut {
+ 			outWG.Go(func() error {
+-				return streamOutput(ctx, outCh, so)
++				err := streamOutput(ctx, outCh, so)
++                var limit *streamOutputLimitError
++                if errors.As(err, &limit) { execCancel() }
++                return err
+ 			})
+ 		}
+ 		go func() {
+@@ -154,8 +158,12 @@ func sendLoop(ctx context.Context, s Stream, outCh <-chan *OutputResponse, outDo
+ 	for {
+ 		if outClosed && resultReady {
+ 			if streamOutErr != nil {
+-				return streamOutErr
+-			}
++                var limit *streamOutputLimitError
++                if !errors.As(streamOutErr, &limit) { return streamOutErr }
++                if limit.index >= 0 && limit.index < len(resultSend.Results) {
++                    resultSend.Results[limit.index].Status = model.Status(envexec.StatusOutputLimitExceeded)
++                }
++            }
+ 			return s.Send(Response{Response: resultSend})
+ 		}
+ 
+@@ -222,6 +230,7 @@ func convertStreamRequest(m *model.Request, srcPrefix []string) (req *worker.Req
+ 				c.Files[j] = nil
+ 			case f.StreamOut:
+ 				so := newFileStreamOut(i, j)
++ if f.Max != nil { so.max = *f.Max }
+ 				streamOut = append(streamOut, so)
+ 				streams = append(streams, cmdStream{index: i, fd: j, f: so})
+ 				c.Files[j] = nil
+@@ -272,7 +281,13 @@ func streamInput(ctx context.Context, s Stream, si []*fileStreamIn, execCancel f
  				return fmt.Errorf("write to input %d/%d: %w", in.Input.Index, in.Input.Fd, err)
  			}
  
@@ -56,8 +95,65 @@ index 46feb04..8ccd806 100644
  			f, ok := inf[in.Resize.Index<<8|in.Resize.Fd]
  			if !ok {
  				return fmt.Errorf("input does not exist: %d/%d", in.Resize.Index, in.Resize.Fd)
+@@ -296,31 +311,30 @@ func streamInput(ctx context.Context, s Stream, si []*fileStreamIn, execCancel f
+ 	}
+ }
+ 
+-func streamOutput(ctx context.Context, outCh chan *OutputResponse, so *fileStreamOut) error {
+-	var buf []byte
+-	for {
+-		select {
+-		case <-ctx.Done():
+-			return nil
+-		default:
+-		}
+-		if len(buf) < minBuffLen {
+-			buf = make([]byte, newBuffLen)
+-		}
++type streamOutputLimitError struct { index int }
++func (e *streamOutputLimitError) Error() string { return "stream output limit exceeded" }
+ 
+-		n, err := so.Read(buf)
+-		if err != nil { // file closed with io.EOF
+-			return nil
+-		}
+-		select {
+-		case <-ctx.Done():
+-			return nil
+-		case outCh <- &OutputResponse{
+-			Index:   so.index,
+-			Fd:      so.fd,
+-			Content: buf[:n],
+-		}:
+-		}
+-		buf = buf[n:]
+-	}
++func streamOutput(ctx context.Context, outCh chan *OutputResponse, so *fileStreamOut) error {
++    var emitted int64
++    var buf []byte
++    for {
++        select { case <-ctx.Done(): return nil; default: }
++        if len(buf) < minBuffLen { buf = make([]byte,newBuffLen) }
++        n,err := so.Read(buf)
++        limitHit := false
++        if so.max > 0 && emitted+int64(n) > so.max {
++            n = int(so.max-emitted)
++            limitHit = true
++        }
++        if n > 0 {
++            select {
++            case <-ctx.Done(): return nil
++            case outCh <- &OutputResponse{Index:so.index,Fd:so.fd,Content:buf[:n]}:
++            }
++            emitted += int64(n)
++            buf = buf[n:]
++        }
++        if limitHit { return &streamOutputLimitError{index:so.index} }
++        if err != nil { return nil }
++    }
+ }
 diff --git a/cmd/go-judge/stream/stream_test.go b/cmd/go-judge/stream/stream_test.go
-index 95977c7..3a124de 100644
+index 95977c7..0c8baad 100644
 --- a/cmd/go-judge/stream/stream_test.go
 +++ b/cmd/go-judge/stream/stream_test.go
 @@ -2,6 +2,7 @@ package stream
@@ -68,7 +164,7 @@ index 95977c7..3a124de 100644
  	"sync"
  	"testing"
  
-@@ -62,3 +63,19 @@ func TestSendLoopDrainsOutputBeforeFinalResponse(t *testing.T) {
+@@ -62,3 +63,31 @@ func TestSendLoopDrainsOutputBeforeFinalResponse(t *testing.T) {
  		t.Fatalf("expected final response second, got %#v", s.sends[1])
  	}
  }
@@ -87,6 +183,18 @@ index 95977c7..3a124de 100644
 + if cancelled {t.Fatal("EOF cancelled execution")}
 + if _,err:=f.Write([]byte("after EOF"));err!=io.EOF {t.Fatalf("stdin still open: %v",err)}
 + if err:=f.Close();err!=nil {t.Fatalf("second close failed: %v",err)}
++}
++
++func TestOutputLimitIsReportedAfterBufferedOutput(t *testing.T) {
++ s:=&recordingStream{}
++ out:=make(chan *OutputResponse,1)
++ out<-&OutputResponse{Index:0,Fd:1,Content:[]byte("bounded")};close(out)
++ done:=make(chan error,1);done<-&streamOutputLimitError{index:0};close(done)
++ results:=make(chan worker.Response,1)
++ results<-worker.Response{Results:[]worker.Result{{Status:envexec.StatusSignalled}}}
++ if err:=sendLoop(context.Background(),s,out,done,results,zap.NewNop());err!=nil {t.Fatal(err)}
++ if len(s.sends)!=2 || s.sends[0].Output==nil {t.Fatal("buffered output not drained")}
++ if s.sends[1].Response.Results[0].Status.String()!="Output Limit Exceeded" {t.Fatal("output limit misclassified")}
 +}
 diff --git a/cmd/go-judge/ws_executor/stream.go b/cmd/go-judge/ws_executor/stream.go
 index 1ac7b95..e87bbc2 100644
