@@ -24,6 +24,8 @@ pnpm dev
 - 本次交付的初始账号保存在本机 `.local/initial-accounts.json`（0600，不提交、不发布）。
 - 停止开发进程：终端 Ctrl+C；数据库状态／停止：`pnpm pg:status`、`pnpm pg:stop`。
 
+当前 API／worker 由本机原生 LaunchAgent 常驻运行。需要回到 `pnpm dev` 监听模式时，先按 [部署记录](docs/go-judge-deployment.md) 停止对应服务，避免端口冲突。
+
 ## Linux 评测节点
 
 AIM-Radar 已安装原生 systemd 服务，监听内网地址；实际部署与验收见 [部署记录](docs/go-judge-deployment.md)。本机业务进程通过认证 SSH 隧道连接该节点：
@@ -78,3 +80,7 @@ scripts              原生启动、构建、备份和验收
 构建后 API／worker 分别通过 `pnpm --filter @classroom/api start`、`pnpm --filter @classroom/worker start` 运行。生产前端产物为 `apps/web/dist`；使用原生反向代理服务静态文件，并将 `/api` 转发到 API。本次业务服务在开发机运行，远端部署的是独立 Linux 评测服务；未声称完成业务站点公网发布。
 
 本轮 50 人为 HTTP 保存、心跳与集中运行基准；多个课堂和 50 台真实浏览器长期试课仍需实际教学验证。首版不包含自动判题、多文件工程、协作编辑、SSO 和内置 AI。需求与组件选型保留在仓库根目录。
+
+## 扩大压力测试与图文报告
+
+见 [2026-10-25 压测结果](docs/stress-test-2026-10-25.md)。`pnpm stress:test` 执行边界、分档集中运行、持续编辑、混合异常与交互 EOF；`pnpm stress:report` 生成内嵌真实截图的自包含 HTML。
