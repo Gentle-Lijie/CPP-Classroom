@@ -211,6 +211,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
       socket.on('message', (data) => {
         const packet = Buffer.from(data as Buffer)
         if (packet[0] === 2) {
+          if (outputLimit) return
           const fd = packet[1]! & 15
           if (fd === 1 || fd === 2) {
             const chunk = decoders[fd].write(packet.subarray(2))
@@ -220,8 +221,11 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
               Buffer.byteLength(output) + Buffer.byteLength(stderr) >
               settings.outputLimitKb * 1024
             ) {
-              output = output.slice(0, settings.outputLimitKb * 512)
-              stderr = stderr.slice(0, settings.outputLimitKb * 512)
+              const cap = settings.outputLimitKb * 1024
+              output = new StringDecoder('utf8').write(Buffer.from(output).subarray(0, cap))
+              stderr = new StringDecoder('utf8').write(
+                Buffer.from(stderr).subarray(0, Math.max(0, cap - Buffer.byteLength(output))),
+              )
               outputLimit = true
               socket!.send(Buffer.from([4]))
             }
@@ -234,8 +238,10 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
               error?: string
             }
             if (response.error || !response.results?.[0]) throw new Error('执行节点未返回运行结果')
-            output += decoders[1].end()
-            stderr += decoders[2].end()
+            if (!outputLimit) {
+              output += decoders[1].end()
+              stderr += decoders[2].end()
+            }
             completed = true
             resolve(response.results[0])
           } catch (e) {
@@ -251,7 +257,9 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
     })
     await finish(
       outputLimit ? '资源超限' : resultStatus(result),
-      outputLimit ? '输出超过 1 MiB' : `${result.exitStatus} · ${result.status}`,
+      outputLimit
+        ? `输出超过 ${settings.outputLimitKb} KiB`
+        : `${result.exitStatus} · ${result.status}`,
       { engine: 'go-judge 1.13.3 + stdin-eof', compiler: 'GCC 13 / C++17', ...result },
     )
   } catch (e) {
