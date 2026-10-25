@@ -2,6 +2,8 @@
 
 验收日期：2026-10-25（Asia/Shanghai）。本次部署对象是独立评测服务；前端、API、PostgreSQL 和 worker 运行在开发机。
 
+端口选择、当前配置、FRPc／FRPS 示例及接入验收见 [AIM-Radar 连接指南](aim-radar-connection.md)。
+
 ## 当前连接
 
 | 项目       | 已部署值                                                            |

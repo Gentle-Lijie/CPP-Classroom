@@ -28,6 +28,8 @@ pnpm dev
 
 ## Linux 评测节点
 
+端口、现有节点配置和 FRP 接入方法见 [AIM-Radar 连接指南](docs/aim-radar-connection.md)。
+
 AIM-Radar 已安装原生 systemd 服务，监听内网地址；实际部署与验收见 [部署记录](docs/go-judge-deployment.md)。本机业务进程通过认证 SSH 隧道连接该节点：
 
 ```sh
