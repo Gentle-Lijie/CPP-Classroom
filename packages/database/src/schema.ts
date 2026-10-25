@@ -118,3 +118,96 @@ export const drafts = pgTable(
   },
   (t) => [uniqueIndex('draft_user_exercise_unique').on(t.userId, t.exerciseId)],
 )
+
+export const runs = pgTable(
+  'runs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    classroomId: uuid('classroom_id')
+      .notNull()
+      .references(() => classrooms.id),
+    exerciseId: uuid('exercise_id')
+      .notNull()
+      .references(() => exercises.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    code: text('code').notNull(),
+    filename: text('filename').notNull(),
+    revision: integer('revision').notNull(),
+    input: text('input').notNull(),
+    status: text('status').notNull().default('排队'),
+    output: text('output').notNull().default(''),
+    stderr: text('stderr').notNull().default(''),
+    log: text('log').notNull().default(''),
+    exit: text('exit').notNull().default('—'),
+    interactive: boolean('interactive').notNull().default(false),
+    eof: boolean('eof').notNull().default(false),
+    stopRequested: boolean('stop_requested').notNull().default(false),
+    metrics: jsonb('metrics').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('runs_queue_idx').on(t.status, t.createdAt),
+    index('runs_history_idx').on(t.classroomId, t.userId, t.createdAt),
+  ],
+)
+export const runInputs = pgTable('run_inputs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  runId: uuid('run_id')
+    .notNull()
+    .references(() => runs.id),
+  content: text('content').notNull(),
+  eof: boolean('eof').notNull().default(false),
+  delivered: boolean('delivered').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const helpRequests = pgTable('help_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  classroomId: uuid('classroom_id')
+    .notNull()
+    .references(() => classrooms.id),
+  exerciseId: uuid('exercise_id')
+    .notNull()
+    .references(() => exercises.id),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  message: text('message').notNull(),
+  resolved: boolean('resolved').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+export const submissions = pgTable('submissions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  classroomId: uuid('classroom_id')
+    .notNull()
+    .references(() => classrooms.id),
+  exerciseId: uuid('exercise_id')
+    .notNull()
+    .references(() => exercises.id),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  code: text('code').notNull(),
+  filename: text('filename').notNull(),
+  revision: integer('revision').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+export const projections = pgTable('projections', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  classroomId: uuid('classroom_id')
+    .notNull()
+    .references(() => classrooms.id),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  snapshot: jsonb('snapshot').$type<Record<string, unknown>>().notNull(),
+  revoked: boolean('revoked').notNull().default(false),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+})
+export const platformSettings = pgTable('platform_settings', {
+  id: text('id').primaryKey(),
+  value: jsonb('value').$type<Record<string, unknown>>().notNull(),
+})
