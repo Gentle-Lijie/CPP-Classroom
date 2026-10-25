@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
+import { initialize, currentUser, demo, exercises } from './data/demo'
 import './styles.css'
 import './interface.css'
 import './platform.css'
@@ -63,6 +64,21 @@ const router = createRouter({
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior: () => ({ top: 0 }),
+})
+router.beforeEach(async (to) => {
+  await initialize()
+  if (['/login', '/recover'].includes(to.path)) return true
+  if (!currentUser.value) return { path: '/login', query: { redirect: to.fullPath } }
+  const role = currentUser.value.role
+  if (to.path === '/join' && role === 'student') return true
+  const prefix = to.path.startsWith('/projection') ? 'teacher' : to.path.split('/')[1]
+  if (['teacher', 'student', 'admin'].includes(prefix!) && prefix !== role)
+    return role === 'admin' ? '/admin/health' : `/${role}/classes`
+  if (!demo.classroomId && role !== 'admin' && !to.path.endsWith('/classes') && to.path !== '/join')
+    return `/${role}/classes`
+  if (role === 'student' && to.path === '/student/workspace' && !exercises.length)
+    return '/student/classes'
+  return true
 })
 router.afterEach((to) => {
   document.title = `${to.path.startsWith('/teacher/inspect/') ? '学生详情独立窗口' : to.path === '/teacher/teach' ? '教师授课' : to.path === '/teacher/monitor' ? '在线课堂巡视' : to.path.startsWith('/student/workspace') ? '练习工作区' : to.path.startsWith('/projection') ? '课堂投屏' : '教学工作台'} · 码上课堂`

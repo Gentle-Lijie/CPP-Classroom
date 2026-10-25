@@ -19,7 +19,7 @@ import {
   X,
   Menu,
 } from '@lucide/vue'
-import { activeClassroom, demo, counts } from '@/data/demo'
+import { activeClassroom, counts, currentUser, logout } from '@/data/demo'
 const route = useRoute()
 const router = useRouter()
 const mobileOpen = ref(false)
@@ -60,16 +60,10 @@ const sectionTitle = computed(
     links.value.find((x) => route.path.startsWith(x.to))?.title ??
     (route.path.includes('/students/') ? '学生详情' : '我的课堂'),
 )
-function switchRole(value: string) {
-  demo.role = value
+async function signOut() {
+  await logout()
   roleMenu.value = false
-  router.push(
-    value === 'teacher'
-      ? '/teacher/overview'
-      : value === 'student'
-        ? '/student/classes'
-        : '/admin/health',
-  )
+  await router.push('/login')
 }
 </script>
 <template>
@@ -138,22 +132,17 @@ function switchRole(value: string) {
       </div>
       <div class="sidebar-bottom">
         <RouterLink to="/guide" class="nav-item"
-          ><HelpCircle :size="18" />原型导览 <ArrowUpRight :size="14" class="ml-auto"
+          ><HelpCircle :size="18" />使用导览 <ArrowUpRight :size="14" class="ml-auto"
         /></RouterLink>
         <div class="profile-wrap">
           <div v-if="roleMenu" class="role-menu">
-            <p>切换演示身份</p>
-            <button @click="switchRole('teacher')">教师工作台</button
-            ><button @click="switchRole('student')">学生工作台</button
-            ><button @click="switchRole('admin')">平台管理员</button
-            ><RouterLink to="/login"><LogOut :size="14" /> 登录页预览</RouterLink>
+            <p>{{ currentUser?.username }}</p>
+            <button @click="signOut"><LogOut :size="14" />退出登录</button>
           </div>
           <button class="profile" @click="roleMenu = !roleMenu">
-            <span class="avatar">{{
-              role === 'teacher' ? '周' : role === 'student' ? '陈' : '管'
-            }}</span
+            <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span
             ><span
-              >{{ role === 'teacher' ? '周老师' : role === 'student' ? '陈子涵' : '管理员'
+              >{{ currentUser?.name ?? ''
               }}<small>{{
                 role === 'teacher' ? '教师账号' : role === 'student' ? '学生账号' : '运维账号'
               }}</small></span
@@ -173,16 +162,15 @@ function switchRole(value: string) {
           ><ChevronRight :size="13" /><strong>{{ sectionTitle }}</strong>
         </div>
         <div class="topbar-right">
-          <span class="demo-tag">交互原型</span><span class="desktop-only muted">本地示例数据</span
-          ><span class="topbar-avatar">{{
-            role === 'teacher' ? '周' : role === 'student' ? '陈' : '管'
-          }}</span>
+          <span class="demo-tag">已连接服务器</span
+          ><span class="desktop-only muted">课堂实时数据</span
+          ><span class="topbar-avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
         </div>
       </header>
       <main class="page-content"><slot /></main>
       <footer class="app-footer">
         <span>码上课堂 · C++ Classroom</span
-        ><span>UI 设计预览 <span class="footer-dot">·</span> 课堂业务尚未接入</span>
+        ><span>原生 Linux 评测 <span class="footer-dot">·</span> 课堂数据已持久化</span>
       </footer>
     </div>
   </div>
