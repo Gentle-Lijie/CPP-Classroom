@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-25",
+  "admissionBefore": {
+    "name": "admission-120",
+    "start": 6505,
+    "end": 6643,
+    "durationMs": 138,
+    "requests": 370,
+    "unexpectedErrors": 0,
+    "submitted": 120,
+    "accepted": 102,
+    "rejected": 18,
+    "backlog": 102,
+    "duplicateRejects": 10,
+    "withinLimit": false
+  },
+  "firstFullPhases": [
+    {
+      "name": "admission-120",
+      "start": 3771,
+      "end": 3919,
+      "durationMs": 148,
+      "requests": 370,
+      "unexpectedErrors": 0,
+      "submitted": 120,
+      "accepted": 100,
+      "rejected": 20,
+      "backlog": 100,
+      "duplicateRejects": 10,
+      "withinLimit": true
+    },
+    {
+      "name": "burst-10",
+      "start": 3919,
+      "end": 8313,
+      "durationMs": 4394,
+      "requests": 186,
+      "unexpectedErrors": 0,
+      "users": 10,
+      "rounds": 2,
+      "completed": 20,
+      "totalP50Ms": 1579,
+      "totalP95Ms": 2196,
+      "totalP99Ms": 2197,
+      "maxMs": 2197,
+      "engineRunP95Ms": 3
+    },
+    {
+      "name": "burst-25",
+      "start": 8314,
+      "end": 15580,
+      "durationMs": 7266,
+      "requests": 599,
+      "unexpectedErrors": 0,
+      "users": 25,
+      "rounds": 2,
+      "completed": 50,
+      "totalP50Ms": 1944,
+      "totalP95Ms": 3488,
+      "totalP99Ms": 3777,
+      "maxMs": 3777,
+      "engineRunP95Ms": 3
+    },
+    {
+      "name": "burst-50",
+      "start": 15582,
+      "end": 32176,
+      "durationMs": 16594,
+      "requests": 2049,
+      "unexpectedErrors": 0,
+      "users": 50,
+      "rounds": 2,
+      "completed": 100,
+      "totalP50Ms": 4399,
+      "totalP95Ms": 8083,
+      "totalP99Ms": 8387,
+      "maxMs": 8388,
+      "engineRunP95Ms": 4
+    },
+    {
+      "name": "burst-100",
+      "start": 32178,
+      "end": 62750,
+      "durationMs": 30571,
+      "requests": 6743,
+      "unexpectedErrors": 0,
+      "users": 100,
+      "rounds": 2,
+      "completed": 200,
+      "totalP50Ms": 8180,
+      "totalP95Ms": 14710,
+      "totalP99Ms": 16243,
+      "maxMs": 16244,
+      "engineRunP95Ms": 3
+    },
+    {
+      "name": "soak-50-120s",
+      "start": 62753,
+      "end": 190514,
+      "durationMs": 127755,
+      "requests": 29675,
+      "unexpectedErrors": 0,
+      "users": 50,
+      "editDurationMs": 120000,
+      "saveCycles": 7426,
+      "completed": 789,
+      "saveP95Ms": 22,
+      "totalP95Ms": 10813
+    },
+    {
+      "name": "mixed-50",
+      "start": 190519,
+      "end": 231573,
+      "failed": true,
+      "error": "9: Opening handshake has timed out\n\n'平台执行失败' !== '运行完成'\n"
+    }
+  ],
+  "firstFullSummary": {
+    "requests": 44476,
+    "unexpectedErrors": 0,
+    "expectedConflicts": 30,
+    "requestP50Ms": 7,
+    "requestP95Ms": 28,
+    "requestP99Ms": 49,
+    "teacherOverviewP95Ms": 11,
+    "saveP95Ms": 31,
+    "peakActive": 4,
+    "peakQueued": 100,
+    "peakCpu": 14.03,
+    "peakMemoryMiB": 2757
+  },
+  "firstFullErrors": [
+    {
+      "phase": "mixed-50",
+      "error": "9: Opening handshake has timed out\n\n'平台执行失败' !== '运行完成'\n"
+    }
+  ],
+  "measurementIsolationNote": "A concurrent browser evidence task consumed an additional global queue slot during the second 100-user burst. The API correctly returned 409; the harness now records queue-full responses as backpressure and uses bounded backoff, while final measurements avoid submitting screenshot tasks during 100-user admission.",
+  "secondAttemptErrors": [
+    {
+      "phase": "burst-100",
+      "error": "POST /classes/78982fe4-9923-4969-92b9-b89825ce30d3/runs: 409 队列已满，请稍后重试"
+    }
+  ]
+}

@@ -31,7 +31,9 @@
     "auth:bootstrap": "node scripts/bootstrap-admin.mjs",
     "backup:verify": "node scripts/backup.mjs",
     "acceptance": "node scripts/acceptance.mjs",
-    "capacity:probe": "node scripts/capacity-probe.mjs"
+    "capacity:probe": "node scripts/capacity-probe.mjs",
+    "stress:test": "node scripts/stress-test.mjs",
+    "stress:report": "python3 scripts/build-stress-report.py"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
