@@ -14,9 +14,11 @@
     "@classroom/config": "workspace:*",
     "@classroom/contracts": "workspace:*",
     "@classroom/database": "workspace:*",
-    "pg-boss": "12.38.0"
+    "pg-boss": "12.38.0",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.2",
     "tsx": "4.23.15"
   }
 }

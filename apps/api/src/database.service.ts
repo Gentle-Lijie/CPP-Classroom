@@ -8,7 +8,7 @@ import { ENVIRONMENT } from './environment.js'
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name)
-  private readonly database
+  readonly database: ReturnType<typeof createDatabase>
 
   constructor(@Inject(ENVIRONMENT) environment: Environment) {
     this.database = createDatabase(environment.DATABASE_URL)
