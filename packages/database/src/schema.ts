@@ -10,7 +10,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
-// Operational events only. Classroom and authentication schemas are added with their features.
+// Operational and classroom audit records; secrets are never stored in event details.
 export const auditEvents = pgTable(
   'audit_events',
   {

@@ -24,7 +24,7 @@ export class RunnerService {
       if (!response.ok) throw new Error('Unhealthy execution node')
       return {
         status: 'healthy',
-        message: 'go-judge 可连接；尚未验证编译与隔离能力',
+        message: '已连接原生 Linux 评测节点（此接口仅探活）',
         latencyMs: Math.round(performance.now() - start),
       }
     } catch {

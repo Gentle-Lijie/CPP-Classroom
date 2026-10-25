@@ -26,7 +26,12 @@
     "test": "pnpm build:packages && vitest run",
     "db:generate": "pnpm --filter @classroom/database db:generate",
     "db:migrate": "pnpm --filter @classroom/database db:migrate",
-    "queue:probe": "pnpm --filter @classroom/worker probe"
+    "queue:probe": "pnpm --filter @classroom/worker probe",
+    "runner:tunnel": "node scripts/runner-tunnel.mjs",
+    "auth:bootstrap": "node scripts/bootstrap-admin.mjs",
+    "backup:verify": "node scripts/backup.mjs",
+    "acceptance": "node scripts/acceptance.mjs",
+    "capacity:probe": "node scripts/capacity-probe.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
