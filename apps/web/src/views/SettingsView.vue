@@ -3,19 +3,26 @@ import { reactive, ref } from 'vue'
 import { Save, Copy, RefreshCw, ShieldCheck, Archive, Settings2, ChevronRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
-import { activeClassroom, demo, notify, updateClass, classPath, reportError } from '@/data/demo'
+import {
+  activeClassroom,
+  demo,
+  notify,
+  updateClass,
+  classPath,
+  reportError,
+  executionSettings,
+} from '@/data/demo'
 import { api } from '@/lib/api'
 const form = reactive({
   name: activeClassroom.value.name,
   description: activeClassroom.value.description,
   state: activeClassroom.value.status,
   access: String(activeClassroom.value.settings?.access ?? 'approval'),
-  compiler: 'GCC 13.2 · C++17',
-  capacity: 50,
+  capacity: Number(activeClassroom.value.settings?.capacity ?? 50),
   allowJoin: activeClassroom.value.settings?.allowJoin !== false,
   allowRun: activeClassroom.value.settings?.allowRun !== false,
   allowResubmit: activeClassroom.value.settings?.allowResubmit !== false,
-  readonly: true,
+  readonly: activeClassroom.value.settings?.readonly !== false,
 })
 const tab = ref('基本信息')
 const archive = ref(false)
@@ -134,31 +141,36 @@ async function archiveClass() {
           <h2>统一编程环境</h2>
         </div>
         <div class="info-box">GCC 13.3 / C++17；运行限制由平台管理员统一配置。</div>
-        <label
-          >环境版本<select v-model="form.compiler">
-            <option>GCC 13.2 · C++17</option>
-            <option>GCC 13.2 · C++20</option>
-          </select></label
-        >
+        <p>
+          GCC 13.3 · {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+        </p>
         <div class="environment-grid">
           <div><span>项目类型</span><strong>每题一个 C++ 源文件</strong></div>
-          <div><span>运行时间</span><strong>2,000 ms</strong></div>
-          <div><span>内存上限</span><strong>256 MB</strong></div>
-          <div><span>输出上限</span><strong>1 MB</strong></div>
-          <div><span>编译时间</span><strong>10,000 ms</strong></div>
-          <div><span>编译内存</span><strong>512 MB</strong></div>
+          <div>
+            <span>运行时间</span><strong>{{ executionSettings.runTimeMs }} ms</strong>
+          </div>
+          <div>
+            <span>内存上限</span><strong>{{ executionSettings.runMemoryMb }} MiB</strong>
+          </div>
+          <div>
+            <span>输出上限</span><strong>{{ executionSettings.outputLimitKb }} KiB</strong>
+          </div>
+          <div>
+            <span>编译时间</span><strong>{{ executionSettings.compileTimeMs }} ms</strong>
+          </div>
+          <div>
+            <span>编译内存</span><strong>{{ executionSettings.compileMemoryMb }} MiB</strong>
+          </div>
         </div>
         <p class="form-hint">仅由平台提供受控环境，不接受学生自定义命令。</p>
       </div>
       <div v-else-if="tab === '课堂策略'" class="form-stack">
         <h2>练习与课后访问</h2>
         <label class="toggle-row"
-          ><span
-            ><strong>允许编译运行</strong><small>关闭后保留代码和历史结果的只读访问。</small></span
+          ><span><strong>允许编译运行</strong><small>关闭后仍可编辑，并查看已有记录。</small></span
           ><input v-model="form.allowRun" type="checkbox" role="switch" /></label
         ><label class="toggle-row"
-          ><span
-            ><strong>允许继续修改与重复提交</strong><small>每次主动提交保留独立版本。</small></span
+          ><span><strong>允许重复提交</strong><small>每次主动提交保留独立版本。</small></span
           ><input v-model="form.allowResubmit" type="checkbox" role="switch" /></label
         ><label class="toggle-row"
           ><span

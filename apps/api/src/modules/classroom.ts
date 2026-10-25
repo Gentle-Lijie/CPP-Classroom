@@ -393,6 +393,39 @@ export class ClassroomController {
       throw e
     }
   }
+  @Post(':id/exercises/reorder') async reorder(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: AuthRequest,
+  ) {
+    await this.service.access(actor(req), id, true)
+    const data = parse(z.object({ ids: z.array(z.uuid()).max(500) }), body)
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      await client.query('select id from classrooms where id=$1 for update', [id])
+      const existing = (
+        await client.query('select id from exercises where classroom_id=$1', [id])
+      ).rows.map((r) => r.id as string)
+      if (
+        data.ids.length !== existing.length ||
+        new Set(data.ids).size !== existing.length ||
+        data.ids.some((e) => !existing.includes(e))
+      )
+        throw new ConflictException('练习列表已变更，请刷新后重试')
+      await client.query(
+        'update exercises e set position=t.n::int from unnest($2::uuid[]) with ordinality as t(id,n) where e.classroom_id=$1 and e.id=t.id',
+        [id, data.ids],
+      )
+      await client.query('commit')
+      return { ok: true }
+    } catch (e) {
+      await client.query('rollback')
+      throw e
+    } finally {
+      client.release()
+    }
+  }
   @Patch(':id/exercises/:exerciseId') async updateExercise(
     @Param('id') id: string,
     @Param('exerciseId') exerciseId: string,

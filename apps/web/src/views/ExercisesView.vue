@@ -25,10 +25,13 @@ import {
   tone,
   notify,
   saveExercise,
+  classPath,
+  refresh,
   updateClass,
   reportError,
   type Exercise,
 } from '@/data/demo'
+import { api } from '@/lib/api'
 const router = useRouter()
 const route = useRoute()
 const selected = ref(String(route.query.exercise ?? exercises[0]?.id ?? 'e01'))
@@ -65,8 +68,10 @@ async function move() {
   try {
     const index = exercises.findIndex((e) => e.id === exercise.value.id)
     if (index > 0) {
-      const before = exercises[index - 1]!
-      await saveExercise({ ...exercise.value, position: (before.position ?? index) - 1 })
+      const ids = exercises.map((e) => e.id)
+      ;[ids[index - 1], ids[index]] = [ids[index]!, ids[index - 1]!]
+      await api(classPath('/exercises/reorder'), 'POST', { ids })
+      await refresh()
     }
   } catch (e) {
     reportError(e)
