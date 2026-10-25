@@ -1,0 +1,22 @@
+{
+  "name": "@classroom/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "probe": "tsx src/probe.ts"
+  },
+  "dependencies": {
+    "@classroom/config": "workspace:*",
+    "@classroom/contracts": "workspace:*",
+    "@classroom/database": "workspace:*",
+    "pg-boss": "12.38.0"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
+  }
+}

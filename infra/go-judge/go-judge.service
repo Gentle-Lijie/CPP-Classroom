@@ -1,0 +1,19 @@
+[Unit]
+Description=C++ Classroom native go-judge
+After=network.target
+
+[Service]
+Type=simple
+# Dedicated Linux execution host only. Root is required for this cgroup/namespace setup.
+User=root
+WorkingDirectory=/var/lib/cpp-classroom/go-judge
+EnvironmentFile=/etc/cpp-classroom/go-judge.env
+ExecStart=/opt/cpp-classroom/bin/go-judge -http-addr=${GO_JUDGE_LISTEN} -auth-token=${GO_JUDGE_AUTH_TOKEN} -no-fallback -parallelism=4 -mount-conf=/etc/cpp-classroom/mount.yaml
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=15
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

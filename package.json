@@ -1,0 +1,46 @@
+{
+  "name": "cpp-classroom",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11 <12"
+  },
+  "scripts": {
+    "env:init": "node scripts/init-env.mjs",
+    "pg:start": "node scripts/postgres.mjs start",
+    "pg:stop": "node scripts/postgres.mjs stop",
+    "pg:status": "node scripts/postgres.mjs status",
+    "setup:local": "pnpm env:init && pnpm pg:start && pnpm build:packages && pnpm db:migrate",
+    "predev": "pnpm build:packages",
+    "dev": "concurrently --kill-others --names web,api,worker \"pnpm --filter @classroom/web dev\" \"pnpm --filter @classroom/api dev\" \"pnpm --filter @classroom/worker dev\"",
+    "build:packages": "pnpm --filter './packages/*' -r build",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check",
+    "test": "pnpm build:packages && vitest run",
+    "db:generate": "pnpm --filter @classroom/database db:generate",
+    "db:migrate": "pnpm --filter @classroom/database db:migrate",
+    "queue:probe": "pnpm --filter @classroom/worker probe"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "concurrently": "10.0.6",
+    "dotenv": "17.2.3",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "10.11.1",
+    "globals": "^17.13.0",
+    "pg": "8.23.1",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  }
+}
