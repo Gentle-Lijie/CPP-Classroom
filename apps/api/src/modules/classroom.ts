@@ -300,6 +300,11 @@ export class ClassroomController {
         `insert into memberships(classroom_id,user_id,status) values($1,$2,'active') on conflict(classroom_id,user_id) do update set status='active'`,
         [id, user.id],
       )
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'membership.added',
+        actor(req).id,
+        JSON.stringify({ classroomId: id, userId: user.id, created }),
+      ])
       await client.query('commit')
       return {
         id: user.id,
@@ -348,6 +353,11 @@ export class ClassroomController {
           "update runs set stop_requested=true where classroom_id=$1 and user_id=$2 and status in ('排队','编译中','运行中／可输入')",
           [id, userId],
         )
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'membership.updated',
+        actor(req).id,
+        JSON.stringify({ classroomId: id, userId, status: data.status }),
+      ])
       await client.query('commit')
       return { ok: true }
     } catch (e) {
@@ -382,12 +392,18 @@ export class ClassroomController {
     await this.service.access(actor(req), id, true)
     const data = parse(exerciseSchema, body)
     try {
-      return (
+      const result = (
         await this.service.pool.query(
           'insert into exercises(classroom_id,filename,status,position,content) values($1,$2,$3,$4,$5) returning id',
           [id, data.filename, data.status, data.position ?? 0, JSON.stringify(data)],
         )
       ).rows[0]
+      await this.service.audit(actor(req), 'exercise.created', {
+        classroomId: id,
+        exerciseId: result.id,
+        status: data.status,
+      })
+      return result
     } catch (e) {
       if ((e as { code: string }).code === '23505') throw new ConflictException('文件名已存在')
       throw e
@@ -417,6 +433,11 @@ export class ClassroomController {
         'update exercises e set position=t.n::int from unnest($2::uuid[]) with ordinality as t(id,n) where e.classroom_id=$1 and e.id=t.id',
         [id, data.ids],
       )
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'exercises.reordered',
+        actor(req).id,
+        JSON.stringify({ classroomId: id, ids: data.ids }),
+      ])
       await client.query('commit')
       return { ok: true }
     } catch (e) {
@@ -449,6 +470,12 @@ export class ClassroomController {
         ],
       )
       if (!result.rowCount) throw new ConflictException('题目已被修改，请刷新后重试')
+      await this.service.audit(actor(req), 'exercise.updated', {
+        classroomId: id,
+        exerciseId,
+        status: data.status,
+        version: result.rows[0].version,
+      })
       return result.rows[0]
     } catch (e) {
       if ((e as { code: string }).code === '23505') throw new ConflictException('文件名已存在')

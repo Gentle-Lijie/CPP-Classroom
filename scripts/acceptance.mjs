@@ -136,7 +136,8 @@ const normal = await runCode(code)
 assert.equal(normal.output, '21\n')
 const compileError = await runCode('int main(){ broken syntax }', { expected: '编译失败' })
 assert.match(compileError.log, /error:/)
-checks.push('GCC 编译成功、真实输出、完整编译错误')
+assert.equal((await student(path + '/runs/' + normal.id)).code, code)
+checks.push('GCC 编译成功、真实输出、完整编译错误、旧快照不随编辑改变')
 const interactive = await runCode(
   '#include <iostream>\nint main(){std::cout<<"ready"<<std::endl;int n,s=0;while(std::cin>>n)s+=n;std::cout<<"sum="<<s<<std::endl;}',
   {
