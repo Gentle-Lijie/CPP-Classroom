@@ -5,6 +5,15 @@ import { Button } from '@/components/ui/button'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from 'reka-ui'
+import {
   CodeXml,
   LayoutDashboard,
   BookOpen,
@@ -23,8 +32,18 @@ import {
   Menu,
   KeyRound,
   RefreshCw,
+  Check,
 } from '@lucide/vue'
-import { activeClassroom, counts, currentUser, logout, reportError, refresh } from '@/data/demo'
+import {
+  activeClassroom,
+  classrooms,
+  counts,
+  currentUser,
+  logout,
+  reportError,
+  refresh,
+  selectClass,
+} from '@/data/demo'
 import { connectionState } from '@/lib/api'
 import { useGuideSurfaces } from '@/lib/spotlight'
 import { startUserGuide } from '@/lib/user-guide'
@@ -35,6 +54,27 @@ const mobileOpen = ref(false)
 const roleMenu = ref(false)
 const accountOpen = ref(false)
 const signingOut = ref(false)
+const switchingClass = ref(false)
+const availableClassrooms = computed(() =>
+  classrooms.filter((classroom) => classroom.membershipStatus !== 'pending'),
+)
+const classesPath = computed(() =>
+  role.value === 'teacher' ? '/teacher/classes' : '/student/classes',
+)
+async function switchClass(id: string) {
+  if (switchingClass.value || id === activeClassroom.value.id) return
+  switchingClass.value = true
+  try {
+    // Let page leave guards finish before replacing the current classroom data.
+    if (route.path !== classesPath.value && (await router.push(classesPath.value))) return
+    await selectClass(id)
+    await router.push(role.value === 'teacher' ? '/teacher/overview' : '/student/classes')
+  } catch (error) {
+    reportError(error)
+  } finally {
+    switchingClass.value = false
+  }
+}
 useGuideSurfaces({
   'account-menu': () => {
     const previous = roleMenu.value
@@ -124,27 +164,60 @@ async function signOut() {
       >
         <X :size="18" />
       </Button>
-      <RouterLink
-        :to="
-          role === 'teacher'
-            ? '/teacher/classes'
-            : role === 'admin'
-              ? '/admin/health'
-              : '/student/classes'
-        "
-        class="class-switch"
-        ><span class="class-icon"><GraduationCap :size="19" /></span
-        ><span
-          >{{ role === 'admin' ? '平台管理工作台' : activeClassroom.name
-          }}<small>{{
-            role === 'admin'
-              ? '管理员'
-              : activeClassroom.id
-                ? activeClassroom.status
-                : '创建或加入课堂'
-          }}</small></span
-        ><ChevronDown :size="14"
-      /></RouterLink>
+      <div v-if="role === 'admin'" class="class-switch class-switch-static">
+        <span class="class-icon"><ShieldCheck :size="19" /></span
+        ><span>平台管理工作台<small>管理员</small></span>
+      </div>
+      <DropdownMenuRoot v-else>
+        <DropdownMenuTrigger as-child>
+          <Button
+            variant="plain"
+            type="button"
+            class="class-switch"
+            aria-label="切换课堂"
+            :disabled="switchingClass"
+            :aria-busy="switchingClass"
+            ><span class="class-icon"><GraduationCap :size="19" /></span
+            ><span
+              >{{ activeClassroom.name
+              }}<small>{{
+                switchingClass
+                  ? '正在切换…'
+                  : activeClassroom.id
+                    ? activeClassroom.status
+                    : '创建或加入课堂'
+              }}</small></span
+            ><ChevronDown :size="14"
+          /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuContent
+            class="ui-menu-content class-switch-menu"
+            align="start"
+            :side-offset="6"
+            :collision-padding="12"
+          >
+            <DropdownMenuLabel class="class-switch-caption">切换课堂</DropdownMenuLabel>
+            <DropdownMenuItem
+              v-for="classroom in availableClassrooms"
+              :key="classroom.id"
+              class="ui-menu-item class-switch-option"
+              :aria-current="classroom.id === activeClassroom.id ? 'true' : undefined"
+              @select="switchClass(classroom.id)"
+            >
+              <span
+                >{{ classroom.name }}<small>{{ classroom.status }}</small></span
+              >
+              <Check v-if="classroom.id === activeClassroom.id" :size="16" aria-label="当前课堂" />
+            </DropdownMenuItem>
+            <p v-if="!availableClassrooms.length" class="class-switch-caption">暂无可切换的课堂</p>
+            <DropdownMenuSeparator class="class-switch-separator" />
+            <DropdownMenuItem class="ui-menu-item" @select="router.push(classesPath)">
+              <LayoutDashboard :size="16" />查看全部课堂
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenuPortal>
+      </DropdownMenuRoot>
       <div class="nav-caption">
         {{ role === 'teacher' ? '教学工作台' : role === 'student' ? '学习工作台' : '平台管理' }}
       </div>
