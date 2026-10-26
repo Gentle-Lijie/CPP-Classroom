@@ -43,7 +43,7 @@ function stopLanguageService() {
 async function startLanguageService() {
   stopLanguageService()
   const model = editor?.getModel()
-  if (!model || !monacoApi || !languageEnabled.value || disposed) return
+  if (!model || !monacoApi || !languageEnabled.value || props.readonly || disposed) return
   const generation = languageGeneration
   const controller = new AbortController()
   languageController = controller
@@ -199,7 +199,13 @@ watch(
 )
 watch(
   () => props.readonly,
-  (readOnly) => editor?.updateOptions({ readOnly }),
+  (readOnly) => {
+    editor?.updateOptions({ readOnly })
+    if (readOnly) {
+      languageEnabled.value = false
+      stopLanguageService()
+    }
+  },
 )
 onBeforeUnmount(() => {
   disposed = true
@@ -236,7 +242,7 @@ onBeforeUnmount(() => {
       class="code-editor"
       :aria-label="readonly ? 'C++ 代码，只读' : 'C++ 代码编辑器'"
     />
-    <div class="editor-language-bar">
+    <div v-if="!readonly" class="editor-language-bar">
       <label
         class="editor-language-toggle"
         title="仅为当前编辑器启用补全和诊断。首次开启需加载约 75 MB 的本地语言服务资源。"
