@@ -24,19 +24,21 @@ pnpm dev
 - 本次交付的初始账号保存在本机 `.local/initial-accounts.json`（0600，不提交、不发布）。
 - 停止开发进程：终端 Ctrl+C；数据库状态／停止：`pnpm pg:status`、`pnpm pg:stop`。
 
-本机 API／worker／隧道的登录自启项已按要求停用。需要使用时手动运行开发进程和隧道，见 [部署记录](docs/go-judge-deployment.md)。
+本机 API／worker 的登录自启项已停用。需要使用时手动运行 `pnpm dev`，见 [部署记录](docs/go-judge-deployment.md)。
 
 ## Linux 评测节点
 
-端口、现有节点配置和 FRP 接入方法见 [AIM-Radar 连接指南](docs/aim-radar-connection.md)。
+当前 HTTPS 入口、节点配置及连通验证见 [AIM-Radar 连接指南](docs/aim-radar-connection.md)。
 
-AIM-Radar 已安装原生 systemd 服务，监听内网地址；实际部署与验收见 [部署记录](docs/go-judge-deployment.md)。本机业务进程通过认证 SSH 隧道连接该节点：
+AIM-Radar 已安装原生 systemd 服务，业务 API 和 worker 通过支持 HTTP API 与 WebSocket 的 HTTPS 入口访问：
 
-```sh
-pnpm runner:tunnel
+```dotenv
+GO_JUDGE_URL=https://go-judge.unnc.space
+GO_JUDGE_AUTH_TOKEN=<现有评测机令牌>
+GO_JUDGE_TIMEOUT_MS=10000
 ```
 
-隧道默认本地端口 15050，远端地址与 SSH 别名通过 `.env` 中的 `RUNNER_*` 配置；断开后自动重连。API／worker 使用 `GO_JUDGE_URL` 和 `GO_JUDGE_AUTH_TOKEN`，令牌永远不传给浏览器。服务器 `/version` 只是连通检查，完整功能由业务验收脚本验证。
+在本地 `.env` 中配置后启动或重启 API／worker。令牌只保存在服务端，浏览器不直接访问评测服务。服务器 `/version` 只是连通检查；编译通过 HTTPS `/run`，交互运行通过 WSS `/stream`。
 
 重建节点使用 `scripts/build-go-judge.sh` 和 [原生部署模板](infra/go-judge/README.md)。该脚本固定上游版本和 commit，应用真正关闭 stdin 的 EOF 补丁并执行 Go 测试。不要将 macOS 执行结果作为正式沙箱验收。
 

@@ -339,7 +339,7 @@ try {
       {
         date: new Date().toISOString(),
         apiBase: 'local business API',
-        runner: 'AIM-Radar native Linux via authenticated SSH tunnel',
+        runner: 'AIM-Radar native Linux via authenticated HTTPS/WSS',
         settings,
         fixtureStudents: students.length,
       },
