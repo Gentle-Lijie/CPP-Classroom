@@ -90,7 +90,7 @@ infra/go-judge       systemd、挂载配置与 EOF 补丁
 scripts              原生启动、构建、备份和验收
 ```
 
-构建后 API／worker 分别通过 `pnpm --filter @classroom/api start`、`pnpm --filter @classroom/worker start` 运行。生产前端产物为 `apps/web/dist`；使用原生反向代理服务静态文件，并将 `/api` 转发到 API。本次业务服务在开发机运行，远端部署的是独立 Linux 评测服务；未声称完成业务站点公网发布。
+构建后 API／worker 分别通过 `pnpm --filter @classroom/api start`、`pnpm --filter @classroom/worker start` 运行。Makers 前端与 `ssh b` 上 PM2 后端的部署脚本、构建配置、域名及维护说明见 [部署指南](docs/deployment.md)。前端发布由用户在 Makers 控制台操作；配置就绪不代表站点已经上线。
 
 本轮 50 人为 HTTP 保存、心跳与集中运行基准；多个课堂和 50 台真实浏览器长期试课仍需实际教学验证。首版不包含自动判题、多文件工程、协作编辑、SSO 和内置 AI。需求与组件选型保留在仓库根目录。
 

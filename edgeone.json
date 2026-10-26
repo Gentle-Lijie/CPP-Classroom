@@ -1,0 +1,7 @@
+{
+  "nodeVersion": "22.11.0",
+  "installCommand": "bash scripts/makers.sh install",
+  "buildCommand": "bash scripts/makers.sh build",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [{ "source": "/*", "destination": "/index.html" }]
+}

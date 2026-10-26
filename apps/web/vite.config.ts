@@ -1,9 +1,31 @@
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
+function clangdCdnAssets(): Plugin {
+  return {
+    name: 'clangd-production-cdn-assets',
+    enforce: 'pre',
+    apply: 'build',
+    transform(code, id) {
+      if (!id.includes('/@algoproclub/clangd-wasm/lib/clangd.shared-worker.js')) return
+      let count = 0
+      const transformed = code.replace(
+        /new URL\("\.\.\/assets\/(clangd\.wasm|headers\.data|system\.index)",\s*import\.meta\.url\)\.href/g,
+        (_match, asset) => {
+          count++
+          return JSON.stringify(
+            `https://cdn.jsdelivr.net/npm/@algoproclub/clangd-wasm@0.1.1/assets/${asset}`,
+          )
+        },
+      )
+      if (count !== 3) throw new Error('clangd CDN asset mapping changed; review pinned dependency')
+      return { code: transformed, map: null }
+    },
+  }
+}
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, '')
   return {
@@ -35,7 +57,7 @@ export default defineConfig(({ mode }) => {
       exclude: ['@algoproclub/clangd-wasm'],
       include: ['vscode-jsonrpc/browser', 'vscode-jsonrpc/lib/common/messages.js'],
     },
-    worker: { format: 'es' },
+    worker: { format: 'es', plugins: () => [clangdCdnAssets()] },
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     server: {
       port: Number(env.WEB_PORT || 5173),

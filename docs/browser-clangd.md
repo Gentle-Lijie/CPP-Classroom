@@ -10,7 +10,7 @@ Monaco → `browser-clangd.ts` → JSON-RPC MessagePort → 同源 SharedWorker 
 
 ## 资源与浏览器
 
-依赖固定为 `@algoproclub/clangd-wasm@0.1.1` 与 `vscode-jsonrpc@8.2.0`，由 pnpm 锁文件管理。开启时按需加载本项目静态资源：WASM 约 26 MiB、GNU 标准库头文件约 43 MiB、系统索引约 5 MiB，以及运行时代码。生产构建自动输出这些文件；部署需允许同源 Worker 和 WebAssembly，并正确服务 `.wasm`（`application/wasm`）。缓存策略应随构建散列更新，避免混用版本。
+依赖固定为 `@algoproclub/clangd-wasm@0.1.1` 与 `vscode-jsonrpc@8.2.0`，由 pnpm 锁文件管理。WASM 约 26 MiB、GNU 标准库头文件约 43 MiB、系统索引约 5 MiB。开发模式按需加载本地依赖资源；生产构建通过固定版本的 jsDelivr npm CDN 加载这三个大文件，避免 Makers 的单文件 25 MB 限制。SharedWorker、运行时代码和编译配置保持本站同源。部署需允许同源 Worker、WebAssembly 及到 `cdn.jsdelivr.net` 的 fetch；CDN 文件需返回允许跨域的响应头和正确的 WASM MIME。源码不传给 CDN。版本升级时同步更新 Vite 插件中的固定版本及产物校验脚本。
 
 需要 SharedWorker、Web Locks、WebAssembly JSPI；使用支持这些能力的新版桌面 Chrome／Edge。组件先做能力检测，不支持时说明原因，基础编辑仍可使用。此方案不依赖 SharedArrayBuffer，也无需为它添加 COOP／COEP。Vite 开发模式对依赖包动态 runtime import 做静态解析兼容，生产模式保留包原本的资源加载方式。
 
