@@ -42,6 +42,9 @@ export default async function onRequest({ request, env }) {
     )
       headers.delete(name)
   }
+  // EdgeOne's subrequest runtime must receive the upstream virtual host
+  // explicitly; inheriting the site's Host can hit the origin's default vhost.
+  headers.set('host', origin.host)
   if (headers.has('origin')) headers.set('origin', origin.origin)
   headers.set('accept-encoding', 'identity')
   try {

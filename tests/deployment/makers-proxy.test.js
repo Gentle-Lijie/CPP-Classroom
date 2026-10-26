@@ -17,6 +17,7 @@ describe('Makers session gateway', () => {
         method: 'POST',
         headers: {
           Origin: 'https://cpp.lijie.space',
+          Host: 'cpp.lijie.space',
           'Content-Type': 'application/json',
           'Sec-Fetch-Site': 'same-origin',
           'X-Forwarded-Host': 'attacker.example',
@@ -27,6 +28,7 @@ describe('Makers session gateway', () => {
     const [url, options] = upstream.mock.calls[0]
     expect(url).toBe('https://cpp-backend.lijie.space/api/auth/login?next=teacher')
     expect(options.headers.get('origin')).toBe('https://cpp-backend.lijie.space')
+    expect(options.headers.get('host')).toBe('cpp-backend.lijie.space')
     expect(options.headers.has('sec-fetch-site')).toBe(false)
     expect(options.headers.has('x-forwarded-host')).toBe(false)
     expect(new TextDecoder().decode(options.body)).toContain('"username":"example"')
