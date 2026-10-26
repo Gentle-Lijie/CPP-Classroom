@@ -23,7 +23,7 @@ bash scripts/with-node24.sh true
 export PATH="$base/.local/runtime/node-v24.18.0-linux-x64/bin:$base/.local/runtime/bin:$PATH"
 pnpm install --frozen-lockfile
 pnpm build:backend
-chmod -R go+rX node_modules apps/api/dist apps/worker/dist packages/*/dist
+chmod -R go+rX node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist
 chown -R cppclass:cppclass .local
 chmod 700 .local
 [[ -x /usr/lib/postgresql/17/bin/pg_ctl ]] || {
