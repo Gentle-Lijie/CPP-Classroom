@@ -143,7 +143,6 @@ button.class-switch[data-state='open'] {
   color: var(--ui-ink);
 }
 .avatar,
-.topbar-avatar,
 .student-avatar,
 .student-avatar.avatar-1,
 .student-avatar.avatar-2,

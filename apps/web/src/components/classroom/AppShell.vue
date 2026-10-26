@@ -302,8 +302,7 @@ async function signOut() {
                 ? '登录已失效'
                 : '连接中断'
           }}</span
-          ><span class="desktop-only muted">{{ role === 'admin' ? '平台管理' : '课堂数据' }}</span
-          ><span class="topbar-avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
+          ><span class="desktop-only muted">{{ role === 'admin' ? '平台管理' : '课堂数据' }}</span>
         </div>
       </header>
       <Alert
