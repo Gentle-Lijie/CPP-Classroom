@@ -15,6 +15,7 @@ import {
   ConflictException,
 } from '@nestjs/common'
 import { z } from 'zod'
+import { validSourceFilename } from '@classroom/contracts'
 import type { PoolClient } from '@classroom/database'
 import { DatabaseService } from '../database.service.js'
 import { passwordHash } from './auth.js'
@@ -39,16 +40,20 @@ const settingsSchema = z
   })
   .partial()
 export const exerciseSchema = z.object({
-  title: text(100),
-  topic: z.string().trim().max(100).default('基础练习'),
-  filename: z.string().regex(/^[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,100}\.(cpp|cc|cxx)$/),
-  status: z.enum(['草稿', '已发布', '已关闭']),
-  description: text(100000),
-  input: z.string().max(10000),
-  output: z.string().max(10000),
-  sampleInput: z.string().max(65536),
-  sampleOutput: z.string().max(65536),
-  code: z.string().max(100000),
+  title: z.string().trim().max(100).default(''),
+  topic: z.string().trim().max(100).default(''),
+  filename: z
+    .string()
+    .trim()
+    .refine((value) => !value || validSourceFilename(value), '无效的 C++ 源文件名')
+    .default(''),
+  status: z.enum(['草稿', '已发布', '已关闭']).default('草稿'),
+  description: z.string().max(100000).default(''),
+  input: z.string().max(10000).default(''),
+  output: z.string().max(10000).default(''),
+  sampleInput: z.string().max(65536).default(''),
+  sampleOutput: z.string().max(65536).default(''),
+  code: z.string().max(100000).default(''),
   position: z.number().int().min(0).max(10000).optional(),
   version: z.number().int().optional(),
 })
@@ -589,6 +594,7 @@ export class ClassroomController {
       await client.query('begin')
       await client.query('select id from classrooms where id=$1 for update', [id])
       if (
+        data.filename &&
         (
           await client.query(
             'select id from exercises where classroom_id=$1 and lower(filename)=lower($2)',
@@ -670,6 +676,7 @@ export class ClassroomController {
       await client.query('begin')
       await client.query('select id from classrooms where id=$1 for update', [id])
       if (
+        data.filename &&
         (
           await client.query(
             'select id from exercises where classroom_id=$1 and lower(filename)=lower($2) and id<>$3',

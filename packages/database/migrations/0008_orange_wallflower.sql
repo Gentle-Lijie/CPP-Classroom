@@ -1,0 +1,2 @@
+DROP INDEX "exercise_filename_class_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "exercise_filename_class_unique" ON "exercises" USING btree ("classroom_id","filename") WHERE "exercises"."filename" <> '';

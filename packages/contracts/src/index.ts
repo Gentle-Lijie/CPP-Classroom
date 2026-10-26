@@ -1,5 +1,18 @@
 export type DependencyState = 'healthy' | 'unavailable' | 'unconfigured'
 
+export function validSourceFilename(filename: string): boolean {
+  return (
+    filename.length <= 80 &&
+    /^[\p{L}\p{N}_][\p{L}\p{N}_.-]*\.(cpp|cc|cxx)$/iu.test(filename) &&
+    !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])\./i.test(filename)
+  )
+}
+
+/** A stable per-exercise filename for disk operations when the optional field is blank. */
+export function exerciseSourceFilename(exercise: { id: string; filename: string }): string {
+  return exercise.filename || `exercise-${exercise.id}.cpp`
+}
+
 export interface DependencyCheck {
   status: DependencyState
   message: string

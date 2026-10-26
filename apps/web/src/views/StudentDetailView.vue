@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Alert } from '@/components/ui/alert'
+import { exerciseSourceFilename } from '@classroom/contracts'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
@@ -51,12 +52,15 @@ const student = computed(
 )
 const chosenExercise = ref(String(route.query.exercise ?? ''))
 const popup = computed(() => route.path.startsWith('/teacher/inspect/'))
-const exercise = computed(
-  () =>
+const exercise = computed(() => {
+  const found =
     exercises.find(
       (e) => e.id === (chosenExercise.value || student.value?.exerciseId || demo.recommended),
-    ) ?? exercises[0],
-)
+    ) ?? exercises[0]
+  return found
+    ? { ...found, filename: exerciseSourceFilename(found), title: found.title || '未命名题目' }
+    : undefined
+})
 const index = computed(() => students.findIndex((s) => s.id === student.value?.id))
 const currentCode = ref(''),
   records = ref<Snapshot[]>([]),

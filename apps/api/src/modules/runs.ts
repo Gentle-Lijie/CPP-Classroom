@@ -12,6 +12,7 @@ import {
   ConflictException,
 } from '@nestjs/common'
 import { z } from 'zod'
+import { exerciseSourceFilename } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
 import { actor, parse, role, type AuthRequest } from './common.js'
 export const activeStatuses = ['排队', '编译中', '运行中／可输入']
@@ -123,7 +124,16 @@ export class RunsController {
       const r = (
         await client.query(
           'insert into runs(classroom_id,exercise_id,user_id,code,filename,revision,input,interactive) values($1,$2,$3,$4,$5,$6,$7,$8) returning *',
-          [id, e.id, user.id, draft.code, e.filename, draft.revision, data.input, data.interactive],
+          [
+            id,
+            e.id,
+            user.id,
+            draft.code,
+            exerciseSourceFilename(e),
+            draft.revision,
+            data.input,
+            data.interactive,
+          ],
         )
       ).rows[0]
       await client.query('commit')

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useActionFeedback } from '@/composables/useActionFeedback'
+import { exerciseSourceFilename } from '@classroom/contracts'
 import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
@@ -59,7 +60,12 @@ const route = useRoute(),
   router = useRouter()
 const initial = String(route.query.exercise ?? demo.recommended ?? '')
 const selected = ref(exercises.some((e) => e.id === initial) ? initial : (exercises[0]?.id ?? ''))
-const exercise = computed(() => exercises.find((e) => e.id === selected.value))
+const exercise = computed(() => {
+  const found = exercises.find((e) => e.id === selected.value)
+  return found
+    ? { ...found, filename: exerciseSourceFilename(found), title: found.title || '未命名题目' }
+    : undefined
+})
 const code = ref(''),
   input = ref(''),
   panel = ref('题目'),
@@ -629,7 +635,7 @@ useActionFeedback(actionError)
               :key="e.id"
               :value="e.id"
             >
-              {{ e.title }}
+              {{ e.title || '未命名题目' }}
             </SelectOption>
           </Select></label
         >

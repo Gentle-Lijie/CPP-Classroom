@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Alert } from '@/components/ui/alert'
+import { exerciseSourceFilename } from '@classroom/contracts'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -51,7 +52,12 @@ const loading = ref(true),
   saveStatus = ref('读取中…'),
   switching = ref(false),
   monitorBlocked = ref(false)
-const exercise = computed(() => exercises.find((e) => e.id === selected.value))
+const exercise = computed(() => {
+  const found = exercises.find((e) => e.id === selected.value)
+  return found
+    ? { ...found, filename: exerciseSourceFilename(found), title: found.title || '未命名题目' }
+    : undefined
+})
 const index = computed(() => exercises.findIndex((e) => e.id === selected.value))
 const readonly = computed(
   () =>
@@ -457,7 +463,7 @@ onBeforeUnmount(() => {
             @update:model-value="changeExercise"
           >
             <SelectOption v-for="(e, i) in exercises" :key="e.id" :value="e.id">
-              {{ i + 1 }} / {{ exercises.length }} · {{ e.title }}
+              {{ i + 1 }} / {{ exercises.length }} · {{ e.title || '未命名题目' }}
             </SelectOption></Select
           ><Button
             variant="plain"

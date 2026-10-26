@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   boolean,
   index,
@@ -98,7 +99,11 @@ export const exercises = pgTable(
     content: jsonb('content').$type<Record<string, string>>().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex('exercise_filename_class_unique').on(t.classroomId, t.filename)],
+  (t) => [
+    uniqueIndex('exercise_filename_class_unique')
+      .on(t.classroomId, t.filename)
+      .where(sql`${t.filename} <> ''`),
+  ],
 )
 
 export const drafts = pgTable(

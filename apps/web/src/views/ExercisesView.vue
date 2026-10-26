@@ -142,7 +142,7 @@ function edit(e: Exercise) {
     <div>
       <div class="heading-meta">课程内容</div>
       <h1>练习管理</h1>
-      <p>编排课堂练习，用 Markdown 准备题面，为每道题指定源文件名。</p>
+      <p>编排课堂练习，可直接导入 Markdown；所有题目字段均可留空。</p>
     </div>
     <div class="heading-actions">
       <Button
@@ -193,9 +193,9 @@ function edit(e: Exercise) {
             String(exercises.indexOf(e) + 1).padStart(2, '0')
           }}</span>
           <div>
-            <strong>{{ e.title }}</strong
+            <strong>{{ e.title || '未命名题目' }}</strong
             ><small
-              >{{ e.filename
+              >{{ e.filename || '未指定源文件名'
               }}<span v-if="activeClassroom.recommended === e.id"> · 当前推荐</span></small
             >
           </div>
@@ -247,11 +247,13 @@ function edit(e: Exercise) {
           >{{ exercise.topic }} ·
           {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</span
         >
-        <h2>{{ exercise.title }}</h2>
+        <h2>{{ exercise.title || '未命名题目' }}</h2>
         <div class="problem-limits">
           <span>时间限制 {{ executionSettings.runTimeMs }} ms</span
           ><span>内存限制 {{ executionSettings.runMemoryMb }} MiB</span
-          ><span class="inline-items"><FileCode2 :size="13" />{{ exercise.filename }}</span>
+          ><span class="inline-items"
+            ><FileCode2 :size="13" />{{ exercise.filename || '自动文件名' }}</span
+          >
         </div>
         <MarkdownContent :source="exercise.description" />
         <h3>输入说明</h3>
@@ -304,7 +306,7 @@ function edit(e: Exercise) {
     title="学生预览"
     description="查看学生会看到的题面、样例和初始代码。此处只读，不运行代码。"
     wide
-    ><h2>{{ exercise.title }}</h2>
+    ><h2>{{ exercise.title || '未命名题目' }}</h2>
     <MarkdownContent :source="exercise.description" />
     <h3>输入说明</h3>
     <MarkdownContent :source="exercise.input" />

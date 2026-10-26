@@ -13,6 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common'
 import { z } from 'zod'
+import { exerciseSourceFilename } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
 import { actor, parse, role, text, type AuthRequest } from './common.js'
 
@@ -142,7 +143,7 @@ export class TeachingController {
       const classroom = await this.service.lockWritable(client, user, id, data.exerciseId)
       const exercise = (
         await client.query(
-          'select status,filename from exercises where classroom_id=$1 and id=$2 for share',
+          'select id,status,filename from exercises where classroom_id=$1 and id=$2 for share',
           [id, data.exerciseId],
         )
       ).rows[0]
@@ -163,7 +164,7 @@ export class TeachingController {
         throw new ForbiddenException('教师已关闭重复提交')
       const result = await client.query(
         'insert into submissions(classroom_id,exercise_id,user_id,code,filename,revision) select classroom_id,exercise_id,user_id,code,$4,revision from drafts where classroom_id=$1 and exercise_id=$2 and user_id=$3 and revision=$5 returning *',
-        [id, data.exerciseId, user.id, exercise.filename, data.revision],
+        [id, data.exerciseId, user.id, exerciseSourceFilename(exercise), data.revision],
       )
       if (!result.rowCount) throw new ConflictException('请先同步最新草稿版本')
       await client.query('commit')
@@ -370,7 +371,7 @@ export class TeachingController {
         createdAt: draft?.updated_at ?? new Date().toISOString(),
         revision: draft?.revision ?? 0,
         code: draft?.code ?? e.content.code,
-        filename: e.filename,
+        filename: exerciseSourceFilename(e),
         title: e.content.title,
       }
     }

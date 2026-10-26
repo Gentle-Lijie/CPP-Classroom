@@ -121,7 +121,7 @@ describe('account recovery authorization and atomicity', () => {
 })
 
 describe('exercise publication validation', () => {
-  it('accepts a complete no-input exercise and rejects missing problem content', async () => {
+  it('accepts empty and omitted content fields for drafts and published exercises while rejecting unsafe filenames', async () => {
     const { exerciseSchema } = await import('./classroom.js')
     const exercise = {
       title: '输出 Hello',
@@ -136,8 +136,38 @@ describe('exercise publication validation', () => {
       code: 'int main() {}',
     }
     expect(exerciseSchema.safeParse(exercise).success).toBe(true)
-    expect(exerciseSchema.safeParse({ ...exercise, description: '   ' }).success).toBe(false)
+    expect(exerciseSchema.parse({ status: '已发布' })).toMatchObject({
+      title: '',
+      topic: '',
+      filename: '',
+      description: '',
+      input: '',
+      output: '',
+      sampleInput: '',
+      sampleOutput: '',
+      code: '',
+      status: '已发布',
+    })
+    expect(exerciseSchema.parse({})).toMatchObject({ status: '草稿', title: '', filename: '' })
+    expect(exerciseSchema.safeParse({ ...exercise, description: '   ' }).success).toBe(true)
     expect(exerciseSchema.safeParse({ ...exercise, filename: '../hello.cpp' }).success).toBe(false)
+    expect(exerciseSchema.safeParse({ ...exercise, filename: 'CON.cpp' }).success).toBe(false)
+    expect(exerciseSchema.safeParse({ ...exercise, filename: '求和.CPP' }).success).toBe(true)
+    expect(exerciseSchema.safeParse({ ...exercise, title: 'x'.repeat(101) }).success).toBe(false)
+  })
+  it('creates and updates exercises with empty filenames without conflicting with other empty filenames', async () => {
+    const query = vi.fn(async (sql: string) => ({
+      rows: sql.startsWith('insert into exercises') ? [{ id: studentId }] : [{ version: 2 }],
+      rowCount: 1,
+    }))
+    const mock = service(query)
+    const controller = new ClassroomController(mock.value)
+    await expect(controller.createExercise(classId, {}, req())).resolves.toEqual({ id: studentId })
+    await expect(
+      controller.updateExercise(classId, studentId, { version: 1 }, req()),
+    ).resolves.toEqual({ version: 2 })
+    expect(query.mock.calls.some(([sql]) => sql.includes('lower(filename)'))).toBe(false)
+    expect(query.mock.calls.filter(([sql]) => sql === 'commit')).toHaveLength(2)
   })
 })
 
