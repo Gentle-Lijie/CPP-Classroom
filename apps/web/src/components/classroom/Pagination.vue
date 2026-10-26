@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Select, SelectOption } from '@/components/ui/select'
 import { computed } from 'vue'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -20,9 +21,9 @@ const first = computed(() => (props.total ? (page.value - 1) * pageSize.value + 
     >
     <div class="pagination-controls">
       <label
-        >每页<select v-model.number="pageSize" :disabled="busy" aria-label="每页条数">
-          <option v-for="n in [10, 20, 50]" :key="n" :value="n">{{ n }}</option>
-        </select></label
+        >每页<Select v-model.number="pageSize" :disabled="busy" aria-label="每页条数">
+          <SelectOption v-for="n in [10, 20, 50]" :key="n" :value="n">{{ n }}</SelectOption>
+        </Select></label
       >
       <Button
         variant="outline"

@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { ref, nextTick } from 'vue'
 import { Bold, Italic, Heading2, List, CodeXml, Quote, Link, Columns2 } from '@lucide/vue'
 import MarkdownContent from './MarkdownContent.vue'
 const model = defineModel<string>({ required: true })
-const textarea = ref<HTMLTextAreaElement>()
+const textarea = ref<InstanceType<typeof Textarea>>()
 function insert(before: string, after = '', placeholder = '文字') {
-  const el = textarea.value
+  const el = textarea.value?.element
   if (!el) return
   const start = el.selectionStart
   const end = el.selectionEnd
@@ -22,53 +24,70 @@ function insert(before: string, after = '', placeholder = '文字') {
     <div class="markdown-editor-toolbar">
       <span>Markdown</span>
       <div class="inline-items">
-        <button type="button" class="icon-button" aria-label="加粗" @click="insert('**', '**')">
-          <Bold :size="15" /></button
-        ><button type="button" class="icon-button" aria-label="斜体" @click="insert('*', '*')">
-          <Italic :size="15" /></button
-        ><button
+        <Button
+          variant="plain"
+          type="button"
+          class="icon-button"
+          aria-label="加粗"
+          @click="insert('**', '**')"
+        >
+          <Bold :size="15" /></Button
+        ><Button
+          variant="plain"
+          type="button"
+          class="icon-button"
+          aria-label="斜体"
+          @click="insert('*', '*')"
+        >
+          <Italic :size="15" /></Button
+        ><Button
+          variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入二级标题"
           @click="insert('\n## ', '\n', '标题')"
         >
-          <Heading2 :size="17" /></button
-        ><button
+          <Heading2 :size="17" /></Button
+        ><Button
+          variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入列表"
           @click="insert('\n- ', '\n', '列表项')"
         >
-          <List :size="16" /></button
-        ><button
+          <List :size="16" /></Button
+        ><Button
+          variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入代码块"
           @click="insert('\n```cpp\n', '\n```\n', 'cout << result;')"
         >
-          <CodeXml :size="16" /></button
-        ><button
+          <CodeXml :size="16" /></Button
+        ><Button
+          variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入引用"
           @click="insert('\n> ', '\n')"
         >
-          <Quote :size="15" /></button
-        ><button
+          <Quote :size="15" /></Button
+        ><Button
+          variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入链接"
           @click="insert('[', '](https://example.com)', '链接文字')"
         >
           <Link :size="15" />
-        </button>
+        </Button>
       </div>
       <span class="markdown-live-label"><Columns2 :size="14" />实时预览</span>
     </div>
     <div class="markdown-editor-body">
       <label class="markdown-source"
         ><span>题面源码</span
-        ><textarea
+        ><Textarea
           ref="textarea"
           v-model="model"
           aria-label="Markdown 题面源码"

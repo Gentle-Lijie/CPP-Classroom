@@ -18,7 +18,7 @@ body,
 }
 input:focus,
 textarea:focus,
-select:focus {
+.ui-select-trigger:focus {
   border-color: var(--ui-action);
   box-shadow: 0 0 0 3px var(--ui-focus);
 }
@@ -70,7 +70,7 @@ h3 {
 .class-switch {
   border-color: var(--ui-line);
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .class-icon {
   background: transparent;
@@ -127,7 +127,7 @@ h3 {
   background: var(--ui-selection);
 }
 [data-slot='button'] {
-  font-size: 13px;
+  font-size: 15px;
   border-radius: 6px;
   font-weight: 500;
   box-shadow: none;
@@ -175,7 +175,7 @@ button.stat-card:hover,
 }
 .stat-top {
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 .stat-number {
   color: var(--ui-ink);
@@ -214,7 +214,7 @@ button.stat-card:hover,
   color: var(--ui-secondary);
 }
 .panel-heading h2 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 550;
 }
 .live-pill,
@@ -411,7 +411,7 @@ th {
   border-top: 1px solid var(--ui-line);
   color: var(--ui-muted);
 }
-.state-demo-select select {
+.state-demo-select .ui-select-trigger {
   color: var(--ui-secondary);
 }
 .ide-problem .problem-content > p {
@@ -532,7 +532,7 @@ th {
   color: var(--ui-ink);
 }
 .auth-story-copy > p {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ui-secondary);
 }
 .auth-code-art {
@@ -542,7 +542,7 @@ th {
 }
 .art-code {
   color: var(--ui-text);
-  font-size: 13px;
+  font-size: 15px;
 }
 .art-purple {
   color: var(--ui-action);
@@ -668,7 +668,7 @@ th {
 .teaching-keyboard-hint {
   color: var(--ui-muted);
 }
-.teaching-pagination select {
+.teaching-pagination .ui-select-trigger {
   color: var(--ui-text);
 }
 .monitor-header h1 > span {
@@ -802,13 +802,13 @@ th {
   background: var(--ui-warning-bg);
   border: 1px solid var(--ui-warning-line);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .role-menu p {
   overflow-wrap: anywhere;
 }
 .role-menu button {
-  font-size: 13px;
+  font-size: 15px;
   min-height: 36px;
 }
 .profile > span:nth-child(2) {
@@ -829,7 +829,7 @@ th {
 }
 .form-stack input:disabled,
 .form-stack textarea:disabled,
-.form-stack select:disabled {
+.form-stack .ui-select-trigger:disabled {
   background: var(--ui-surface);
   color: var(--ui-muted);
 }
@@ -867,10 +867,10 @@ th {
   overflow-wrap: anywhere;
 }
 .brand-sub {
-  font-size: 10px;
+  font-size: 12px;
 }
 .nav-item {
-  font-size: 14px;
+  font-size: 16px;
   border-radius: 6px;
   min-height: 42px;
 }
@@ -880,10 +880,10 @@ th {
 .sidebar-session {
   border-color: var(--ui-blue-line);
   background: var(--ui-selection);
-  font-size: 12px;
+  font-size: 14px;
 }
 .sidebar-session p {
-  font-size: 12px;
+  font-size: 14px;
 }
 .sidebar-session .live-dot.inactive {
   background: var(--ui-faint);
@@ -897,7 +897,7 @@ th {
 .breadcrumbs {
   min-width: 0;
   gap: 12px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .breadcrumbs strong {
   overflow-wrap: anywhere;
@@ -912,7 +912,7 @@ th {
   color: var(--ui-success);
   background: var(--ui-success-bg);
   border-color: var(--ui-success-line);
-  font-size: 11px;
+  font-size: 13px;
 }
 .demo-tag.disconnected {
   color: var(--ui-warning);
@@ -935,13 +935,13 @@ th {
   letter-spacing: -0.025em;
 }
 .page-heading p {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.7;
   max-width: 70ch;
   margin-top: 6px;
 }
 .heading-meta {
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 7px;
 }
 .heading-actions {
@@ -955,16 +955,16 @@ th {
   border-radius: 6px;
   padding: 2px 8px;
   margin-left: 10px;
-  font-size: 14px;
+  font-size: 16px;
 }
 [data-slot='button'] {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 550;
   border-radius: 6px;
   min-height: 36px;
 }
 [data-slot='button'][data-size='sm'] {
-  font-size: 12px;
+  font-size: 14px;
   min-height: 32px;
 }
 [data-slot='button'][data-size='icon-sm'] {
@@ -994,10 +994,10 @@ th {
   color: white;
 }
 [data-slot='button'][data-variant='warning']:hover {
-  background: #92400e;
+  background: var(--ui-warning-hover);
 }
 [data-slot='button'][data-variant='destructive']:hover {
-  background: #991b1b;
+  background: var(--ui-error-hover);
 }
 [data-slot='button'][data-variant='ghost'] {
   color: var(--ui-secondary);
@@ -1007,7 +1007,7 @@ th {
   background: var(--ui-selection);
 }
 .text-button {
-  font-size: 13px;
+  font-size: 15px;
   padding: 5px 0;
 }
 .text-button.danger-text {
@@ -1026,14 +1026,14 @@ th {
   flex-wrap: wrap;
 }
 .panel-heading h2 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 .stat-card {
   padding: 20px;
 }
 .stat-top {
-  font-size: 13px;
+  font-size: 15px;
 }
 .stat-number {
   font-size: 34px;
@@ -1041,10 +1041,10 @@ th {
   margin: 8px 0;
 }
 .stat-number > span {
-  font-size: 12px;
+  font-size: 14px;
 }
 .stat-foot {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .stat-icon {
@@ -1066,10 +1066,10 @@ th {
 }
 button.stat-card:hover {
   border-color: var(--ui-blue-line);
-  background: #fcfdff;
+  background: var(--ui-hover);
 }
 .status {
-  font-size: 12px;
+  font-size: 14px;
   padding: 3px 8px;
   border-radius: 5px;
   font-weight: 500;
@@ -1088,7 +1088,7 @@ button.stat-card:hover {
 .status.red {
   color: var(--ui-error);
   background: var(--ui-error-bg);
-  border-color: #fecaca;
+  border-color: var(--ui-error-line);
 }
 .status.neutral {
   color: var(--ui-secondary);
@@ -1099,7 +1099,7 @@ button.stat-card:hover {
   color: var(--ui-success);
   background: var(--ui-success-bg);
   border-color: var(--ui-success-line);
-  font-size: 12px;
+  font-size: 14px;
   padding: 3px 8px;
 }
 .positive-text,
@@ -1136,11 +1136,11 @@ button.stat-card:hover {
   max-width: 100%;
 }
 .filter-tabs > button {
-  font-size: 13px;
+  font-size: 15px;
   padding: 14px 0 12px;
 }
 .filter-tabs > button > span {
-  font-size: 11px;
+  font-size: 13px;
   padding: 1px 5px;
 }
 .segmented {
@@ -1153,7 +1153,7 @@ button.stat-card:hover {
 .segmented > button {
   white-space: nowrap;
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: 15px;
 }
 .table-controls {
   gap: 14px;
@@ -1169,7 +1169,7 @@ button.stat-card:hover {
   min-width: 0;
 }
 .search-field input {
-  font-size: 13px;
+  font-size: 15px;
 }
 .search-field:focus-within {
   border-color: var(--ui-action);
@@ -1183,10 +1183,10 @@ button.stat-card:hover {
   max-width: 100%;
   height: 38px;
 }
-.select-wrap select {
+.select-wrap .ui-select-trigger {
   min-width: 0;
   max-width: 240px;
-  font-size: 13px;
+  font-size: 15px;
   text-overflow: ellipsis;
 }
 .table-scroll {
@@ -1196,13 +1196,13 @@ button.stat-card:hover {
   overscroll-behavior-x: contain;
 }
 th {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   padding-top: 12px;
   padding-bottom: 12px;
 }
 td {
-  font-size: 13px;
+  font-size: 15px;
   padding-top: 15px;
   padding-bottom: 15px;
   color: var(--ui-text);
@@ -1211,16 +1211,16 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 tbody tr:hover {
-  background: #f8faff;
+  background: var(--ui-surface);
 }
 .person-text strong,
 .table-exercise {
-  font-size: 13px;
+  font-size: 15px;
 }
 .person-text small,
 .cell-secondary,
 .activity-cell {
-  font-size: 12px;
+  font-size: 14px;
 }
 .table-exercise {
   max-width: 220px;
@@ -1233,7 +1233,7 @@ tbody tr:hover {
   overflow-wrap: anywhere;
 }
 .table-footer {
-  font-size: 12px;
+  font-size: 14px;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -1244,7 +1244,7 @@ tbody tr:hover {
   gap: 12px;
   padding: 14px 20px;
   border-top: 1px solid var(--ui-line);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   flex-wrap: wrap;
 }
@@ -1254,9 +1254,9 @@ tbody tr:hover {
   align-items: center;
   gap: 8px;
 }
-.pagination-controls select {
+.pagination-controls .ui-select-trigger {
   padding: 4px 6px;
-  font-size: 12px;
+  font-size: 14px;
   height: 32px;
 }
 .pagination-controls > span {
@@ -1300,7 +1300,7 @@ tbody tr:hover {
   overflow-wrap: anywhere;
 }
 .class-card-body > p {
-  font-size: 13px;
+  font-size: 15px;
   min-height: 44px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1308,7 +1308,7 @@ tbody tr:hover {
   overflow: hidden;
 }
 .class-card-meta {
-  font-size: 13px;
+  font-size: 15px;
   flex-wrap: wrap;
 }
 .class-card-footer {
@@ -1318,7 +1318,7 @@ tbody tr:hover {
   flex-wrap: wrap;
 }
 .class-card-footer > span {
-  font-size: 12px;
+  font-size: 14px;
 }
 .class-tip {
   background: var(--ui-selection);
@@ -1330,7 +1330,7 @@ tbody tr:hover {
   flex-shrink: 0;
 }
 .class-tip p {
-  font-size: 13px;
+  font-size: 15px;
 }
 .exercise-layout {
   grid-template-columns: minmax(280px, 32%) minmax(0, 1fr);
@@ -1346,18 +1346,18 @@ tbody tr:hover {
   min-width: 0;
 }
 .exercise-list-item strong {
-  font-size: 14px;
+  font-size: 16px;
   overflow-wrap: anywhere;
 }
 .exercise-list-item small {
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .exercise-list-item .status {
   flex-shrink: 0;
 }
 .exercise-list-note {
-  font-size: 12px;
+  font-size: 14px;
 }
 .problem-content,
 .exercise-feature {
@@ -1365,19 +1365,19 @@ tbody tr:hover {
 }
 .problem-content > p,
 .ide-problem .problem-content > p {
-  font-size: 14px;
+  font-size: 16px;
 }
 .exercise-feature > p,
 .help-item p {
-  font-size: 13px;
+  font-size: 15px;
 }
 .help-item-heading strong {
-  font-size: 14px;
+  font-size: 16px;
 }
 .help-item-heading small,
 .help-item > button,
 .exercise-progress {
-  font-size: 12px;
+  font-size: 14px;
 }
 .overview-aside {
   min-width: 0;
@@ -1394,35 +1394,35 @@ tbody tr:hover {
 }
 .settings-nav button,
 .platform-nav button {
-  font-size: 13px;
+  font-size: 15px;
 }
 .settings-panel .form-stack > label,
 .form-stack > label,
 .form-grid > label {
-  font-size: 14px;
+  font-size: 16px;
 }
 .form-stack input,
 .form-stack textarea,
-.form-stack select {
-  font-size: 14px;
+.form-stack .ui-select-trigger {
+  font-size: 16px;
 }
 .form-hint,
 .modal-heading .muted {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.7;
 }
 .toggle-row strong {
-  font-size: 14px;
+  font-size: 16px;
 }
 .toggle-row small,
 .body-copy {
-  font-size: 13px;
+  font-size: 15px;
 }
 .info-box,
 .warning-box,
 .error-box {
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.7;
   border-radius: 6px;
 }
@@ -1438,7 +1438,7 @@ tbody tr:hover {
 }
 .error-box {
   color: var(--ui-error);
-  border: 1px solid #fecaca;
+  border: 1px solid var(--ui-error-line);
 }
 .modal-content {
   width: min(520px, calc(100vw - 32px));
@@ -1486,11 +1486,11 @@ tbody tr:hover {
   min-width: 0;
 }
 .history-item small {
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .history-item strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 .history-page-layout .panel-heading h2 {
   overflow-wrap: anywhere;
@@ -1509,7 +1509,7 @@ tbody tr:hover {
 }
 .audit-item pre {
   max-height: 220px;
-  font-size: 12px;
+  font-size: 14px;
   padding: 12px;
   background: var(--ui-surface);
   border-radius: 6px;
@@ -1524,14 +1524,14 @@ tbody tr:hover {
 .guide-grid p,
 .guide-note p,
 .guide-notice p {
-  font-size: 14px;
+  font-size: 16px;
 }
 .guide-notice {
   background: var(--ui-selection);
   border-color: var(--ui-blue-line);
 }
 .auth-story {
-  background: #f2f6fe;
+  background: var(--ui-canvas);
 }
 .auth-story h1 {
   color: var(--ui-ink);
@@ -1540,20 +1540,20 @@ tbody tr:hover {
   box-shadow: 0 12px 32px rgb(30 64 175 / 6%);
 }
 .auth-form-container .form-stack > label {
-  font-size: 14px;
+  font-size: 16px;
 }
 .auth-form-container input:not([type='checkbox']) {
-  font-size: 14px;
+  font-size: 16px;
   height: 44px;
 }
 .auth-form-container [data-slot='button'] {
   min-height: 42px;
 }
 .auth-intro {
-  font-size: 14px;
+  font-size: 16px;
 }
 .auth-safety {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
 }
 .teaching-stage,
@@ -1570,7 +1570,7 @@ tbody tr:hover {
 }
 .teaching-slide {
   border-radius: 8px;
-  background: white;
+  background: var(--ui-page);
 }
 .monitor-student-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
@@ -1590,11 +1590,11 @@ tbody tr:hover {
 }
 .monitor-footer,
 .teaching-footer {
-  font-size: 12px;
+  font-size: 14px;
 }
 .toast-message {
   max-width: min(520px, calc(100vw - 32px));
-  font-size: 14px;
+  font-size: 16px;
   box-shadow: 0 8px 32px var(--ui-shadow);
 }
 .toast-message > span {
@@ -1609,7 +1609,7 @@ tbody tr:hover {
   color: var(--ui-success);
 }
 .toast-message.error {
-  border-color: #fecaca;
+  border-color: var(--ui-error-line);
 }
 .toast-message.error > svg {
   color: var(--ui-error);
@@ -1660,9 +1660,9 @@ pre {
   }
   .form-stack input:not([type='checkbox']),
   .form-stack textarea,
-  .form-stack select,
+  .form-stack .ui-select-trigger,
   .form-grid input,
-  .form-grid select {
+  .form-grid .ui-select-trigger {
     font-size: 16px;
   }
   .shell-main {
@@ -1675,7 +1675,7 @@ pre {
     display: none;
   }
   .breadcrumbs {
-    font-size: 12px;
+    font-size: 14px;
     gap: 8px;
   }
   .page-content {
@@ -1685,7 +1685,7 @@ pre {
     font-size: 24px;
   }
   .page-heading p {
-    font-size: 13px;
+    font-size: 15px;
   }
   .page-heading {
     gap: 16px;
@@ -1698,7 +1698,7 @@ pre {
     padding: 16px;
   }
   .stat-foot {
-    font-size: 12px;
+    font-size: 14px;
   }
   .stat-icon {
     width: 26px;
@@ -1715,13 +1715,13 @@ pre {
     padding-right: 16px;
   }
   .filter-tabs > button {
-    font-size: 13px;
+    font-size: 15px;
   }
   .table-controls {
     padding: 14px 16px;
   }
   .table-controls .search-field input {
-    font-size: 13px;
+    font-size: 15px;
   }
   .table-controls .search-field {
     max-width: 100%;
@@ -1767,13 +1767,13 @@ pre {
     flex-wrap: wrap;
   }
   .monitor-footer {
-    font-size: 11px;
+    font-size: 13px;
   }
   .teaching-keyboard-hint {
     display: none;
   }
   .app-footer {
-    font-size: 11px;
+    font-size: 13px;
     flex-wrap: wrap;
     gap: 8px;
   }

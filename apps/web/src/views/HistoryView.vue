@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Select, SelectOption } from '@/components/ui/select'
 import { ref, watch } from 'vue'
 import { History, Download, CodeXml, RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -76,14 +77,14 @@ void load()
   </div>
   <div class="history-filter">
     <label
-      >练习<select v-model="filter" aria-label="按练习筛选历史">
-        <option value="">全部练习</option>
-        <option v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</option>
-      </select></label
+      >练习<Select v-model="filter" aria-label="按练习筛选历史">
+        <SelectOption value="">全部练习</SelectOption>
+        <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</SelectOption>
+      </Select></label
     ><label
-      >状态<select v-model="status" aria-label="按状态筛选历史">
-        <option value="">全部状态</option>
-        <option
+      >状态<Select v-model="status" aria-label="按状态筛选历史">
+        <SelectOption value="">全部状态</SelectOption>
+        <SelectOption
           v-for="s in [
             '运行完成',
             '编译失败',
@@ -96,8 +97,8 @@ void load()
           :key="s"
         >
           {{ s }}
-        </option>
-      </select></label
+        </SelectOption>
+      </Select></label
     ><span>{{ total }} 条运行记录</span>
   </div>
   <div v-if="error" class="error-box" role="alert">
@@ -125,9 +126,10 @@ void load()
         <History :size="17" class="muted" />
       </div>
       <div class="history-list">
-        <button
+        <Button
           v-for="r in records"
           :key="r.id"
+          variant="plain"
           class="history-item"
           :class="{ selected: run?.id === r.id }"
           @click="run = r"
@@ -137,7 +139,7 @@ void load()
               ><span class="status" :class="tone(r.status)">{{ r.status }}</span></strong
             ><small>{{ formatTime(r.time) }} · {{ r.id.slice(0, 8) }}</small></span
           >
-        </button>
+        </Button>
       </div>
       <Pagination
         v-model:page="page"
@@ -180,7 +182,7 @@ void load()
   gap: 16px;
   margin-bottom: 20px;
   color: var(--ui-secondary);
-  font-size: 13px;
+  font-size: 15px;
   flex-wrap: wrap;
 }
 .history-filter label {
@@ -189,7 +191,7 @@ void load()
   gap: 10px;
   min-width: 0;
 }
-.history-filter select {
+.history-filter .ui-select-trigger {
   max-width: min(340px, 70vw);
 }
 .history-page-layout > section {

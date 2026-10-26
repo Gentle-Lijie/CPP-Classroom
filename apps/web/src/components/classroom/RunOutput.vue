@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Form } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import { computed, ref, watch } from 'vue'
 import { Copy, Trash2, CircleAlert, Terminal, FileText, RotateCcw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -82,14 +84,16 @@ async function eof() {
   <section class="run-output">
     <div class="code-toolbar output-toolbar">
       <div class="output-tabs" role="tablist" aria-label="运行结果">
-        <button
+        <Button
+          variant="plain"
           role="tab"
           :aria-selected="tab === '运行输出'"
           :class="{ selected: tab === '运行输出' }"
           @click="select('运行输出')"
         >
-          <Terminal :size="14" />运行输出</button
-        ><button
+          <Terminal :size="14" />运行输出</Button
+        ><Button
+          variant="plain"
           role="tab"
           :aria-selected="tab === '编译诊断'"
           :class="{ selected: tab === '编译诊断' }"
@@ -99,33 +103,36 @@ async function eof() {
             v-if="run?.status === '编译失败'"
             class="error-count"
             >失败</span
-          ></button
-        ><button
+          ></Button
+        ><Button
           v-if="run?.stderr"
+          variant="plain"
           role="tab"
           :aria-selected="tab === '标准错误'"
           :class="{ selected: tab === '标准错误' }"
           @click="select('标准错误')"
         >
           标准错误
-        </button>
+        </Button>
       </div>
       <div class="inline-items output-actions">
-        <button
+        <Button
+          variant="plain"
           class="icon-button"
           aria-label="复制可见输出"
           :disabled="!run || cleared"
           @click="copy"
         >
-          <Copy :size="14" /></button
-        ><button
+          <Copy :size="14" /></Button
+        ><Button
+          variant="plain"
           class="icon-button"
           :aria-label="cleared ? '恢复显示输出' : '清空可见输出（保留记录）'"
           :disabled="!run"
           @click="cleared = !cleared"
         >
           <RotateCcw v-if="cleared" :size="14" /><Trash2 v-else :size="14" />
-        </button>
+        </Button>
       </div>
     </div>
     <div v-if="run" class="output-body">
@@ -161,8 +168,8 @@ async function eof() {
       }}</small>
     </div>
     <p v-if="run?.eof" class="stdin-closed">stdin 已关闭 · 等待程序结束，可随时停止运行。</p>
-    <form v-if="interactive && !run?.eof" class="runtime-input" @submit.prevent="send">
-      <input
+    <Form v-if="interactive && !run?.eof" class="runtime-input" @submit.prevent="send">
+      <Input
         v-model="line"
         aria-label="运行时输入"
         placeholder="输入一行文本…"
@@ -178,7 +185,7 @@ async function eof() {
         @click="eof"
         >EOF</Button
       >
-    </form>
+    </Form>
     <p v-if="error" class="input-error" role="alert">{{ error }}</p>
   </section>
 </template>
@@ -201,7 +208,7 @@ async function eof() {
   height: 40px;
 }
 .output-tabs button {
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -217,11 +224,11 @@ async function eof() {
 .error-count {
   color: var(--ui-error);
   background: var(--ui-error-bg);
-  font-size: 11px;
+  font-size: 13px;
 }
 .output-meta {
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
   gap: 8px;
 }
@@ -229,24 +236,24 @@ async function eof() {
   min-width: 0;
 }
 .output-body pre {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.8;
 }
 .output-body pre.diagnostic-text {
   color: var(--ui-error);
-  font-size: 12px;
+  font-size: 14px;
 }
 .output-exit {
-  font-size: 12px;
+  font-size: 14px;
   gap: 12px;
   flex-wrap: wrap;
   overflow-wrap: anywhere;
 }
 .output-placeholder p {
-  font-size: 14px;
+  font-size: 16px;
 }
 .output-placeholder small {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.7;
 }
 .runtime-input {
@@ -257,14 +264,14 @@ async function eof() {
   min-width: 80px;
   flex: 1;
   width: 0;
-  font-size: 13px;
+  font-size: 15px;
 }
 .runtime-input [data-slot='button'] {
-  font-size: 12px;
+  font-size: 14px;
 }
 .stdin-closed,
 .input-error {
-  font-size: 12px;
+  font-size: 14px;
   padding: 8px 12px;
   line-height: 1.6;
   border-top: 1px solid var(--ui-line);

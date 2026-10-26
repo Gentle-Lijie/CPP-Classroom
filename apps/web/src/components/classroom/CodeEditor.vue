@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type * as Monaco from 'monaco-editor'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { RefreshCw } from '@lucide/vue'
+import { resolvedTheme } from '@/lib/theme'
+import { lightEditorTheme, monokaiEditorTheme } from '@/lib/editor-themes'
 import { validSourceFilename } from '@/lib/source-file'
 import type { BrowserClangd, ClangdStatus } from '@/lib/browser-clangd'
 const props = withDefaults(
@@ -13,7 +17,7 @@ const props = withDefaults(
     errorLine?: number
     filename?: string
   }>(),
-  { readonly: false, fontSize: 14, filename: 'source.cpp' },
+  { readonly: false, fontSize: 16, filename: 'source.cpp' },
 )
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const container = ref<HTMLElement>()
@@ -117,44 +121,11 @@ async function initializeEditor() {
     if (disposed || !container.value) return
     monacoApi = monaco
     self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
-    const palette = getComputedStyle(document.documentElement)
-    const color = (name: string, fallback: string) => {
-      const value = palette.getPropertyValue(name).trim() || fallback
-      // Production CSS minification uses #fff; Monaco's token theme requires
-      // full hex colors even for its editor background/foreground defaults.
-      return /^#[\da-f]{3,4}$/i.test(value)
-        ? '#' + [...value.slice(1)].map((digit) => digit + digit).join('')
-        : value
-    }
-    monaco.editor.defineTheme('classroom-light', {
-      base: 'vs',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: color('--ui-muted', '#71717a').slice(1) },
-        { token: 'keyword', foreground: color('--ui-action', '#2563eb').slice(1) },
-        { token: 'number', foreground: color('--ui-code-number', '#0550ae').slice(1) },
-        { token: 'string', foreground: color('--ui-code-string', '#9f1239').slice(1) },
-        { token: 'delimiter', foreground: color('--ui-secondary', '#52525b').slice(1) },
-      ],
-      colors: {
-        'editor.background': color('--ui-page', '#ffffff'),
-        'editor.foreground': color('--ui-ink', '#18181b'),
-        'editorLineNumber.foreground': color('--ui-faint', '#a1a1aa'),
-        'editorLineNumber.activeForeground': color('--ui-secondary', '#52525b'),
-        'editor.lineHighlightBackground': color('--ui-surface', '#fafafa'),
-        'editor.selectionBackground': color('--ui-editor-selection', '#dbeafe'),
-        'editorCursor.foreground': color('--ui-action', '#2563eb'),
-        'editorBracketHighlight.foreground1': color('--ui-secondary', '#52525b'),
-        'editorBracketHighlight.foreground2': color('--ui-secondary', '#52525b'),
-        'editorBracketHighlight.foreground3': color('--ui-secondary', '#52525b'),
-        'editorBracketHighlight.foreground4': color('--ui-secondary', '#52525b'),
-        'editorBracketHighlight.foreground5': color('--ui-secondary', '#52525b'),
-        'editorBracketHighlight.foreground6': color('--ui-secondary', '#52525b'),
-      },
-    })
+    monaco.editor.defineTheme('classroom-light', lightEditorTheme)
+    monaco.editor.defineTheme('classroom-monokai', monokaiEditorTheme)
     editor = monaco.editor.create(container.value, {
       model: createModel(),
-      theme: 'classroom-light',
+      theme: resolvedTheme.value === 'dark' ? 'classroom-monokai' : 'classroom-light',
       readOnly: props.readonly,
       fontSize: props.fontSize,
       fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
@@ -162,7 +133,7 @@ async function initializeEditor() {
       automaticLayout: true,
       scrollBeyondLastLine: false,
       lineNumbersMinChars: 3,
-      padding: { top: 22, bottom: 20 },
+      padding: { top: 12, bottom: 12 },
       tabSize: 4,
       bracketPairColorization: { enabled: false },
       // Avoid async WordHighlighter requests outliving models during rapid exercise switches.
@@ -199,6 +170,9 @@ watch(
     }
   },
 )
+watch(resolvedTheme, (theme) => {
+  monacoApi?.editor.setTheme(theme === 'dark' ? 'classroom-monokai' : 'classroom-light')
+})
 watch(languageEnabled, (enabled) => {
   if (enabled) void startLanguageService()
   else stopLanguageService()
@@ -240,7 +214,7 @@ onBeforeUnmount(() => {
     <div v-if="editorError" class="editor-resource-state" role="alert">
       <strong>代码编辑器加载失败</strong>
       <p>{{ editorError }}</p>
-      <button class="text-button" @click="initializeEditor">重新加载编辑器</button>
+      <Button variant="plain" class="text-button" @click="initializeEditor">重新加载编辑器</Button>
       <p>草稿内容仍保留在页面，重试不会清空。</p>
     </div>
     <div v-else-if="editorLoading" class="editor-resource-state" role="status">
@@ -252,17 +226,13 @@ onBeforeUnmount(() => {
       :aria-label="readonly ? 'C++ 代码，只读' : 'C++ 代码编辑器'"
     />
     <div class="editor-language-bar">
-      <button
-        type="button"
-        role="switch"
-        :aria-checked="languageEnabled"
-        aria-label="clangd 语言服务"
+      <label
         class="editor-language-toggle"
         title="仅为当前编辑器启用补全和诊断。首次开启需加载约 75 MB 的本地语言服务资源。"
-        @click="languageEnabled = !languageEnabled"
       >
-        <span class="editor-switch-track"><i /></span><span>clangd</span></button
-      ><RefreshCw
+        <Switch v-model="languageEnabled" aria-label="clangd 语言服务" /><span>clangd</span>
+      </label>
+      <RefreshCw
         v-if="languageStatus?.state === 'loading' || languageStatus?.state === 'analyzing'"
         :size="12"
         class="probe-spinning"
@@ -278,13 +248,14 @@ onBeforeUnmount(() => {
               ? `浏览器分析 · ${languageStatus.errors} 个错误 / ${languageStatus.warnings} 个警告`
               : (languageStatus?.message ?? '正在准备…')
         }}</span
-      ><button
+      ><Button
         v-if="languageStatus?.state === 'error'"
+        variant="plain"
         type="button"
         class="text-button"
         @click="startLanguageService"
       >
-        重试</button
+        重试</Button
       ><span v-if="languageEnabled" class="editor-local-indicator">浏览器内分析</span>
     </div>
   </div>

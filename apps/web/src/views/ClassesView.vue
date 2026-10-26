@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Input } from '@/components/ui/input'
+import { Form } from '@/components/ui/form'
+import { Textarea } from '@/components/ui/textarea'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -101,17 +104,18 @@ async function enter(id: string) {
   </div>
   <div class="class-toolbar">
     <div class="segmented">
-      <button
+      <Button
         v-for="f in ['全部课堂', '进行中', '未开始', '已关闭', '已归档']"
         :key="f"
+        variant="plain"
         :class="{ selected: filter === f }"
         @click="filter = f"
       >
         {{ f }}
-      </button>
+      </Button>
     </div>
     <label class="search-field"
-      ><Search :size="16" /><input v-model="search" placeholder="搜索课堂…" aria-label="搜索课堂"
+      ><Search :size="16" /><Input v-model="search" placeholder="搜索课堂…" aria-label="搜索课堂"
     /></label>
   </div>
   <div class="class-grid">
@@ -161,12 +165,17 @@ async function enter(id: string) {
         </div>
       </div>
     </article>
-    <button v-if="!student && visible.length" class="create-class-card" @click="openCreate">
+    <Button
+      v-if="!student && visible.length"
+      variant="plain"
+      class="create-class-card"
+      @click="openCreate"
+    >
       <span><Plus :size="25" /></span>
       <h3>新建课堂</h3>
       <p>创建课堂，邀请学生一起写代码</p>
       <strong>创建课堂 <ArrowRight :size="14" /></strong>
-    </button>
+    </Button>
   </div>
   <Pagination
     v-if="visible.length > 10"
@@ -209,15 +218,15 @@ async function enter(id: string) {
     title="创建新课堂"
     description="填写课堂名称和说明，创建后可继续设置。"
     :busy="busy"
-    ><form class="form-stack" @submit.prevent="add">
+    ><Form class="form-stack" @submit.prevent="add">
       <label
-        >课堂名称<input
+        >课堂名称<Input
           v-model="name"
           required
           maxlength="100"
           placeholder="例如：C++ 基础 · 秋季二班" /></label
       ><label
-        >课堂说明<textarea
+        >课堂说明<Textarea
           v-model="description"
           rows="3"
           maxlength="5000"
@@ -230,6 +239,6 @@ async function enter(id: string) {
         <Button type="button" variant="outline" @click="create = false">取消</Button
         ><Button type="submit" :disabled="busy">{{ busy ? '正在创建…' : '创建课堂' }}</Button>
       </div>
-    </form></Modal
+    </Form></Modal
   >
 </template>

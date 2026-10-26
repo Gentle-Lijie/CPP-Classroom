@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Input } from '@/components/ui/input'
+import { Select, SelectOption } from '@/components/ui/select'
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -47,7 +49,7 @@ const copied = ref(false)
 const busy = ref(false)
 const regenerate = ref(false)
 const origin = location.origin
-const searchInput = ref<HTMLInputElement>()
+const searchInput = ref<InstanceType<typeof Input>>()
 function focusSearch(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
@@ -177,7 +179,7 @@ async function regenerateInvite() {
     </div>
   </div>
   <div class="stat-grid">
-    <button class="stat-card" @click="filter = '在线'">
+    <Button variant="plain" class="stat-card" @click="filter = '在线'">
       <div class="stat-top">
         在线学生<span class="stat-icon green"><Users :size="18" /></span>
       </div>
@@ -186,20 +188,20 @@ async function regenerateInvite() {
       </div>
       <div class="stat-foot">
         <span class="live-dot" />{{ counts.total - counts.online }} 位同学暂时离线
-      </div></button
-    ><button class="stat-card" @click="filter = '已提交'">
+      </div></Button
+    ><Button variant="plain" class="stat-card" @click="filter = '已提交'">
       <div class="stat-top">
         当前练习已提交<span class="stat-icon blue"><CircleCheck :size="18" /></span>
       </div>
       <div class="stat-number">{{ counts.submitted }}<span>位同学</span></div>
-      <div class="stat-foot">按每位学生当前练习统计，不代表通过</div></button
-    ><button class="stat-card" @click="filter = '编译失败'">
+      <div class="stat-foot">按每位学生当前练习统计，不代表通过</div></Button
+    ><Button variant="plain" class="stat-card" @click="filter = '编译失败'">
       <div class="stat-top">
         最近编译失败<span class="stat-icon red"><CircleAlert :size="18" /></span>
       </div>
       <div class="stat-number">{{ counts.errors }}<span>位同学</span></div>
-      <div class="stat-foot">查看原始诊断，找到问题所在 <ArrowUpRight :size="13" /></div></button
-    ><button class="stat-card" @click="filter = '请求帮助'">
+      <div class="stat-foot">查看原始诊断，找到问题所在 <ArrowUpRight :size="13" /></div></Button
+    ><Button variant="plain" class="stat-card" @click="filter = '请求帮助'">
       <div class="stat-top">
         待处理求助<span class="stat-icon amber"><Hand :size="18" /></span>
       </div>
@@ -207,7 +209,7 @@ async function regenerateInvite() {
       <div class="stat-foot amber-text">
         {{ counts.help ? '有同学正在等你' : '暂时没有待处理的求助' }} <ArrowRight :size="13" />
       </div>
-    </button>
+    </Button>
   </div>
   <div class="overview-columns">
     <section class="panel student-panel">
@@ -219,29 +221,30 @@ async function regenerateInvite() {
         </div>
       </div>
       <div class="filter-tabs">
-        <button
+        <Button
           v-for="f in filters"
           :key="f.label"
+          variant="plain"
           :class="{ selected: filter === f.label }"
           @click="filter = f.label"
         >
           {{ f.label }}<span>{{ f.count }}</span>
-        </button>
+        </Button>
       </div>
       <div class="table-controls">
         <label class="search-field"
-          ><Search :size="16" /><input
+          ><Search :size="16" /><Input
             ref="searchInput"
             v-model="search"
             aria-label="搜索学生"
             placeholder="搜索姓名或学号…"
           /><kbd>⌘ K</kbd></label
         ><label class="select-wrap"
-          ><SlidersHorizontal :size="14" /><select v-model="exercise" aria-label="按练习筛选">
-            <option>全部练习</option>
-            <option v-for="e in exercises" :key="e.id" :value="e.id">
+          ><SlidersHorizontal :size="14" /><Select v-model="exercise" aria-label="按练习筛选">
+            <SelectOption>全部练习</SelectOption>
+            <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">
               {{ e.title }}
-            </option></select
+            </SelectOption></Select
           ><ChevronDown :size="13"
         /></label>
       </div>
@@ -375,7 +378,8 @@ async function regenerateInvite() {
               s.helpCreatedAt ? new Date(s.helpCreatedAt).toLocaleTimeString('zh-CN') : s.activity
             }}</small
           >
-          <button
+          <Button
+            variant="plain"
             @click="
               router.push({
                 path: '/teacher/students/' + s.id,
@@ -384,7 +388,7 @@ async function regenerateInvite() {
             "
           >
             查看并辅导 <ArrowUpRight :size="13" />
-          </button>
+          </Button>
         </div>
         <div v-if="!counts.help" class="small-empty">
           <CircleCheck :size="24" />
@@ -401,7 +405,7 @@ async function regenerateInvite() {
     <label class="field-label">课堂码</label>
     <div class="invite-code">{{ demo.inviteCode }}</div>
     <div class="copy-row">
-      <input
+      <Input
         :value="`${origin}/join?code=${demo.inviteCode}`"
         readonly
         aria-label="邀请链接"
@@ -434,7 +438,7 @@ async function regenerateInvite() {
 .help-context {
   display: block;
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: 14px;
   margin: 6px 0 10px;
   overflow-wrap: anywhere;
 }

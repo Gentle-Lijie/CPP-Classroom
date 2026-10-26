@@ -2,10 +2,15 @@ import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import { initialize, currentUser, demo, exercises, bootstrapError } from './data/demo'
+import { initializeTheme } from '@/lib/theme'
 import './styles.css'
 import './interface.css'
 import './platform.css'
 import './editor-language.css'
+import './controls.css'
+import './density.css'
+
+initializeTheme()
 
 const router = createRouter({
   history: createWebHistory(),

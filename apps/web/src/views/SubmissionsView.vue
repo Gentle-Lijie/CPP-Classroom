@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Select, SelectOption } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { Search, Download, FileCode2, ArrowRight, PackageOpen, RefreshCw, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -217,19 +220,19 @@ async function exportWorks() {
     </div>
     <div class="export-controls">
       <label
-        >作品范围<select v-model="kind" :disabled="exporting">
-          <option value="all">当前草稿 + 主动提交</option>
-          <option value="drafts">仅当前草稿</option>
-          <option value="submissions">仅主动提交</option>
-        </select></label
+        >作品范围<Select v-model="kind" :disabled="exporting">
+          <SelectOption value="all">当前草稿 + 主动提交</SelectOption>
+          <SelectOption value="drafts">仅当前草稿</SelectOption>
+          <SelectOption value="submissions">仅主动提交</SelectOption>
+        </Select></label
       ><label
-        >文件格式<select v-model="format" :disabled="exporting">
-          <option value="zip">ZIP 源文件包</option>
-          <option value="csv">CSV 作品清单</option>
-          <option value="json">JSON 完整备份</option>
-        </select></label
+        >文件格式<Select v-model="format" :disabled="exporting">
+          <SelectOption value="zip">ZIP 源文件包</SelectOption>
+          <SelectOption value="csv">CSV 作品清单</SelectOption>
+          <SelectOption value="json">JSON 完整备份</SelectOption>
+        </Select></label
       ><label v-if="format === 'json'" class="inline-items"
-        ><input v-model="includeRuns" type="checkbox" :disabled="exporting" />包含运行上下文</label
+        ><Checkbox v-model="includeRuns" :disabled="exporting" />包含运行上下文</label
       ><Button :disabled="exporting" @click="exportWorks"
         ><Download />{{
           exporting
@@ -261,28 +264,30 @@ async function exportWorks() {
     </div>
     <div class="table-controls">
       <label class="search-field"
-        ><Search :size="16" /><input
+        ><Search :size="16" /><Input
           v-model="search"
           aria-label="搜索提交"
           placeholder="搜索姓名、学号或题目…"
       /></label>
       <div class="submission-filters">
-        <select v-model="exercise" aria-label="按练习筛选">
-          <option value="">全部练习</option>
-          <option v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</option></select
-        ><select v-model="student" aria-label="按学生筛选">
-          <option value="">全部学生</option>
-          <option v-for="s in students" :key="s.id" :value="s.id">
+        <Select v-model="exercise" aria-label="按练习筛选">
+          <SelectOption value="">全部练习</SelectOption>
+          <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">{{
+            e.title
+          }}</SelectOption></Select
+        ><Select v-model="student" aria-label="按学生筛选">
+          <SelectOption value="">全部学生</SelectOption>
+          <SelectOption v-for="s in students" :key="s.id" :value="s.id">
             {{ s.number }} · {{ s.name }}
-          </option></select
-        ><label class="inline-items"
-          ><input v-model="latest" type="checkbox" />每人每题最新提交</label
-        >
+          </SelectOption></Select
+        ><label class="inline-items"><Checkbox v-model="latest" />每人每题最新提交</label>
       </div>
     </div>
     <div v-if="selected.length" class="selection-bar">
       <span>已选择 {{ selected.length }} 份提交（跨页保留）</span
-      ><button class="text-button" @click="selected = []"><X :size="14" />清除选择</button>
+      ><Button variant="plain" class="text-button" @click="selected = []"
+        ><X :size="14" />清除选择</Button
+      >
     </div>
     <div v-if="error" role="alert" class="error-box submission-error">
       {{ error }} <Button variant="outline" size="sm" @click="load">重新加载</Button>
@@ -292,8 +297,7 @@ async function exportWorks() {
         <thead>
           <tr>
             <th>
-              <input
-                type="checkbox"
+              <Checkbox
                 aria-label="选择本页提交"
                 :checked="pageSelected"
                 :indeterminate="somePageSelected && !pageSelected"
@@ -311,9 +315,8 @@ async function exportWorks() {
         <tbody>
           <tr v-for="s in submissions" :key="s.id">
             <td>
-              <input
+              <Checkbox
                 v-model="selected"
-                type="checkbox"
                 :value="s.id"
                 :aria-label="`选择${s.name}的${s.title}提交v${s.revision}`"
               />
@@ -337,11 +340,12 @@ async function exportWorks() {
             <td class="muted">{{ new Date(s.created_at).toLocaleString('zh-CN') }}</td>
             <td>
               <div class="inline-items">
-                <button
+                <Button
+                  variant="plain"
                   class="text-button"
                   @click="download(`${s.number}-${s.name}-${s.filename}`, s.code)"
                 >
-                  <Download :size="14" />源文件</button
+                  <Download :size="14" />源文件</Button
                 ><RouterLink
                   :to="{
                     path: '/teacher/students/' + s.user_id,
@@ -392,7 +396,7 @@ async function exportWorks() {
   color: var(--ui-ink);
 }
 .export-heading p {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
   margin-top: 5px;
   line-height: 1.7;
@@ -407,17 +411,17 @@ async function exportWorks() {
 .export-controls > label:not(.inline-items) {
   display: grid;
   gap: 7px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   min-width: 0;
 }
-.export-controls select {
+.export-controls .ui-select-trigger {
   min-width: 180px;
   max-width: 100%;
-  font-size: 13px;
+  font-size: 15px;
 }
 .export-controls .inline-items {
-  font-size: 13px;
+  font-size: 15px;
   align-self: center;
 }
 .export-panel .error-box {
@@ -430,13 +434,13 @@ async function exportWorks() {
   flex-wrap: wrap;
   min-width: 0;
 }
-.submission-filters select {
+.submission-filters .ui-select-trigger {
   max-width: 200px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 15px;
 }
 .submission-filters label {
-  font-size: 12px;
+  font-size: 14px;
 }
 .selection-bar {
   display: flex;
@@ -447,7 +451,7 @@ async function exportWorks() {
   padding: 10px 20px;
   color: var(--ui-action);
   background: var(--ui-selection);
-  font-size: 13px;
+  font-size: 15px;
 }
 .submission-error {
   margin: 0 20px 16px;
@@ -467,13 +471,13 @@ async function exportWorks() {
   .export-controls > button {
     width: 100%;
   }
-  .export-controls select {
+  .export-controls .ui-select-trigger {
     width: 100%;
   }
   .submission-filters {
     width: 100%;
   }
-  .submission-filters select {
+  .submission-filters .ui-select-trigger {
     flex: 1;
     max-width: 100%;
   }

@@ -33,3 +33,53 @@
   --ui-shadow: rgb(9 9 11 / 9%);
   --ui-focus: rgb(37 99 235 / 15%);
 }
+
+:root {
+  --ui-error-line: #fecaca;
+  --ui-error-hover: #991b1b;
+  --ui-warning-hover: #92400e;
+  --ui-code-bg: #f6f8fc;
+  --ui-code-fg: #18181b;
+  --ui-on-action: #ffffff;
+}
+:root.dark {
+  color-scheme: dark;
+  --ui-page: #1e2024;
+  --ui-canvas: #18191c;
+  --ui-surface: #25272c;
+  --ui-hover: #2d3036;
+  --ui-ink: #f1f2f4;
+  --ui-text: #e0e2e7;
+  --ui-secondary: #c4c7cf;
+  --ui-muted: #a0a5b1;
+  --ui-faint: #858b98;
+  --ui-line: #373b44;
+  --ui-line-strong: #515765;
+  --ui-action: #78a7ff;
+  --ui-action-hover: #a1c1ff;
+  --ui-selection: #263a5b;
+  --ui-editor-selection: #49483e;
+  --ui-error: #ff8f9b;
+  --ui-error-hover: #e96e7e;
+  --ui-error-bg: #3c252d;
+  --ui-error-line: #72404c;
+  --ui-warning: #f1bd70;
+  --ui-warning-hover: #d9a452;
+  --ui-warning-bg: #3b3022;
+  --ui-warning-line: #6f5635;
+  --ui-success: #8ad4a2;
+  --ui-success-hover: #a5e8bb;
+  --ui-success-bg: #20382c;
+  --ui-success-line: #3a654b;
+  --ui-blue-line: #405d91;
+  --ui-icon-slate: #adbcd5;
+  --ui-icon-orange: #f4b28a;
+  --ui-code-string: #e6db74;
+  --ui-code-number: #ae81ff;
+  --ui-code-bg: #272822;
+  --ui-code-fg: #f8f8f2;
+  --ui-on-action: #101722;
+  --ui-overlay: rgb(0 0 0 / 65%);
+  --ui-shadow: rgb(0 0 0 / 32%);
+  --ui-focus: rgb(120 167 255 / 22%);
+}

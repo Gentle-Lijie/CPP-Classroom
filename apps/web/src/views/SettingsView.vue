@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { NumberInput } from '@/components/ui/number-input'
+import { Form } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectOption } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Save, Copy, RefreshCw, ShieldCheck, Archive, Settings2, ChevronRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -167,39 +173,40 @@ async function archiveClass() {
   </p>
   <div class="settings-layout" :inert="busy">
     <nav class="settings-nav">
-      <button
+      <Button
         v-for="t in ['基本信息', '加入与邀请', '编程环境', '课堂策略', '归档课堂']"
         :key="t"
+        variant="plain"
         :class="{ selected: tab === t }"
         @click="tab = t"
       >
         {{ t }}<ChevronRight :size="14" />
-      </button>
+      </Button>
     </nav>
     <section class="panel settings-panel">
-      <form v-if="tab === '基本信息'" class="form-stack" @submit.prevent="save()">
+      <Form v-if="tab === '基本信息'" class="form-stack" @submit.prevent="save()">
         <div class="settings-title">
           <Settings2 :size="19" />
           <h2>基本信息</h2>
         </div>
-        <label>课堂名称<input v-model="form.name" required maxlength="50" /></label
-        ><label>课堂说明<textarea v-model="form.description" rows="5" /></label>
+        <label>课堂名称<Input v-model="form.name" required maxlength="50" /></label
+        ><label>课堂说明<Textarea v-model="form.description" rows="5" /></label>
         <label
-          >课堂状态<select
+          >课堂状态<Select
             v-model="form.state"
             :disabled="busy || activeClassroom.status === '已归档'"
           >
-            <option>未开始</option>
-            <option>进行中</option>
-            <option>已关闭</option>
-            <option v-if="activeClassroom.status === '已归档'">已归档</option>
-          </select></label
+            <SelectOption>未开始</SelectOption>
+            <SelectOption>进行中</SelectOption>
+            <SelectOption>已关闭</SelectOption>
+            <SelectOption v-if="activeClassroom.status === '已归档'">已归档</SelectOption>
+          </Select></label
         >
         <p class="form-hint">课堂名称与说明对已加入的学生可见。</p>
         <Button class="self-start" type="submit" :disabled="busy || !dirty">{{
           busy ? '正在保存…' : '保存更改'
         }}</Button>
-      </form>
+      </Form>
       <div v-else-if="tab === '加入与邀请'" class="form-stack">
         <div class="settings-title">
           <ShieldCheck :size="19" />
@@ -207,16 +214,16 @@ async function archiveClass() {
         </div>
         <label class="toggle-row"
           ><span><strong>允许新成员加入</strong><small>关闭后，已有成员仍可访问课堂。</small></span
-          ><input v-model="form.allowJoin" type="checkbox" role="switch" /></label
+          ><Switch v-model="form.allowJoin" /></label
         ><label
-          >入班方式<select v-model="form.access">
-            <option value="approval">教师审批后加入</option>
-            <option value="roster">仅名单中的学生可加入</option>
-          </select></label
+          >入班方式<Select v-model="form.access">
+            <SelectOption value="approval">教师审批后加入</SelectOption>
+            <SelectOption value="roster">仅名单中的学生可加入</SelectOption>
+          </Select></label
         ><label
           >当前课堂码
           <div class="copy-row">
-            <input :value="demo.inviteCode" readonly /><Button variant="outline" @click="copy"
+            <Input :value="demo.inviteCode" readonly /><Button variant="outline" @click="copy"
               ><Copy />复制邀请</Button
             >
           </div></label
@@ -261,17 +268,15 @@ async function archiveClass() {
         <h2>练习与课后访问</h2>
         <label class="toggle-row"
           ><span><strong>允许编译运行</strong><small>关闭后仍可编辑，并查看已有记录。</small></span
-          ><input v-model="form.allowRun" type="checkbox" role="switch" /></label
+          ><Switch v-model="form.allowRun" /></label
         ><label class="toggle-row"
           ><span><strong>允许重复提交</strong><small>每次主动提交保留独立版本。</small></span
-          ><input v-model="form.allowResubmit" type="checkbox" role="switch" /></label
+          ><Switch v-model="form.allowResubmit" /></label
         ><label class="toggle-row"
           ><span
             ><strong>归档后保留只读访问</strong><small>学生仍可查看和下载自己的作品。</small></span
-          ><input v-model="form.readonly" type="checkbox" role="switch" /></label
-        ><label
-          >课堂人数上限<input v-model.number="form.capacity" type="number" min="1" max="50"
-        /></label>
+          ><Switch v-model="form.readonly" /></label
+        ><label>课堂人数上限<NumberInput v-model.number="form.capacity" min="1" max="50" /></label>
         <p class="form-hint">
           当前已有 {{ activeClassroom.students }} 位学生。上限不可低于现有人数；最多 50 人。
         </p>
@@ -390,7 +395,7 @@ async function archiveClass() {
   border-top: 1px solid var(--ui-line);
   padding-top: 20px;
   margin-top: 24px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .settings-error {
@@ -402,7 +407,7 @@ async function archiveClass() {
 }
 .settings-panel .form-stack input:not([type='checkbox']),
 .settings-panel textarea,
-.settings-panel select {
+.settings-panel .ui-select-trigger {
   max-width: 100%;
 }
 .environment-grid {

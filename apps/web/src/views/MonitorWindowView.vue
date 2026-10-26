@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
+import { Input } from '@/components/ui/input'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Users, Search, ArrowUpRight, Hand, X, Monitor, Check, Radio } from '@lucide/vue'
@@ -62,6 +64,7 @@ function clearFilters() {
         </div>
       </div>
       <div class="inline-items">
+        <ThemeToggle />
         <span class="demo-tag">课堂实时名册</span
         ><Button variant="outline" size="sm" @click="close"><X />关闭窗口</Button>
       </div>
@@ -80,24 +83,31 @@ function clearFilters() {
       </div>
       <div class="monitor-controls">
         <div class="segmented">
-          <button
+          <Button
             v-for="f in ['全部在线', '请求帮助', '编译失败', '已提交']"
             :key="f"
+            variant="plain"
             :class="{ selected: filter === f }"
             @click="filter = f"
           >
             {{ f }}
-          </button>
+          </Button>
         </div>
         <label class="search-field"
-          ><Search :size="16" /><input
+          ><Search :size="16" /><Input
             v-model="search"
             aria-label="搜索在线学生"
             placeholder="姓名或学号"
         /></label>
       </div>
       <div class="monitor-student-grid">
-        <button v-for="s in paged" :key="s.id" class="monitor-student-card" @click="inspect(s.id)">
+        <Button
+          v-for="s in paged"
+          :key="s.id"
+          variant="plain"
+          class="monitor-student-card"
+          @click="inspect(s.id)"
+        >
           <div class="monitor-card-person">
             <span class="student-avatar">{{ s.name.slice(-2) }}<i class="online" /></span
             ><span
@@ -115,7 +125,7 @@ function clearFilters() {
             ><span v-else-if="s.submitted" class="submitted-label"><Check :size="13" />已提交</span
             ><span v-else>查看草稿</span><span>{{ s.activity }}</span>
           </div>
-        </button>
+        </Button>
       </div>
       <Pagination
         v-if="visible.length"
@@ -154,10 +164,10 @@ function clearFilters() {
 }
 .monitor-card-person small,
 .monitor-card-footer {
-  font-size: 12px;
+  font-size: 14px;
 }
 .monitor-student-card > p {
-  font-size: 13px;
+  font-size: 15px;
 }
 .monitor-controls {
   min-width: 0;

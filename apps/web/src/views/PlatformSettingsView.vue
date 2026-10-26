@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { NumberInput } from '@/components/ui/number-input'
+import { Form } from '@/components/ui/form'
+import { Select, SelectOption } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import {
@@ -14,6 +18,7 @@ import {
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import ContentPanel from '@/components/classroom/ContentPanel.vue'
+import { confirmAction } from '@/lib/confirm'
 import { api } from '@/lib/api'
 import { notify, executionSettings } from '@/data/demo'
 import { probePlatform, type ProbeResult, type ProbeState } from '@/lib/platform-health'
@@ -150,9 +155,9 @@ function beforeUnload(event: BeforeUnloadEvent) {
 }
 window.addEventListener('beforeunload', beforeUnload)
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   if (saving.value) return false
-  return !dirty.value || window.confirm('平台配置尚未保存。确认放弃本次更改并离开？')
+  return !dirty.value || (await confirmAction('平台配置尚未保存。确认放弃本次更改并离开？'))
 })
 </script>
 <template>
@@ -211,12 +216,12 @@ onBeforeRouteLeave(() => {
         description="统一管理编译、运行和平台并发。"
         class="runtime-form-panel"
       >
-        <form id="runtime-settings-form" class="runtime-settings-form" @submit.prevent="save">
+        <Form id="runtime-settings-form" class="runtime-settings-form" @submit.prevent="save">
           <fieldset :disabled="loading || saving || !!loadError" class="runtime-fields">
             <label class="runtime-profile"
-              >C++ 标准<select v-model="form.compilerProfile">
-                <option value="gcc13-cpp17">GCC 13.3 / C++17</option>
-                <option value="gcc13-cpp20">GCC 13.3 / C++20</option></select
+              >C++ 标准<Select v-model="form.compilerProfile">
+                <SelectOption value="gcc13-cpp17">GCC 13.3 / C++17</SelectOption>
+                <SelectOption value="gcc13-cpp20">GCC 13.3 / C++20</SelectOption></Select
               ><small>同一课堂使用统一的受控编译环境。</small></label
             >
             <fieldset v-for="group in groups" :key="group.title" class="runtime-settings-group">
@@ -226,9 +231,8 @@ onBeforeRouteLeave(() => {
                 <label v-for="field in group.fields" :key="field.key"
                   >{{ field.name
                   }}<span class="runtime-number-control"
-                    ><input
+                    ><NumberInput
                       v-model.number="form[field.key]"
-                      type="number"
                       required
                       :min="field.min"
                       :max="field.max"
@@ -246,7 +250,7 @@ onBeforeRouteLeave(() => {
           <p v-if="saveError" class="runtime-error" role="alert">
             <CircleAlert :size="16" />{{ saveError }}
           </p>
-        </form>
+        </Form>
         <template #footer
           ><span class="runtime-save-status" :class="{ pending: dirty }"
             ><i v-if="dirty" /><Check v-else-if="savedAt" :size="14" />{{
@@ -272,7 +276,7 @@ onBeforeRouteLeave(() => {
         <ContentPanel title="评测节点" description="原生 Linux 执行服务" :icon="Server">
           <label class="runtime-node-address"
             >连接地址<span><LockKeyhole :size="13" />由服务端管理</span
-            ><input
+            ><Input
               :value="form.goJudgeUrl"
               readonly
               :placeholder="loading ? '读取中…' : loadError ? '无法读取节点地址' : '尚未配置节点'"
@@ -320,7 +324,7 @@ onBeforeRouteLeave(() => {
 .runtime-service-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
+  gap: 16px;
 }
 .runtime-service + .runtime-service {
   border-left: 1px solid var(--ui-line);
@@ -345,7 +349,7 @@ onBeforeRouteLeave(() => {
   border-radius: 4px;
   background: var(--ui-hover);
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .runtime-service-state i {
@@ -355,8 +359,8 @@ onBeforeRouteLeave(() => {
   background: currentColor;
 }
 .runtime-service-state.is-healthy {
-  color: #166534;
-  background: #f0fdf4;
+  color: var(--ui-success);
+  background: var(--ui-success-bg);
 }
 .runtime-service-state.is-unavailable {
   color: var(--ui-error);
@@ -371,27 +375,27 @@ onBeforeRouteLeave(() => {
   background: var(--ui-selection);
 }
 .runtime-service h3 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .runtime-service h3 small {
   display: block;
   font-weight: 400;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   margin-top: 3px;
 }
 .runtime-service p {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
   color: var(--ui-secondary);
-  margin-top: 12px;
-  min-height: 42px;
+  margin-top: 8px;
+  min-height: 32px;
   overflow-wrap: anywhere;
 }
 .runtime-latency,
 .runtime-check-time {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -403,12 +407,12 @@ onBeforeRouteLeave(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 290px;
   align-items: start;
-  gap: 24px;
+  gap: 16px;
 }
 .runtime-settings-aside {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
 }
 .runtime-fields {
@@ -425,20 +429,20 @@ onBeforeRouteLeave(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ui-text);
 }
 .runtime-profile {
-  padding-bottom: 24px;
+  padding-bottom: 16px;
 }
-.runtime-profile select {
+.runtime-profile .ui-select-trigger {
   width: 100%;
-  font-size: 13px;
+  font-size: 15px;
 }
 .runtime-profile small,
 .runtime-settings-grid small {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--ui-muted);
 }
@@ -446,7 +450,7 @@ onBeforeRouteLeave(() => {
   margin: 0;
   border: 0;
   border-top: 1px solid var(--ui-line);
-  padding: 20px 0 24px;
+  padding: 14px 0 16px;
   min-width: 0;
 }
 .runtime-settings-group:last-child {
@@ -456,13 +460,13 @@ onBeforeRouteLeave(() => {
   float: left;
   width: 100%;
   padding: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--ui-ink);
 }
 .runtime-settings-group > p {
   clear: both;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   padding-top: 4px;
   margin-bottom: 16px;
@@ -470,26 +474,26 @@ onBeforeRouteLeave(() => {
 .runtime-settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 16px;
 }
 .runtime-number-control {
   display: block;
   position: relative;
 }
-.runtime-number-control input {
+.runtime-number-control :deep(.ui-number-input) {
   width: 100%;
-  font-size: 13px;
+  font-size: 15px;
   padding-right: 64px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
-.runtime-number-control > span {
+.runtime-number-control > span:not(.ui-number-field) {
   position: absolute;
   right: 34px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   pointer-events: none;
 }
@@ -497,7 +501,7 @@ onBeforeRouteLeave(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
 }
 .runtime-save-status.pending {
@@ -513,7 +517,7 @@ onBeforeRouteLeave(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-text);
 }
 .runtime-node-address > span {
@@ -521,11 +525,11 @@ onBeforeRouteLeave(() => {
   align-items: center;
   gap: 5px;
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 .runtime-node-address input {
   width: 100%;
-  font-size: 11px;
+  font-size: 13px;
   background: var(--ui-surface);
   color: var(--ui-secondary);
 }
@@ -534,7 +538,7 @@ onBeforeRouteLeave(() => {
   padding-top: 18px;
 }
 .runtime-fixed-limits h3 {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   margin-bottom: 12px;
 }
@@ -543,7 +547,7 @@ onBeforeRouteLeave(() => {
   flex-direction: column;
   gap: 9px;
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 .runtime-fixed-limits dl div {
   display: flex;
@@ -558,7 +562,7 @@ onBeforeRouteLeave(() => {
   font-variant-numeric: tabular-nums;
 }
 .runtime-fixed-limits p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   line-height: 1.8;
   margin-top: 14px;
@@ -574,13 +578,13 @@ onBeforeRouteLeave(() => {
   margin-top: 2px;
 }
 .runtime-isolation-note strong {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ui-text);
 }
 .runtime-isolation-note p {
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--ui-muted);
 }
@@ -588,13 +592,13 @@ onBeforeRouteLeave(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--ui-error-line);
   background: var(--ui-error-bg);
   color: var(--ui-error);
   padding: 13px 16px;
   margin-bottom: 20px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .runtime-error > span {
   flex: 1;
@@ -626,7 +630,7 @@ onBeforeRouteLeave(() => {
     min-height: 0;
   }
   .runtime-settings-layout {
-    gap: 20px;
+    gap: 16px;
   }
   .runtime-settings-aside,
   .runtime-settings-grid {

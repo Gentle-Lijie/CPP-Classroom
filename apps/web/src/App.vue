@@ -2,6 +2,7 @@
 import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { CircleCheck, CircleAlert, Info, X } from '@lucide/vue'
+import ConfirmationDialog from '@/components/classroom/ConfirmationDialog.vue'
 import AppShell from '@/components/classroom/AppShell.vue'
 import { demo, currentUser, refresh, clearSession, notify, bootstrapError } from '@/data/demo'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,7 @@ function retryBootstrap() {
   </main>
   <RouterView v-else-if="standalone" :key="pageKey" />
   <AppShell v-else><RouterView :key="pageKey" /></AppShell>
+  <ConfirmationDialog />
   <Transition name="toast"
     ><div
       v-if="demo.notice"
@@ -62,6 +64,8 @@ function retryBootstrap() {
         "
         :size="18"
       /><span>{{ demo.notice }}</span
-      ><button aria-label="关闭提示" @click="demo.notice = ''"><X :size="15" /></button></div
+      ><Button variant="plain" aria-label="关闭提示" @click="demo.notice = ''"
+        ><X :size="15"
+      /></Button></div
   ></Transition>
 </template>

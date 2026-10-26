@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Form } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff, KeyRound } from '@lucide/vue'
@@ -63,9 +65,9 @@ async function save() {
       <strong>{{ currentUser?.name }}</strong
       ><span>{{ currentUser?.username }} · {{ roleLabels[currentUser?.role ?? ''] }}</span>
     </div>
-    <form class="form-stack" @submit.prevent="save">
+    <Form class="form-stack" @submit.prevent="save">
       <label
-        >当前密码<input
+        >当前密码<Input
           v-model="current"
           :type="visible ? 'text' : 'password'"
           required
@@ -74,7 +76,7 @@ async function save() {
           :disabled="busy"
       /></label>
       <label
-        >新密码<input
+        >新密码<Input
           v-model="password"
           :type="visible ? 'text' : 'password'"
           required
@@ -85,7 +87,7 @@ async function save() {
         /><small class="form-hint">至少12位，可使用字母、数字与符号。</small></label
       >
       <label
-        >确认新密码<input
+        >确认新密码<Input
           v-model="confirm"
           :type="visible ? 'text' : 'password'"
           required
@@ -94,9 +96,15 @@ async function save() {
           autocomplete="new-password"
           :disabled="busy"
       /></label>
-      <button class="text-button" type="button" :aria-pressed="visible" @click="visible = !visible">
+      <Button
+        variant="plain"
+        class="text-button"
+        type="button"
+        :aria-pressed="visible"
+        @click="visible = !visible"
+      >
         <component :is="visible ? EyeOff : Eye" :size="15" />{{ visible ? '隐藏密码' : '显示密码' }}
-      </button>
+      </Button>
       <p v-if="error" class="error-box" role="alert">{{ error }}</p>
       <div class="modal-actions">
         <Button type="button" variant="outline" :disabled="busy" @click="open = false">取消</Button
@@ -104,7 +112,7 @@ async function save() {
           ><KeyRound />{{ busy ? '正在更新…' : '更新密码' }}</Button
         >
       </div>
-    </form>
+    </Form>
   </Modal>
 </template>
 <style scoped>
@@ -119,7 +127,7 @@ async function save() {
   background: var(--ui-surface);
 }
 .account-summary span {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
   overflow-wrap: anywhere;
 }

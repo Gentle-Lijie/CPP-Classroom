@@ -55,12 +55,13 @@ defineExpose({ flush: local.flush })
             >自动写入 · 每 2 秒检查外部修改</span
           >
           <div class="inline-items ml-auto">
-            <button
+            <Button
               v-if="backup !== undefined"
+              variant="plain"
               class="text-button"
               @click="download('backup-' + filename, backup)"
             >
-              <Download :size="14" />下载读取前草稿</button
+              <Download :size="14" />下载读取前草稿</Button
             ><Button
               v-if="local.supported && (!file || needsPermission)"
               variant="outline"
@@ -70,15 +71,16 @@ defineExpose({ flush: local.flush })
               ><RefreshCw v-if="needsPermission" /><FolderOpen v-else />{{
                 needsPermission ? '重新授权' : root ? '关联当前文件' : '选择工作目录'
               }}</Button
-            ><button
+            ><Button
               v-if="root"
+              variant="plain"
               class="icon-button"
               :disabled="busy"
               aria-label="断开本地目录"
               @click="local.disconnect"
             >
               <Unplug :size="15" />
-            </button>
+            </Button>
           </div>
         </section>
       </component>

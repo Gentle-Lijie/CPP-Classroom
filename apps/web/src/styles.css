@@ -59,7 +59,7 @@
     @apply bg-background text-foreground;
     font-family:
       -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
@@ -78,7 +78,7 @@ body {
 }
 button,
 input,
-select,
+.ui-select-trigger,
 textarea {
   font: inherit;
 }
@@ -96,7 +96,7 @@ a {
 button,
 a,
 input,
-select,
+.ui-select-trigger,
 textarea {
   -webkit-tap-highlight-color: transparent;
 }
@@ -118,7 +118,7 @@ h3 {
 }
 input:not([type='checkbox']),
 textarea,
-select {
+.ui-select-trigger {
   border: 1px solid var(--input);
   border-radius: 6px;
   padding: 10px 12px;
@@ -129,7 +129,7 @@ select {
 }
 input:focus,
 textarea:focus,
-select:focus {
+.ui-select-trigger:focus {
   border-color: var(--ui-line);
   box-shadow: 0 0 0 3px var(--ui-shadow);
 }
@@ -194,7 +194,7 @@ code {
   align-items: center;
   gap: 5px;
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
   background: none;
   border: 0;
   padding: 2px 0;
@@ -203,7 +203,7 @@ code {
   text-decoration: underline;
 }
 [data-slot='button'] {
-  font-size: 12px;
+  font-size: 14px;
   box-shadow: none;
   height: 36px;
   border-radius: 6px;
@@ -211,7 +211,7 @@ code {
 }
 [data-slot='button'][data-size='sm'] {
   height: 31px;
-  font-size: 12px;
+  font-size: 14px;
 }
 [data-slot='button'][data-variant='outline'] {
   background: var(--ui-page);
@@ -259,7 +259,7 @@ code {
 }
 .brand-sub {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-secondary);
   letter-spacing: 0.07em;
   font-weight: 400;
@@ -272,7 +272,7 @@ code {
   border-radius: 7px;
   margin-top: 31px;
   padding: 11px 9px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
 }
 .class-switch > span:nth-child(2) {
@@ -283,7 +283,7 @@ code {
 .class-switch small,
 .profile small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
   font-weight: 400;
   margin-top: 3px;
@@ -300,7 +300,7 @@ code {
   flex-shrink: 0;
 }
 .nav-caption {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   padding: 27px 11px 12px;
   letter-spacing: 0.05em;
@@ -314,7 +314,7 @@ code {
   padding: 9px 12px;
   margin-bottom: 5px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .nav-item:hover {
   background: var(--ui-surface);
@@ -333,14 +333,14 @@ code {
   color: var(--ui-secondary);
   padding: 0 5px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .sidebar-session {
   margin: 28px 4px 0;
   background: var(--ui-surface);
   border-radius: 7px;
   padding: 15px 12px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .sidebar-session > .live-dot {
@@ -348,7 +348,7 @@ code {
 }
 .sidebar-session p {
   color: var(--ui-secondary);
-  font-size: 10px;
+  font-size: 12px;
   margin: 6px 0 11px 14px;
 }
 .sidebar-session a {
@@ -362,7 +362,7 @@ code {
   padding-top: 24px;
 }
 .sidebar-bottom > .nav-item {
-  font-size: 11px;
+  font-size: 13px;
 }
 .profile-wrap {
   position: relative;
@@ -377,7 +377,7 @@ code {
   gap: 10px;
   padding: 15px 9px 0;
   text-align: left;
-  font-size: 12px;
+  font-size: 14px;
 }
 .profile > svg {
   margin-left: auto;
@@ -396,7 +396,7 @@ code {
 .avatar.small {
   width: 27px;
   height: 27px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .role-menu {
   position: absolute;
@@ -411,7 +411,7 @@ code {
   z-index: 50;
 }
 .role-menu p {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   padding: 5px 8px;
 }
@@ -425,7 +425,7 @@ code {
   align-items: center;
   gap: 8px;
   padding: 9px;
-  font-size: 12px;
+  font-size: 14px;
   border-radius: 4px;
 }
 .role-menu button:hover,
@@ -453,7 +453,7 @@ code {
   align-items: center;
   gap: 17px;
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
 }
 .breadcrumbs strong {
   color: var(--ui-secondary);
@@ -463,7 +463,7 @@ code {
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .topbar-avatar {
   width: 27px;
@@ -482,7 +482,7 @@ code {
   border: 1px solid var(--ui-line);
   color: var(--ui-secondary);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
   line-height: 1.5;
 }
@@ -501,7 +501,7 @@ code {
   margin-bottom: 27px;
 }
 .heading-meta {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   display: flex;
   align-items: center;
@@ -517,7 +517,7 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 12px;
 }
 .live-dot {
   width: 6px;
@@ -535,7 +535,7 @@ code {
 }
 .page-heading p {
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
   margin-top: 9px;
 }
 .heading-actions {
@@ -545,7 +545,7 @@ code {
   flex-shrink: 0;
 }
 .heading-count {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-muted);
   font-weight: 400;
   margin-left: 14px;
@@ -576,7 +576,7 @@ button.stat-card:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .stat-icon {
@@ -612,7 +612,7 @@ button.stat-card:hover {
   font-variant-numeric: tabular-nums;
 }
 .stat-number > span {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   font-weight: 400;
   margin-left: 8px;
@@ -622,7 +622,7 @@ button.stat-card:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
   white-space: nowrap;
 }
@@ -654,7 +654,7 @@ button.stat-card:hover {
   position: relative;
 }
 .panel-heading h2 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 .section-heading {
@@ -663,7 +663,7 @@ button.stat-card:hover {
   gap: 9px;
 }
 .subtle-count {
-  font-size: 9px;
+  font-size: 12px;
   background: var(--ui-surface);
   padding: 0 5px;
   border-radius: 4px;
@@ -673,7 +673,7 @@ button.stat-card:hover {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-secondary);
   margin-left: 7px;
 }
@@ -692,7 +692,7 @@ button.stat-card:hover {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
   border: 0;
   border-bottom: 2px solid transparent;
@@ -707,7 +707,7 @@ button.stat-card:hover {
   background: var(--ui-surface);
   padding: 0 4px;
   border-radius: 3px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .filter-tabs > button.selected > span {
@@ -748,7 +748,7 @@ button.stat-card:hover {
   background: transparent;
   border-radius: 0;
   padding: 0;
-  font-size: 10px;
+  font-size: 12px;
   height: 100%;
   box-shadow: none;
 }
@@ -757,7 +757,7 @@ button.stat-card:hover {
 }
 .search-field kbd {
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
   font-family: inherit;
 }
@@ -768,15 +768,15 @@ button.stat-card:hover {
   height: 33px;
   padding: 0 8px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
   gap: 5px;
 }
-.select-wrap select {
+.select-wrap .ui-select-trigger {
   appearance: none;
   border: 0;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
   box-shadow: none;
 }
@@ -788,10 +788,10 @@ table {
   border-collapse: collapse;
   text-align: left;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 13px;
 }
 th {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--ui-muted);
   background: var(--ui-surface);
@@ -836,14 +836,14 @@ tbody tr:last-child td {
   align-items: center;
   justify-content: center;
   position: relative;
-  font-size: 10px;
+  font-size: 12px;
   flex-shrink: 0;
   font-weight: 500;
 }
 .student-avatar.large {
   width: 45px;
   height: 45px;
-  font-size: 14px;
+  font-size: 16px;
 }
 .student-avatar.avatar-1 {
   background: var(--ui-surface);
@@ -883,23 +883,23 @@ tbody tr:last-child td {
 }
 .person-text strong {
   color: var(--ui-ink);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
 }
 .person-text small {
   display: block;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 .table-exercise {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .cell-secondary {
   display: block;
   margin-top: 4px;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .error-summary {
@@ -915,7 +915,7 @@ tbody tr:last-child td {
   border-radius: 4px;
   padding: 2px 6px;
   line-height: 1.6;
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
   font-weight: 400;
 }
@@ -945,18 +945,18 @@ tbody tr:last-child td {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .submitted-label {
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 .activity-cell {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .row-arrow {
@@ -966,7 +966,7 @@ tbody tr:last-child td {
   padding: 14px 20px;
   border-top: 1px solid var(--ui-line);
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -986,13 +986,13 @@ tbody tr:last-child td {
   padding: 15px 16px;
 }
 .overview-aside h2 {
-  font-size: 11px;
+  font-size: 13px;
 }
 .exercise-feature {
   padding: 18px 17px;
 }
 .topic-label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .exercise-feature h3 {
@@ -1001,7 +1001,7 @@ tbody tr:last-child td {
   margin-top: 6px;
 }
 .exercise-feature > p {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.9;
   color: var(--ui-muted);
   margin-top: 9px;
@@ -1009,7 +1009,7 @@ tbody tr:last-child td {
 .exercise-progress {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 23px;
   color: var(--ui-muted);
 }
@@ -1031,7 +1031,7 @@ tbody tr:last-child td {
   border-radius: inherit;
 }
 .exercise-feature [data-slot='button'] {
-  font-size: 10px;
+  font-size: 12px;
   height: 32px;
 }
 .notification-dot {
@@ -1054,17 +1054,17 @@ tbody tr:last-child td {
   align-items: center;
 }
 .help-item-heading strong {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
   font-weight: 500;
 }
 .help-item-heading small {
-  font-size: 8px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .help-item p {
   margin: 7px 0;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   line-height: 1.7;
 }
@@ -1075,7 +1075,7 @@ tbody tr:last-child td {
   align-items: center;
   gap: 5px;
   padding: 0;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .teaching-note {
@@ -1091,20 +1091,20 @@ tbody tr:last-child td {
 }
 .teaching-note p {
   line-height: 2;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.04em;
 }
 .teaching-note > span:last-child {
   display: block;
   margin-top: 10px;
-  font-size: 8px;
+  font-size: 12px;
   color: var(--ui-muted);
   letter-spacing: 0.05em;
 }
 .app-footer {
   padding: 16px 35px;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   display: flex;
   justify-content: space-between;
   gap: 15px;
@@ -1152,7 +1152,7 @@ tbody tr:last-child td {
   margin: 0 0 6px;
 }
 .modal-heading .muted {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .modal-actions {
@@ -1172,13 +1172,13 @@ tbody tr:last-child td {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .form-stack label input,
-.form-stack label select,
+.form-stack label .ui-select-trigger,
 .form-stack label textarea {
-  font-size: 12px;
+  font-size: 14px;
   width: 100%;
 }
 .form-grid {
@@ -1187,7 +1187,7 @@ tbody tr:last-child td {
   gap: 15px;
 }
 .form-hint {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   line-height: 1.8;
 }
@@ -1197,7 +1197,7 @@ tbody tr:last-child td {
   background: var(--ui-surface);
   color: var(--ui-secondary);
   padding: 13px 15px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .warning-box {
@@ -1205,7 +1205,7 @@ tbody tr:last-child td {
   color: var(--ui-secondary);
 }
 .field-label {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .copy-row {
@@ -1216,7 +1216,7 @@ tbody tr:last-child td {
 .copy-row input {
   flex: 1;
   width: 0;
-  font-size: 11px;
+  font-size: 13px;
 }
 .invitation-class {
   display: flex;
@@ -1226,7 +1226,7 @@ tbody tr:last-child td {
   background: var(--ui-surface);
   border-radius: 6px;
   color: var(--ui-secondary);
-  font-size: 13px;
+  font-size: 15px;
   margin-bottom: 20px;
 }
 .invite-code {
@@ -1255,7 +1255,7 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 14px;
   max-width: calc(100vw - 30px);
 }
 .toast-message > svg {
@@ -1291,25 +1291,25 @@ tbody tr:last-child td {
   padding: 35px 20px;
 }
 .empty-state h3 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
 }
 .empty-state p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
 }
 .small-empty {
   padding: 35px 15px;
   color: var(--ui-muted);
   text-align: center;
-  font-size: 11px;
+  font-size: 13px;
 }
 .small-empty svg {
   display: block;
   margin: 0 auto 12px;
 }
 .small-empty h3 {
-  font-size: 13px;
+  font-size: 15px;
   margin-bottom: 7px;
 }
 .class-toolbar {
@@ -1332,7 +1332,7 @@ tbody tr:last-child td {
   color: var(--ui-secondary);
   padding: 6px 15px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .segmented > button.selected {
@@ -1395,7 +1395,7 @@ tbody tr:last-child td {
   position: absolute;
   bottom: 18px;
   left: 20px;
-  font-size: 7px;
+  font-size: 12px;
   letter-spacing: 0.13em;
   color: var(--ui-secondary);
 }
@@ -1409,14 +1409,14 @@ tbody tr:last-child td {
 }
 .class-card-body > p {
   margin-top: 9px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   min-height: 36px;
 }
 .class-card-meta {
   display: flex;
   gap: 20px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin: 17px 0;
 }
@@ -1436,12 +1436,12 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .class-card-footer [data-slot='button'] {
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
 }
 .create-class-card {
   min-height: 300px;
@@ -1470,14 +1470,14 @@ tbody tr:last-child td {
 }
 .create-class-card p {
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   margin: 8px 0 20px;
 }
 .create-class-card strong {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
   font-weight: 500;
 }
@@ -1492,11 +1492,11 @@ tbody tr:last-child td {
   color: var(--ui-muted);
 }
 .class-tip strong {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .class-tip p {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin-top: 4px;
 }
@@ -1522,7 +1522,7 @@ tbody tr:last-child td {
   box-shadow: inset 3px 0 var(--ui-shadow);
 }
 .exercise-order {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ui-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1531,12 +1531,12 @@ tbody tr:last-child td {
 }
 .exercise-list-item strong {
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .exercise-list-item small {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin-top: 4px;
 }
@@ -1549,7 +1549,7 @@ tbody tr:last-child td {
   gap: 9px;
   padding: 20px;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 2;
 }
 .exercise-list-note svg {
@@ -1560,7 +1560,7 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .inline-menu {
@@ -1579,7 +1579,7 @@ tbody tr:last-child td {
   align-items: center;
   gap: 7px;
   padding: 9px;
-  font-size: 11px;
+  font-size: 13px;
   border: 0;
   background: none;
   width: 100%;
@@ -1602,15 +1602,15 @@ tbody tr:last-child td {
   gap: 15px;
   margin: 13px 0 26px;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .problem-content > p {
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 2;
 }
 .problem-content > h3 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   margin: 27px 0 10px;
 }
@@ -1627,14 +1627,14 @@ tbody tr:last-child td {
 }
 .sample-grid > div > span {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--ui-line);
   color: var(--ui-muted);
 }
 .sample-grid pre {
   padding: 13px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   margin: 0;
   white-space: pre-wrap;
@@ -1663,7 +1663,7 @@ tbody tr:last-child td {
 }
 .preview-description {
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.9;
   margin: 14px 0 20px;
 }
@@ -1686,7 +1686,7 @@ tbody tr:last-child td {
   background: none;
   border: 0;
   text-align: left;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   border-radius: 6px;
 }
@@ -1718,13 +1718,13 @@ tbody tr:last-child td {
   gap: 25px;
 }
 .toggle-row strong {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   font-weight: 500;
 }
 .toggle-row small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin-top: 6px;
 }
@@ -1747,18 +1747,18 @@ tbody tr:last-child td {
 }
 .environment-grid span {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .environment-grid strong {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   display: block;
   margin-top: 7px;
   font-weight: 500;
 }
 .body-copy {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-muted);
   line-height: 2;
 }
@@ -1797,12 +1797,12 @@ tbody tr:last-child td {
 }
 .submission-banner p,
 .admin-banner p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   margin-top: 6px;
 }
 .submission-banner > label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .service-grid {
@@ -1816,10 +1816,10 @@ tbody tr:last-child td {
 }
 .service-grid h3 {
   margin-top: 17px;
-  font-size: 14px;
+  font-size: 16px;
 }
 .service-grid p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   margin: 8px 0 18px;
 }
@@ -1838,7 +1838,7 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 14px;
 }
 .settings-note {
   color: var(--ui-secondary);
@@ -1849,7 +1849,7 @@ tbody tr:last-child td {
   margin: 18px 0 10px;
 }
 .settings-note p {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--ui-muted);
 }
@@ -1868,7 +1868,7 @@ tbody tr:last-child td {
   font-weight: 500;
 }
 .backup-state p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
 }
 .audit-panel {
@@ -1879,20 +1879,20 @@ tbody tr:last-child td {
   align-items: center;
   gap: 12px;
   padding: 20px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   border-bottom: 1px solid var(--ui-line);
 }
 .audit-item small {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .admin-log {
   white-space: pre-wrap;
   background: var(--ui-surface);
   padding: 18px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--ui-secondary);
   border-radius: 5px;
@@ -1913,7 +1913,7 @@ tbody tr:last-child td {
   background: var(--ui-surface);
   border-bottom: 1px solid var(--ui-line);
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
 }
 .file-tab {
   display: flex;
@@ -1933,7 +1933,7 @@ tbody tr:last-child td {
   align-items: center;
   gap: 5px;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .ide-page {
   background: var(--ui-page);
@@ -1951,10 +1951,10 @@ tbody tr:last-child td {
   padding: 0 20px;
   border-bottom: 1px solid var(--border);
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 .ide-brand {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ui-secondary);
   display: flex;
   align-items: center;
@@ -1977,10 +1977,10 @@ tbody tr:last-child td {
   border-bottom: 1px solid var(--border);
   gap: 12px;
 }
-.ide-actionbar select {
+.ide-actionbar .ui-select-trigger {
   border: 0;
   padding: 3px 14px 3px 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--ui-secondary);
   max-width: 220px;
@@ -1990,7 +1990,7 @@ tbody tr:last-child td {
   align-items: center;
   gap: 6px;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
   margin-left: 15px;
 }
 .ide-layout {
@@ -2020,9 +2020,9 @@ tbody tr:last-child td {
   align-items: center;
   color: var(--ui-muted);
 }
-.compact-select select {
+.compact-select .ui-select-trigger {
   border: 0;
-  font-size: 10px;
+  font-size: 12px;
   padding: 0 6px;
   background: transparent;
 }
@@ -2058,12 +2058,12 @@ tbody tr:last-child td {
 }
 .stdin-note {
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   padding: 7px 15px;
 }
 .snapshot-input {
   padding: 16px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
 }
 .ide-runbar {
@@ -2094,7 +2094,7 @@ tbody tr:last-child td {
   align-items: center;
   gap: 7px;
   padding: 13px 0 10px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   background: transparent;
   border: 0;
@@ -2113,7 +2113,7 @@ tbody tr:last-child td {
   font-weight: 600;
 }
 .ide-problem .problem-content > p {
-  font-size: 11px;
+  font-size: 13px;
 }
 .sample-grid.stacked {
   grid-template-columns: 1fr;
@@ -2124,10 +2124,10 @@ tbody tr:last-child td {
   color: var(--ui-muted);
   border-radius: 6px;
   margin-top: 24px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .problem-tip strong {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ui-secondary);
 }
@@ -2138,7 +2138,7 @@ tbody tr:last-child td {
 .privacy-note {
   display: flex;
   gap: 8px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin: 25px 0 10px;
   line-height: 1.9;
@@ -2155,7 +2155,7 @@ tbody tr:last-child td {
   gap: 20px;
   padding: 0 16px;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .ide-statusbar > span {
@@ -2168,10 +2168,10 @@ tbody tr:last-child td {
   align-items: center;
   gap: 4px;
 }
-.state-demo-select select {
+.state-demo-select .ui-select-trigger {
   border: 0;
   padding: 0 3px;
-  font-size: 9px;
+  font-size: 12px;
   background: transparent;
   color: var(--ui-secondary);
 }
@@ -2182,7 +2182,7 @@ tbody tr:last-child td {
   padding: 8px 20px;
   background: var(--ui-surface);
   color: var(--ui-secondary);
-  font-size: 10px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .workspace-alert button {
@@ -2193,7 +2193,7 @@ tbody tr:last-child td {
   gap: 5px;
   align-items: center;
   color: var(--ui-secondary);
-  font-size: 10px;
+  font-size: 12px;
 }
 .run-output {
   display: flex;
@@ -2214,7 +2214,7 @@ tbody tr:last-child td {
   border: 0;
   background: none;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
   border-bottom: 2px solid transparent;
   padding: 0;
 }
@@ -2223,7 +2223,7 @@ tbody tr:last-child td {
   border-bottom-color: var(--ui-line);
 }
 .error-count {
-  font-size: 8px;
+  font-size: 12px;
   padding: 0 4px;
   color: var(--ui-muted);
   background: var(--ui-surface);
@@ -2239,11 +2239,11 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 8px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .output-body pre {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.9;
   color: var(--ui-secondary);
   white-space: pre-wrap;
@@ -2252,14 +2252,14 @@ tbody tr:last-child td {
 }
 .output-body pre.diagnostic-text {
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .output-exit {
   display: flex;
   align-items: center;
   justify-content: space-between;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 15px;
 }
 .output-placeholder {
@@ -2273,10 +2273,10 @@ tbody tr:last-child td {
   gap: 7px;
 }
 .output-placeholder p {
-  font-size: 11px;
+  font-size: 13px;
 }
 .output-placeholder small {
-  font-size: 9px;
+  font-size: 12px;
   text-align: center;
 }
 .runtime-input {
@@ -2286,12 +2286,12 @@ tbody tr:last-child td {
   border-top: 1px solid var(--ui-line);
 }
 .runtime-input input {
-  font-size: 10px;
+  font-size: 12px;
   padding: 4px 8px;
   width: 100%;
 }
 .runtime-input [data-slot='button'] {
-  font-size: 9px;
+  font-size: 12px;
   padding: 0 8px;
 }
 .detail-heading {
@@ -2310,7 +2310,7 @@ tbody tr:last-child td {
   align-items: center;
   gap: 5px;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 6px;
 }
 .detail-heading .footer-dot {
@@ -2326,7 +2326,7 @@ tbody tr:last-child td {
   background: var(--ui-page);
 }
 .student-pager > span {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .detail-workbench {
@@ -2344,7 +2344,7 @@ tbody tr:last-child td {
   min-height: 54px;
 }
 .detail-followbar strong {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ui-secondary);
 }
@@ -2353,13 +2353,13 @@ tbody tr:last-child td {
   align-items: center;
   gap: 4px;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 .snapshot-note {
   padding: 8px 15px;
   background: var(--ui-surface);
   color: var(--ui-secondary);
-  font-size: 9px;
+  font-size: 12px;
 }
 .detail-editor {
   height: 392px;
@@ -2376,10 +2376,10 @@ tbody tr:last-child td {
 .detail-input pre {
   margin: 16px;
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .detail-context-note {
-  font-size: 9px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2400,16 +2400,16 @@ tbody tr:last-child td {
   padding: 20px;
 }
 .help-detail-panel strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 .help-detail-panel p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   line-height: 1.9;
   margin: 16px 0 10px;
 }
 .help-detail-panel > span {
-  font-size: 9px;
+  font-size: 12px;
 }
 .help-detail-panel [data-slot='button'] {
   margin-top: 20px;
@@ -2442,13 +2442,13 @@ tbody tr:last-child td {
 }
 .history-item strong {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ui-secondary);
 }
 .history-item small {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 6px;
   color: var(--ui-muted);
 }
@@ -2479,7 +2479,7 @@ tbody tr:last-child td {
   margin-top: 3px;
 }
 .detail-readonly-note p {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.9;
 }
 .submission-mini {
@@ -2491,13 +2491,13 @@ tbody tr:last-child td {
   margin: 0 auto 10px;
 }
 .submission-mini strong {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   display: block;
 }
 .submission-mini p {
   margin: 8px 0 15px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .history-page-layout {
@@ -2510,7 +2510,7 @@ tbody tr:last-child td {
   height: 380px;
 }
 .history-disclaimer {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin: 3px 20px 22px;
 }
@@ -2531,7 +2531,7 @@ tbody tr:last-child td {
 }
 .projection-header strong {
   color: var(--ui-secondary);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 .projection-control {
@@ -2543,13 +2543,13 @@ tbody tr:last-child td {
   border-radius: 5px;
   padding: 7px 12px;
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
 }
 .font-controls {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin: 0 8px;
 }
@@ -2572,11 +2572,11 @@ tbody tr:last-child td {
   margin: 6px 0;
 }
 .projection-title p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
 }
-.projection-title select {
-  font-size: 11px;
+.projection-title .ui-select-trigger {
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .projection-body {
@@ -2615,10 +2615,10 @@ tbody tr:last-child td {
   font-size: 17px;
 }
 .projection-results .output-body pre.diagnostic-text {
-  font-size: 13px;
+  font-size: 15px;
 }
 .projection-note {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   line-height: 1.9;
   padding: 4px 6px;
@@ -2626,12 +2626,12 @@ tbody tr:last-child td {
 .projection-footer {
   padding: 20px 42px 0;
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   display: flex;
   justify-content: space-between;
 }
 .projection-footer > span {
-  font-size: 9px;
+  font-size: 12px;
 }
 .auth-page {
   min-height: 100vh;
@@ -2656,7 +2656,7 @@ tbody tr:last-child td {
   width: 100%;
 }
 .auth-story-label {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
 }
 .auth-story h1 {
@@ -2669,7 +2669,7 @@ tbody tr:last-child td {
 }
 .auth-story-copy > p {
   color: var(--ui-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.9;
   margin-top: 22px;
 }
@@ -2703,7 +2703,7 @@ tbody tr:last-child td {
 .art-window-dots span {
   font-family: 'SFMono-Regular', Consolas, monospace;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   margin-left: 14px;
 }
 .art-code {
@@ -2718,7 +2718,7 @@ tbody tr:last-child td {
   width: 25px;
   display: inline-block;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 .art-purple {
   color: var(--ui-muted);
@@ -2761,11 +2761,11 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .auth-story > footer {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
   display: flex;
   justify-content: space-between;
@@ -2786,7 +2786,7 @@ tbody tr:last-child td {
   gap: 7px;
   align-items: center;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .auth-form-container {
   width: 100%;
@@ -2802,7 +2802,7 @@ tbody tr:last-child td {
 }
 .auth-intro {
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.9;
   margin: 12px 0 27px;
 }
@@ -2818,12 +2818,12 @@ tbody tr:last-child td {
   gap: 20px;
 }
 .auth-form-container .form-stack > label {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
 }
 .auth-form-container input:not([type='checkbox']) {
   height: 42px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .password-field {
   display: flex;
@@ -2844,7 +2844,7 @@ tbody tr:last-child td {
   align-items: center;
   justify-content: space-between;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
   margin-top: -6px;
 }
 .login-options .inline-items {
@@ -2860,7 +2860,7 @@ tbody tr:last-child td {
 .auth-bottom-link {
   text-align: center;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
   margin: 25px 0;
 }
 .auth-bottom-link a {
@@ -2873,14 +2873,14 @@ tbody tr:last-child td {
   align-items: flex-start;
   gap: 6px;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 25px;
 }
 .auth-safety svg {
   flex-shrink: 0;
 }
 .auth-footer {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
   text-align: center;
 }
@@ -2889,15 +2889,15 @@ tbody tr:last-child td {
   border-top: 1px solid var(--ui-line);
   padding-top: 17px;
   color: var(--ui-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 .auth-state-preview label {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.auth-state-preview select {
-  font-size: 9px;
+.auth-state-preview .ui-select-trigger {
+  font-size: 12px;
   padding: 4px 8px;
   color: var(--ui-muted);
   min-width: 120px;
@@ -2914,11 +2914,11 @@ tbody tr:last-child td {
   color: var(--ui-muted);
 }
 .auth-class-info strong {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .auth-class-info p {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin-top: 6px;
 }
@@ -2927,7 +2927,7 @@ tbody tr:last-child td {
   flex-direction: row;
   align-items: flex-start;
   gap: 8px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.9;
   color: var(--ui-muted);
 }
@@ -2939,7 +2939,7 @@ tbody tr:last-child td {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   margin-bottom: 28px;
 }
@@ -2947,7 +2947,7 @@ tbody tr:last-child td {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
   background: var(--ui-surface);
   color: var(--ui-muted);
@@ -2983,11 +2983,11 @@ tbody tr:last-child td {
   margin-top: 3px;
 }
 .guide-notice strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 .guide-notice p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   line-height: 1.9;
   margin-top: 7px;
@@ -3007,7 +3007,7 @@ tbody tr:last-child td {
   font-weight: 600;
 }
 .guide-section-heading p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   margin-left: 7px;
 }
@@ -3035,12 +3035,12 @@ tbody tr:last-child td {
   transform: translateY(-2px);
 }
 .guide-grid h3 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ui-secondary);
 }
 .guide-grid p {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin-top: 6px;
 }
@@ -3050,12 +3050,12 @@ tbody tr:last-child td {
   border-radius: 6px;
 }
 .guide-note h3 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ui-secondary);
 }
 .guide-note p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   line-height: 1.9;
   margin-top: 9px;
@@ -3123,7 +3123,7 @@ tbody tr:last-child td {
     padding: 15px;
   }
   .stat-foot {
-    font-size: 8px;
+    font-size: 12px;
   }
   .stat-number {
     font-size: 30px;
@@ -3204,14 +3204,14 @@ tbody tr:last-child td {
     font-size: 23px;
   }
   .page-heading p {
-    font-size: 10px;
+    font-size: 12px;
   }
   .stat-icon {
     width: 25px;
     height: 25px;
   }
   .stat-number > span {
-    font-size: 9px;
+    font-size: 12px;
   }
   .sync-label {
     display: none;
@@ -3250,7 +3250,7 @@ tbody tr:last-child td {
   }
   .detail-heading .heading-count {
     display: block;
-    font-size: 10px;
+    font-size: 12px;
     margin: 2px 0 0;
   }
   .detail-heading h1 {
@@ -3278,10 +3278,10 @@ tbody tr:last-child td {
     margin-top: 32px;
   }
   .art-code {
-    font-size: 10px;
+    font-size: 12px;
   }
   .auth-top .demo-tag {
-    font-size: 8px;
+    font-size: 12px;
   }
   .auth-story {
     padding: 30px;
@@ -3328,7 +3328,7 @@ tbody tr:last-child td {
     margin-bottom: 23px;
   }
   .heading-meta {
-    font-size: 9px;
+    font-size: 12px;
     margin-bottom: 8px;
   }
   .page-heading h1 {
@@ -3336,7 +3336,7 @@ tbody tr:last-child td {
   }
   .page-heading p {
     line-height: 1.9;
-    font-size: 10px;
+    font-size: 12px;
   }
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3351,11 +3351,11 @@ tbody tr:last-child td {
     margin: 5px 0;
   }
   .stat-foot {
-    font-size: 9px;
+    font-size: 12px;
     min-height: 25px;
   }
   .stat-top {
-    font-size: 10px;
+    font-size: 12px;
   }
   .stat-icon {
     width: 26px;
@@ -3366,7 +3366,7 @@ tbody tr:last-child td {
     gap: 12px;
   }
   .filter-tabs > button {
-    font-size: 10px;
+    font-size: 12px;
   }
   .student-table {
     min-width: 650px;
@@ -3396,7 +3396,7 @@ tbody tr:last-child td {
     padding: 15px;
   }
   .class-card-body h2 {
-    font-size: 15px;
+    font-size: 16px;
   }
   .class-card-meta {
     gap: 12px;
@@ -3419,7 +3419,7 @@ tbody tr:last-child td {
   }
   .settings-nav button {
     white-space: nowrap;
-    font-size: 11px;
+    font-size: 13px;
     padding: 9px 12px;
   }
   .settings-nav button svg {
@@ -3454,10 +3454,10 @@ tbody tr:last-child td {
   }
   .admin-links a {
     padding: 15px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .app-footer {
-    font-size: 8px;
+    font-size: 12px;
     padding: 15px 18px;
   }
   .app-footer > span:first-child {
@@ -3481,7 +3481,7 @@ tbody tr:last-child td {
     padding: 10px;
   }
   .detail-context-note {
-    font-size: 8px;
+    font-size: 12px;
     align-items: flex-start;
     line-height: 1.8;
   }
@@ -3524,7 +3524,7 @@ tbody tr:last-child td {
   }
   .projection-control {
     padding: 5px 8px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .font-controls {
     margin: 0;
@@ -3550,11 +3550,11 @@ tbody tr:last-child td {
   }
   .projection-footer {
     padding: 18px;
-    font-size: 9px;
+    font-size: 12px;
   }
   .projection-footer > span {
     max-width: 65%;
-    font-size: 8px;
+    font-size: 12px;
   }
   .auth-page {
     grid-template-columns: 1fr;
@@ -3579,10 +3579,10 @@ tbody tr:last-child td {
     padding: 16px;
   }
   .guide-grid h3 {
-    font-size: 12px;
+    font-size: 14px;
   }
   .guide-grid p {
-    font-size: 9px;
+    font-size: 12px;
   }
   .guide-section-heading {
     flex-wrap: wrap;
@@ -3590,16 +3590,16 @@ tbody tr:last-child td {
   .guide-section-heading p {
     width: 100%;
     margin: 0 0 0 32px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .guide-notice {
     padding: 18px;
   }
   .guide-notice strong {
-    font-size: 12px;
+    font-size: 14px;
   }
   .guide-notice p {
-    font-size: 10px;
+    font-size: 12px;
   }
   .ide-page {
     height: auto;
@@ -3610,13 +3610,13 @@ tbody tr:last-child td {
     height: 51px;
   }
   .ide-brand {
-    font-size: 13px;
+    font-size: 15px;
   }
   .ide-header .ide-divider {
     display: none;
   }
   .ide-header .demo-tag {
-    font-size: 8px;
+    font-size: 12px;
   }
   .ide-actionbar {
     flex-wrap: wrap;
@@ -3627,13 +3627,13 @@ tbody tr:last-child td {
     margin-left: auto;
   }
   .ide-actionbar [data-slot='button'] {
-    font-size: 10px;
+    font-size: 12px;
     gap: 5px;
     padding: 0 9px;
     height: 29px;
   }
-  .ide-actionbar select {
-    font-size: 12px;
+  .ide-actionbar .ui-select-trigger {
+    font-size: 14px;
     max-width: 160px;
   }
   .ide-layout {
@@ -3661,7 +3661,7 @@ tbody tr:last-child td {
     gap: 12px;
   }
   .output-tabs button {
-    font-size: 9px;
+    font-size: 12px;
     gap: 4px;
   }
   .output-tabs button > svg {
@@ -3689,15 +3689,15 @@ tbody tr:last-child td {
     min-height: 34px;
     gap: 10px;
     flex-wrap: wrap;
-    font-size: 8px;
+    font-size: 12px;
     padding: 5px 12px;
   }
-  .state-demo-select select {
-    font-size: 8px;
+  .state-demo-select .ui-select-trigger {
+    font-size: 12px;
   }
   .workspace-alert {
     padding: 10px 13px;
-    font-size: 9px;
+    font-size: 12px;
     align-items: flex-start;
   }
   .workspace-alert > svg {
@@ -3705,7 +3705,7 @@ tbody tr:last-child td {
   }
   .workspace-alert button {
     flex-shrink: 0;
-    font-size: 9px;
+    font-size: 12px;
   }
   .problem-content {
     padding: 23px;
@@ -3798,7 +3798,7 @@ tbody tr:last-child td {
   }
   .ide-actionbar .status {
     margin-left: auto;
-    font-size: 8px;
+    font-size: 12px;
   }
   .ide-bottom {
     grid-template-columns: 26% minmax(0, 1fr);
@@ -3807,7 +3807,7 @@ tbody tr:last-child td {
     display: none;
   }
   .stdin-panel .code-toolbar .text-button {
-    font-size: 8px;
+    font-size: 12px;
   }
   .ide-statusbar > .ml-auto {
     display: none;
@@ -3822,25 +3822,25 @@ tbody tr:last-child td {
     gap: 5px;
   }
   .detail-followbar [data-slot='button'] {
-    font-size: 9px;
+    font-size: 12px;
     padding: 0 8px;
   }
   .output-body {
     padding: 10px;
   }
   .output-body pre.diagnostic-text {
-    font-size: 9px;
+    font-size: 12px;
   }
   .projection-header > div {
     gap: 4px;
   }
   .font-controls {
-    font-size: 9px;
+    font-size: 12px;
   }
   .projection-title > .inline-items {
     width: 100%;
   }
-  .projection-title select {
+  .projection-title .ui-select-trigger {
     width: 100%;
   }
   .projection-title [data-slot='button'] {
@@ -3889,75 +3889,75 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 .nav-item {
-  font-size: 13px;
+  font-size: 15px;
 }
 .class-switch {
-  font-size: 12px;
+  font-size: 14px;
 }
 .breadcrumbs,
 .topbar-right {
-  font-size: 12px;
+  font-size: 14px;
 }
 .page-heading p {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
 }
 .heading-meta {
-  font-size: 11px;
-  color: var(--ui-secondary);
-}
-.stat-top {
   font-size: 13px;
   color: var(--ui-secondary);
 }
+.stat-top {
+  font-size: 15px;
+  color: var(--ui-secondary);
+}
 .stat-foot {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
   white-space: normal;
 }
 .stat-number > span {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .panel-heading h2,
 .overview-aside h2 {
-  font-size: 14px;
+  font-size: 16px;
 }
 .filter-tabs > button {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .filter-tabs > button > span,
 .subtle-count {
-  font-size: 10px;
+  font-size: 12px;
 }
 .search-field input,
 .select-wrap,
-.select-wrap select {
-  font-size: 12px;
+.select-wrap .ui-select-trigger {
+  font-size: 14px;
 }
 th {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 td {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
 }
 .person-text strong,
 .table-exercise {
-  font-size: 13px;
+  font-size: 15px;
 }
 .person-text small,
 .cell-secondary,
 .activity-cell {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .status,
 .help-label,
 .submitted-label {
-  font-size: 11px;
+  font-size: 13px;
 }
 .status.red {
   color: var(--ui-secondary);
@@ -3972,26 +3972,26 @@ td {
   color: var(--ui-secondary);
 }
 .table-footer {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .topic-label {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .exercise-feature > p,
 .help-item p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .help-item-heading strong {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .help-item-heading small,
 .help-item > button,
 .exercise-progress {
-  font-size: 11px;
+  font-size: 13px;
 }
 .help-item-heading small {
   color: var(--ui-secondary);
@@ -4001,13 +4001,13 @@ td {
 }
 .exercise-feature [data-slot='button'],
 [data-slot='button'] {
-  font-size: 12px;
+  font-size: 14px;
 }
 .class-card-body > p,
 .class-card-meta,
 .class-card-footer > span,
 .class-tip p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .class-card-body > .muted,
@@ -4019,26 +4019,26 @@ td {
 .settings-panel .form-stack > label,
 .form-stack > label,
 .form-grid > label {
-  font-size: 13px;
+  font-size: 15px;
 }
 .exercise-list-item small,
 .exercise-list-note,
 .form-hint,
 .modal-heading .muted {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .problem-content > p,
 .ide-problem .problem-content > p {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
 }
 .problem-content > h3 {
-  font-size: 14px;
+  font-size: 16px;
 }
 .problem-limits,
 .sample-grid > div > span {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .problem-tip,
@@ -4048,50 +4048,50 @@ td {
 .privacy-note,
 .history-disclaimer {
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
 }
 .code-toolbar,
 .output-tabs button,
 .language-label,
 .readonly-label {
-  font-size: 12px;
+  font-size: 14px;
 }
 .output-meta,
 .output-exit,
 .stdin-note,
 .save-label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .output-placeholder {
   color: var(--ui-muted);
 }
 .output-placeholder small {
-  font-size: 11px;
+  font-size: 13px;
 }
 .output-body pre.diagnostic-text {
-  font-size: 12px;
+  font-size: 14px;
 }
 .detail-heading p,
 .detail-context-note,
 .detail-readonly-note p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
 }
 .detail-followbar strong,
 .history-item strong,
 .help-detail-panel strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 .history-item small,
 .help-detail-panel p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .projection-title p,
 .projection-note {
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 .settings-note p,
 .body-copy,
@@ -4101,19 +4101,19 @@ td {
 .backup-state p,
 .audit-item,
 .admin-log {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .toggle-row strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 .environment-grid span {
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
 }
 .info-box,
 .warning-box {
-  font-size: 12px;
+  font-size: 14px;
 }
 .info-box {
   color: var(--ui-secondary);
@@ -4134,49 +4134,49 @@ td {
 }
 .auth-intro,
 .auth-bottom-link {
-  font-size: 13px;
+  font-size: 15px;
 }
 .auth-form-container .form-stack > label {
-  font-size: 12px;
+  font-size: 14px;
 }
 .auth-form-container input:not([type='checkbox']) {
-  font-size: 13px;
+  font-size: 15px;
 }
 .auth-class-info p,
 .auth-safety {
-  font-size: 11px;
+  font-size: 13px;
 }
 .guide-notice p,
 .guide-note p,
 .guide-grid p,
 .guide-section-heading p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .guide-grid h3 {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ui-secondary);
 }
 @media (max-width: 760px) {
   .stat-foot {
-    font-size: 10px;
+    font-size: 12px;
   }
   .table-controls .search-field input {
-    font-size: 11px;
+    font-size: 13px;
   }
   .ide-actionbar [data-slot='button'] {
-    font-size: 11px;
+    font-size: 13px;
   }
   .code-toolbar {
-    font-size: 11px;
+    font-size: 13px;
   }
   .output-tabs button {
-    font-size: 10px;
+    font-size: 12px;
   }
   .output-body pre.diagnostic-text {
-    font-size: 10px;
+    font-size: 12px;
   }
   .app-footer {
-    font-size: 9px;
+    font-size: 12px;
   }
 }

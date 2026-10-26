@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
+import { Form } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { CodeXml, ArrowRight, ShieldCheck, Eye, EyeOff } from '@lucide/vue'
@@ -103,6 +106,7 @@ int main() {
       <footer>为 C++ 教学而设计<span>浏览器即教室</span></footer>
     </section>
     <section class="auth-main">
+      <div class="auth-theme"><ThemeToggle /></div>
       <div class="auth-form-container">
         <h2>
           {{ mode === 'join' ? '加入课堂' : mode === 'recover' ? '账号恢复' : '登录码上课堂' }}
@@ -145,12 +149,12 @@ int main() {
             }}</Button
           ></template
         >
-        <form v-else class="form-stack" @submit.prevent="submit">
+        <Form v-else class="form-stack" @submit.prevent="submit">
           <label v-if="mode === 'join'"
-            >课堂码<input v-model="code" required maxlength="30" /></label
+            >课堂码<Input v-model="code" required maxlength="30" /></label
           ><template v-else
             ><label
-              >账号<input
+              >账号<Input
                 v-model="username"
                 required
                 autocomplete="username"
@@ -158,21 +162,22 @@ int main() {
             ><label v-if="mode === 'login'"
               >密码
               <div class="password-field">
-                <input
+                <Input
                   v-model="password"
                   :type="showPassword ? 'text' : 'password'"
                   required
                   autocomplete="current-password"
                   maxlength="200"
                   @keyup="capsLock = $event.getModifierState('CapsLock')"
-                /><button
+                /><Button
+                  variant="plain"
                   type="button"
                   class="icon-button"
                   :aria-label="showPassword ? '隐藏密码' : '显示密码'"
                   @click="showPassword = !showPassword"
                 >
                   <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
-                </button></div></label
+                </Button></div></label
           ></template>
           <p v-if="capsLock && mode === 'login'" class="warning-box" role="status">
             大写锁定已开启，请核对密码大小写。
@@ -189,7 +194,7 @@ int main() {
                     : '登录工作台'
             }}<ArrowRight
           /></Button>
-        </form>
+        </Form>
         <div class="auth-bottom-link">
           <RouterLink v-if="mode === 'login'" to="/recover">忘记密码</RouterLink
           ><RouterLink v-else to="/login">返回登录</RouterLink>

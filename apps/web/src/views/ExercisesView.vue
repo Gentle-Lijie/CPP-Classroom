@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Input } from '@/components/ui/input'
+import { Select, SelectOption } from '@/components/ui/select'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -166,21 +168,22 @@ function edit(e: Exercise) {
       </div>
       <div class="exercise-list-filters">
         <label class="search-field"
-          ><Search :size="15" /><input
+          ><Search :size="15" /><Input
             v-model="search"
             aria-label="搜索练习"
             placeholder="搜索题目、文件名…" /></label
-        ><select v-model="status" aria-label="筛选练习状态">
-          <option value="">全部状态</option>
-          <option>草稿</option>
-          <option>已发布</option>
-          <option>已关闭</option>
-        </select>
+        ><Select v-model="status" aria-label="筛选练习状态">
+          <SelectOption value="">全部状态</SelectOption>
+          <SelectOption>草稿</SelectOption>
+          <SelectOption>已发布</SelectOption>
+          <SelectOption>已关闭</SelectOption>
+        </Select>
       </div>
       <div class="exercise-list-scroll">
-        <button
+        <Button
           v-for="e in paged"
           :key="e.id"
+          variant="plain"
           class="exercise-list-item"
           :class="{ selected: selected === e.id }"
           @click="selected = e.id"
@@ -197,7 +200,7 @@ function edit(e: Exercise) {
           </div>
           <span class="status" :class="tone(e.status)">{{ e.status }}</span
           ><ArrowRight :size="15" />
-        </button>
+        </Button>
         <div v-if="!filtered.length" class="small-empty">没有匹配的练习</div>
       </div>
       <Pagination
@@ -220,20 +223,22 @@ function edit(e: Exercise) {
           >
         </div>
         <div class="inline-items">
-          <button
+          <Button
+            variant="plain"
             class="icon-button"
             aria-label="练习向上移动"
             :disabled="busy || exercises.indexOf(exercise) === 0"
             @click="move(-1)"
           >
-            <ArrowUp :size="16" /></button
-          ><button
+            <ArrowUp :size="16" /></Button
+          ><Button
+            variant="plain"
             class="icon-button"
             aria-label="练习向下移动"
             :disabled="busy || exercises.indexOf(exercise) === exercises.length - 1"
             @click="move(1)"
           >
-            <ArrowDown :size="16" /></button
+            <ArrowDown :size="16" /></Button
           ><Button variant="outline" size="sm" @click="edit(exercise)"><Pencil />编辑题目</Button>
         </div>
       </div>
@@ -346,8 +351,8 @@ function edit(e: Exercise) {
 .exercise-list-filters .search-field {
   width: 100%;
 }
-.exercise-list-filters select {
-  font-size: 12px;
+.exercise-list-filters .ui-select-trigger {
+  font-size: 14px;
 }
 .exercise-list-panel :deep(.pagination) {
   padding: 12px;
@@ -376,7 +381,7 @@ function edit(e: Exercise) {
   min-width: 0;
 }
 .exercise-list-item > .status {
-  font-size: 11px;
+  font-size: 13px;
 }
 .sample-grid > div {
   min-width: 0;

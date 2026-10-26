@@ -6,7 +6,7 @@
   border: 1px solid var(--ui-line);
   border-radius: 5px;
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 27px;
   background: var(--ui-surface);
 }
@@ -16,7 +16,7 @@
 }
 .platform-unsaved {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-warning);
   white-space: nowrap;
 }
@@ -40,7 +40,7 @@
   padding: 12px;
   background: transparent;
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
 }
 .platform-nav button > svg:last-child {
@@ -74,7 +74,7 @@
   color: var(--ui-ink);
 }
 .platform-section-heading p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-muted);
   margin-top: 7px;
 }
@@ -88,12 +88,12 @@
   gap: 10px;
   padding: 17px 24px;
   border-bottom: 1px solid var(--ui-line);
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
   flex-wrap: wrap;
 }
-.platform-health-controls select {
-  font-size: 11px;
+.platform-health-controls .ui-select-trigger {
+  font-size: 13px;
   padding: 5px 8px;
 }
 .platform-health-controls > span {
@@ -129,18 +129,18 @@
   min-width: 0;
 }
 .platform-service-copy h3 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 550;
 }
 .platform-service-copy > span {
   display: block;
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   margin-top: 4px;
 }
 .platform-service-copy p {
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 12px;
   line-height: 1.8;
 }
@@ -156,7 +156,7 @@
   align-items: center;
   gap: 5px;
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .platform-probe-state.healthy {
@@ -174,13 +174,13 @@
 }
 .platform-service-result small {
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .platform-panel-note {
   padding: 17px 24px;
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.9;
   background: var(--ui-surface);
 }
@@ -189,16 +189,16 @@
 }
 .platform-form-panel .form-stack label {
   color: var(--ui-text);
-  font-size: 12px;
+  font-size: 14px;
 }
 .platform-form-panel .form-stack label small {
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .platform-form-panel .form-stack input,
-.platform-form-panel .form-stack select {
-  font-size: 13px;
+.platform-form-panel .form-stack .ui-select-trigger {
+  font-size: 15px;
 }
 .platform-managed-setting {
   display: flex;
@@ -215,18 +215,18 @@
 }
 .platform-managed-setting strong {
   color: var(--ui-text);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .platform-managed-setting p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   margin-top: 5px;
   line-height: 1.8;
 }
 .platform-managed-setting > span {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
   color: var(--ui-muted);
 }
@@ -239,7 +239,7 @@
   border-top: 1px solid var(--ui-line);
 }
 .platform-form-group h3 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 550;
   margin-bottom: 17px;
 }
@@ -251,7 +251,7 @@
   align-items: center;
   justify-content: space-between;
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 13px;
   padding: 16px 0;
 }
 .platform-panels > .error-box {
@@ -298,14 +298,14 @@
     flex-shrink: 0;
     padding: 10px 12px;
     gap: 6px;
-    font-size: 11px;
+    font-size: 13px;
   }
   .platform-nav button > svg:last-child {
     display: none;
   }
   .platform-scope-note {
     align-items: flex-start;
-    font-size: 11px;
+    font-size: 13px;
     flex-wrap: wrap;
   }
   .platform-scope-note > span:not(.platform-unsaved) {
@@ -340,7 +340,7 @@
     min-width: 60px;
   }
   .platform-service-copy p {
-    font-size: 11px;
+    font-size: 13px;
   }
   .platform-managed-setting {
     flex-wrap: wrap;
@@ -356,7 +356,7 @@
     padding: 14px 20px;
   }
   .platform-probe-state {
-    font-size: 10px;
+    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

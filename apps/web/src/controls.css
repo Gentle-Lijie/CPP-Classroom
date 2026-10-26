@@ -1,0 +1,289 @@
+/* Shared shadcn/Reka controls; feature views use components only. */
+.ui-field {
+  display: contents;
+}
+[data-ui='input'],
+[data-ui='textarea'],
+.ui-select-trigger,
+.ui-number-input {
+  appearance: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ui-ink);
+  background: var(--ui-page);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+[data-ui='input']:disabled,
+[data-ui='textarea']:disabled,
+.ui-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+[data-ui='input']:focus,
+[data-ui='textarea']:focus,
+.ui-select-trigger:focus-visible,
+.ui-number-root:focus-within {
+  border-color: var(--ui-action);
+  box-shadow: 0 0 0 3px var(--ui-focus);
+  outline: none;
+}
+.ui-field-error {
+  display: block;
+  font-size: 15px;
+  color: var(--ui-error);
+  line-height: 1.5;
+}
+[data-ui='input']::-ms-reveal,
+[data-ui='input']::-ms-clear {
+  display: none;
+}
+[aria-invalid='true'] {
+  border-color: var(--ui-error);
+}
+.ui-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ui-select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.ui-select-trigger svg {
+  flex-shrink: 0;
+  color: var(--ui-muted);
+}
+.ui-select-content,
+.ui-menu-content {
+  z-index: 100;
+  min-width: max(150px, var(--reka-select-trigger-width, 0px));
+  max-width: min(560px, calc(100vw - 16px));
+  max-height: min(360px, var(--reka-select-content-available-height, 360px));
+  overflow: hidden;
+  padding: 4px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 7px;
+  background: var(--ui-page);
+  color: var(--ui-ink);
+  box-shadow: 0 6px 20px var(--ui-shadow);
+}
+.ui-select-option,
+.ui-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 30px 6px 10px;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1.45;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.ui-select-option[data-highlighted],
+.ui-menu-item[data-highlighted] {
+  background: var(--ui-selection);
+  color: var(--ui-action);
+}
+.ui-select-option[data-disabled],
+.ui-menu-item[data-disabled] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.ui-select-indicator,
+.ui-menu-indicator {
+  position: absolute;
+  right: 8px;
+  display: flex;
+}
+.ui-select-scroll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  color: var(--ui-muted);
+}
+.ui-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 4px;
+  background: var(--ui-page);
+  vertical-align: middle;
+}
+.ui-checkbox[data-state='checked'],
+.ui-checkbox[data-state='indeterminate'] {
+  background: var(--ui-action);
+  border-color: var(--ui-action);
+  color: var(--ui-on-action);
+}
+.ui-checkbox-indicator {
+  display: flex;
+}
+.ui-switch {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 21px;
+  border: 0;
+  border-radius: 12px;
+  padding: 3px;
+  background: var(--ui-line-strong);
+}
+.ui-switch[data-state='checked'] {
+  background: var(--ui-action);
+}
+.ui-switch-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--ui-on-action);
+  transform: translateX(0);
+  transition: transform 0.15s;
+}
+.ui-switch-thumb[data-state='checked'] {
+  transform: translateX(15px);
+}
+.ui-number-field {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+.ui-number-root {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  border-radius: 6px;
+}
+.ui-number-root .ui-number-input {
+  width: 100%;
+  padding-right: 32px;
+  box-shadow: none;
+}
+.ui-number-actions {
+  position: absolute;
+  inset: 1px 1px 1px auto;
+  width: 27px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--ui-line);
+}
+.ui-number-actions > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-secondary);
+}
+.ui-number-actions > button:hover {
+  background: var(--ui-hover);
+}
+.ui-number-actions > button:disabled {
+  opacity: 0.35;
+}
+.ui-file-upload {
+  display: inline-flex;
+}
+.ui-disclosure-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-secondary);
+  font-size: 16px;
+}
+.ui-disclosure-trigger > svg {
+  transition: transform 0.15s;
+}
+.ui-disclosure-trigger[data-state='open'] > svg {
+  transform: rotate(90deg);
+}
+.ui-disclosure-content {
+  padding: 8px 0;
+}
+:where(.ui-button-plain) {
+  background: transparent;
+  border: 0;
+}
+.ui-button-plain:disabled {
+  cursor: not-allowed;
+}
+.compact-select .ui-select-trigger {
+  min-height: 30px;
+  border: 0;
+  padding: 2px 6px;
+  background: transparent;
+}
+.workspace-exercise .ui-select-trigger {
+  width: 100%;
+  max-width: 360px;
+  border: 0;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 2px 0;
+  min-height: 30px;
+}
+.pagination .ui-select-trigger {
+  min-height: 32px;
+  padding: 3px 8px;
+  font-size: 16px;
+}
+.select-wrap .ui-select-trigger {
+  flex: 1;
+}
+.search-field [data-ui='input'] {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root.dark {
+  --primary-foreground: var(--ui-on-action);
+}
+:root.dark [data-slot='button'][data-variant='success'],
+:root.dark [data-slot='button'][data-variant='warning'],
+:root.dark [data-slot='button'][data-variant='destructive'] {
+  color: var(--ui-on-action);
+}
+:root.dark
+  :is(
+    .auth-code-art pre,
+    .markdown-content pre,
+    .code-preview,
+    .snapshot-input,
+    .source-preview,
+    .file-conflict-comparison pre
+  ) {
+  background: var(--ui-code-bg);
+  color: var(--ui-code-fg);
+}
+.ui-form-errors {
+  border: 1px solid var(--ui-error-line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--ui-error-bg);
+}

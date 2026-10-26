@@ -50,8 +50,8 @@ const slots = useSlots()
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 20px 24px;
+  gap: 12px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--ui-line);
 }
 .content-panel-heading {
@@ -70,13 +70,13 @@ const slots = useSlots()
   flex-shrink: 0;
 }
 .content-panel-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.6;
 }
 .content-panel-description {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
   color: var(--ui-muted);
 }
@@ -87,9 +87,9 @@ const slots = useSlots()
 .content-panel-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   min-width: 0;
-  padding: 24px;
+  padding: 16px;
 }
 .content-panel-body > :deep(h1) {
   font-size: 26px;
@@ -102,13 +102,13 @@ const slots = useSlots()
   line-height: 1.6;
 }
 .content-panel-body > :deep(h3) {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.6;
 }
 .content-panel-body > :deep(p) {
   color: var(--ui-secondary);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.85;
   overflow-wrap: anywhere;
 }
@@ -116,7 +116,7 @@ const slots = useSlots()
   list-style: decimal;
   padding-left: 22px;
   color: var(--ui-text);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.9;
 }
 .content-panel-body > :deep(ol li + li) {
@@ -131,7 +131,7 @@ const slots = useSlots()
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 16px 24px;
+  padding: 12px 16px;
   border-top: 1px solid var(--ui-line);
   background: var(--ui-surface);
 }

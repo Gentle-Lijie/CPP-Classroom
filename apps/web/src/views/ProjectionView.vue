@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Monitor, Minus, Plus, Maximize, CodeXml, RefreshCw } from '@lucide/vue'
@@ -94,6 +95,7 @@ async function fullscreen() {
       >
       <div class="projection-mark"><Monitor /><strong>匿名作品 · 固定只读快照</strong></div>
       <div class="inline-items">
+        <ThemeToggle />
         <Button
           variant="outline"
           :disabled="size <= 16"
@@ -178,7 +180,7 @@ async function fullscreen() {
   color: var(--ui-action);
 }
 .projection-mark strong {
-  font-size: 14px;
+  font-size: 16px;
 }
 .projection-title {
   flex-wrap: wrap;
@@ -190,7 +192,7 @@ async function fullscreen() {
   overflow-wrap: anywhere;
 }
 .projection-title p {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.7;
 }
 .projection-warning {

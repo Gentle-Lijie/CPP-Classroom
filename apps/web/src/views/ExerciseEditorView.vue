@@ -1,17 +1,10 @@
 <script setup lang="ts">
+import { FileUpload } from '@/components/ui/file-upload'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
-import {
-  ArrowLeft,
-  Save,
-  Send,
-  CodeXml,
-  FileText,
-  FileCode2,
-  Monitor,
-  Download,
-  FolderOpen,
-} from '@lucide/vue'
+import { ArrowLeft, Save, Send, CodeXml, FileText, FileCode2, Monitor, Download } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
 import MarkdownEditor from '@/components/classroom/MarkdownEditor.vue'
@@ -261,29 +254,24 @@ async function save(publish: boolean) {
     <div class="draft-tools">
       <Button variant="outline" size="sm" :disabled="busy" @click="downloadDraft"
         ><Download />下载题目备份</Button
-      ><label class="backup-import"
-        ><FolderOpen :size="14" />导入备份<input
-          type="file"
-          accept=".json"
-          :disabled="busy"
-          @change="importDraft" /></label
-      ><span>未保存修改自动备份在本机浏览器</span>
+      ><FileUpload accept=".json" :disabled="busy" @change="importDraft">导入备份</FileUpload>
+      <span>未保存修改自动备份在本机浏览器</span>
     </div>
     <div v-if="error" role="alert" class="error-box editor-error">{{ error }}</div>
     <section class="panel exercise-meta-panel" :inert="busy">
       <div class="exercise-meta-fields">
         <label
-          >题目标题<input
+          >题目标题<Input
             v-model="draft.title"
             maxlength="60"
             placeholder="例如：累加求和"
             required /></label
         ><label
-          >知识点<input v-model="draft.topic" maxlength="40" placeholder="例如：for 循环" /></label
+          >知识点<Input v-model="draft.topic" maxlength="40" placeholder="例如：for 循环" /></label
         ><label
           >学生源文件名
           <div class="filename-field">
-            <FileCode2 :size="16" /><input
+            <FileCode2 :size="16" /><Input
               v-model="draft.filename"
               maxlength="80"
               placeholder="例如：sum.cpp"
@@ -294,10 +282,14 @@ async function save(publish: boolean) {
       <p class="form-hint">每道题使用独立文件名。修改文件名不会重命名或覆盖学生磁盘上的旧文件。</p>
     </section>
     <div class="editor-page-tabs">
-      <button :class="{ selected: tab === '题面与样例' }" @click="tab = '题面与样例'">
-        <FileText :size="16" />题面与样例</button
-      ><button :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
-        <CodeXml :size="16" />初始代码</button
+      <Button
+        variant="plain"
+        :class="{ selected: tab === '题面与样例' }"
+        @click="tab = '题面与样例'"
+      >
+        <FileText :size="16" />题面与样例</Button
+      ><Button variant="plain" :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
+        <CodeXml :size="16" />初始代码</Button
       ><span class="muted"><Monitor :size="14" />授课页与学生端共用题面</span>
     </div>
     <template v-if="tab === '题面与样例'"
@@ -305,22 +297,20 @@ async function save(publish: boolean) {
       <section class="panel exercise-samples-editor" :inert="busy">
         <div class="form-grid">
           <label
-            >输入说明<textarea
+            >输入说明<Textarea
               v-model="draft.input"
               rows="3"
-              placeholder="描述输入格式和数据范围；无输入可留空"
-            /></label
+              placeholder="描述输入格式和数据范围；无输入可留空" /></label
           ><label
-            >输出说明<textarea v-model="draft.output" rows="3" placeholder="描述输出格式" /></label
+            >输出说明<Textarea v-model="draft.output" rows="3" placeholder="描述输出格式" /></label
           ><label
-            >样例输入<textarea
+            >样例输入<Textarea
               v-model="draft.sampleInput"
               rows="5"
               spellcheck="false"
-              placeholder="5"
-            /></label
+              placeholder="5" /></label
           ><label
-            >样例输出<textarea
+            >样例输出<Textarea
               v-model="draft.sampleOutput"
               rows="5"
               spellcheck="false"
@@ -391,7 +381,7 @@ async function save(publish: boolean) {
 }
 .draft-tools > span {
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .backup-import {
   position: relative;
@@ -399,7 +389,7 @@ async function save(publish: boolean) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   color: var(--ui-action);
 }
@@ -419,7 +409,7 @@ async function save(publish: boolean) {
   min-width: 0;
 }
 .conflict-comparison h3 {
-  font-size: 13px;
+  font-size: 15px;
   margin-bottom: 8px;
 }
 .conflict-comparison pre {
@@ -427,7 +417,7 @@ async function save(publish: boolean) {
   overflow: auto;
   background: var(--ui-surface);
   padding: 12px;
-  font-size: 12px;
+  font-size: 14px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

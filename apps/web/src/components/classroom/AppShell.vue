@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
+import { Button } from '@/components/ui/button'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -84,8 +86,9 @@ async function signOut() {
 </script>
 <template>
   <div class="app-shell">
-    <button
+    <Button
       v-if="mobileOpen"
+      variant="plain"
       class="sidebar-scrim"
       aria-label="关闭导航"
       @click="mobileOpen = false"
@@ -94,9 +97,14 @@ async function signOut() {
       <RouterLink to="/" class="brand"
         ><span class="brand-symbol"><CodeXml :size="23" /></span
         ><span>码上课堂<span class="brand-sub">C++ Classroom</span></span> </RouterLink
-      ><button class="icon-button mobile-close" aria-label="关闭菜单" @click="mobileOpen = false">
+      ><Button
+        variant="plain"
+        class="icon-button mobile-close"
+        aria-label="关闭菜单"
+        @click="mobileOpen = false"
+      >
         <X :size="18" />
-      </button>
+      </Button>
       <RouterLink
         :to="
           role === 'teacher'
@@ -159,12 +167,12 @@ async function signOut() {
         <div class="profile-wrap">
           <div v-if="roleMenu" class="role-menu">
             <p>{{ currentUser?.username }}</p>
-            <button @click="openAccount"><KeyRound :size="14" />账号与密码</button>
-            <button :disabled="signingOut" @click="signOut">
+            <Button variant="plain" @click="openAccount"><KeyRound :size="14" />账号与密码</Button>
+            <Button variant="plain" :disabled="signingOut" @click="signOut">
               <LogOut :size="14" />{{ signingOut ? '退出中…' : '退出登录' }}
-            </button>
+            </Button>
           </div>
-          <button class="profile" @click="roleMenu = !roleMenu">
+          <Button variant="plain" class="profile" @click="roleMenu = !roleMenu">
             <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span
             ><span
               >{{ currentUser?.name ?? ''
@@ -172,21 +180,27 @@ async function signOut() {
                 role === 'teacher' ? '教师账号' : role === 'student' ? '学生账号' : '运维账号'
               }}</small></span
             ><ChevronDown :size="15" />
-          </button>
+          </Button>
         </div>
       </div>
     </aside>
     <div class="shell-main">
       <header class="topbar">
         <div class="breadcrumbs">
-          <button class="icon-button menu-button" aria-label="打开导航" @click="mobileOpen = true">
-            <Menu :size="19" /></button
+          <Button
+            variant="plain"
+            class="icon-button menu-button"
+            aria-label="打开导航"
+            @click="mobileOpen = true"
+          >
+            <Menu :size="19" /></Button
           ><PanelLeftClose :size="17" class="desktop-only muted" /><span>{{
             role === 'admin' ? '平台管理' : role === 'student' ? '学习空间' : '我的课堂'
           }}</span
           ><ChevronRight :size="13" /><strong>{{ sectionTitle }}</strong>
         </div>
         <div class="topbar-right">
+          <ThemeToggle />
           <span class="demo-tag" :class="{ disconnected: connectionState !== 'connected' }">{{
             connectionState === 'connected'
               ? '服务器已连接'
@@ -200,9 +214,9 @@ async function signOut() {
       </header>
       <div v-if="connectionState === 'disconnected'" class="connection-banner" role="alert">
         <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span
-        ><button class="text-button" @click="refresh().catch(reportError)">
+        ><Button variant="plain" class="text-button" @click="refresh().catch(reportError)">
           <RefreshCw :size="14" />重试连接
-        </button>
+        </Button>
       </div>
       <main class="page-content"><slot /></main>
       <footer class="app-footer">

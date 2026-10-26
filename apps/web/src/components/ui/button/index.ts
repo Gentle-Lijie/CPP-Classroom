@@ -8,6 +8,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
+        plain: '',
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         success: 'bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-500/30',
         warning: 'bg-amber-700 text-white hover:bg-amber-800 focus-visible:ring-amber-500/30',

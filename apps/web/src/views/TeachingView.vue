@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
+import { Select, SelectOption } from '@/components/ui/select'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
@@ -30,6 +32,7 @@ import {
   currentUser,
   executionSettings,
 } from '@/data/demo'
+import { confirmAction } from '@/lib/confirm'
 import { api, ApiError } from '@/lib/api'
 import { openTeachingWindow } from '@/lib/teaching-windows'
 const route = useRoute()
@@ -190,10 +193,8 @@ async function switchExercise(id: string) {
     switching.value = false
   }
 }
-function changeExercise(event: Event) {
-  const target = event.target as HTMLSelectElement
-  const id = target.value
-  target.value = selected.value
+function changeExercise(value: string | number) {
+  const id = String(value)
   void switchExercise(id)
 }
 function next(step: number) {
@@ -230,7 +231,7 @@ onBeforeRouteLeave(async (to) => {
     return true
   }
   if (dirty.value && activeClassroom.value.status !== '进行中') {
-    if (!window.confirm('课堂已只读，示范修改无法上传。下载代码备份后离开？')) return false
+    if (!(await confirmAction('课堂已只读，示范修改无法上传。下载代码备份后离开？'))) return false
     download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
     return true
   }
@@ -282,15 +283,17 @@ onBeforeUnmount(() => {
         ><span class="demo-tag">教师授课</span>
       </div>
       <div class="inline-items">
+        <ThemeToggle />
         <Button variant="outline" @click="openMonitor"
           ><Users />巡视窗口<span class="online-count">{{ counts.online }}</span></Button
-        ><button
+        ><Button
+          variant="plain"
           class="icon-button"
           :aria-label="fullscreen ? '退出授课全屏' : '授课全屏'"
           @click="toggleFullscreen"
         >
           <Minimize v-if="fullscreen" :size="19" /><Maximize v-else :size="19" />
-        </button>
+        </Button>
       </div>
     </header>
     <div class="teaching-stage">
@@ -324,12 +327,13 @@ onBeforeUnmount(() => {
         >
         <div class="inline-items">
           <span>{{ exercise.filename }}</span
-          ><button
+          ><Button
+            variant="plain"
             class="text-button"
             @click="router.push('/teacher/exercises/' + exercise.id + '/edit')"
           >
             <Pencil :size="13" />编辑题目
-          </button>
+          </Button>
         </div>
       </div>
       <article
@@ -370,28 +374,31 @@ onBeforeUnmount(() => {
             <CodeXml :size="16" /><strong>{{ exercise.filename }}</strong
             ><span class="muted">教师示范草稿</span>
             <div class="inline-items ml-auto">
-              <button
+              <Button
+                variant="plain"
                 class="icon-button"
                 aria-label="缩小示范代码字号"
                 :disabled="fontSize <= 14"
                 @click="fontSize -= 2"
               >
-                <Minus :size="15" /></button
+                <Minus :size="15" /></Button
               ><span>{{ fontSize }} px</span
-              ><button
+              ><Button
+                variant="plain"
                 class="icon-button"
                 aria-label="放大示范代码字号"
                 :disabled="fontSize >= 34"
                 @click="fontSize += 2"
               >
-                <Plus :size="15" /></button
-              ><button
+                <Plus :size="15" /></Button
+              ><Button
+                variant="plain"
                 class="icon-button"
                 aria-label="下载教师示范代码"
                 @click="download(exercise.filename, teacherCode)"
               >
                 <Download :size="15" />
-              </button>
+              </Button>
             </div>
           </div>
           <CodeEditor
@@ -405,52 +412,56 @@ onBeforeUnmount(() => {
               role="status"
               :class="{ 'danger-text': conflict || error, 'amber-text': dirty }"
               >{{ loading ? '读取中…' : saveStatus }}</span
-            ><button v-if="dirty && !conflict" class="text-button" @click="persist">重试保存</button
+            ><Button v-if="dirty && !conflict" variant="plain" class="text-button" @click="persist"
+              >重试保存</Button
             ><span>教师示范代码独立保存，不修改学生作品。此处不执行程序。</span>
           </div>
         </section>
       </article>
       <div class="teaching-bottom">
         <div class="teaching-view-switch" aria-label="授课布局">
-          <button
+          <Button
             v-for="m in [
               { label: '题面', icon: BookOpen },
               { label: '代码', icon: CodeXml },
               { label: '对照', icon: Columns2 },
             ]"
             :key="m.label"
+            variant="plain"
             :class="{ selected: mode === m.label }"
             @click="mode = m.label"
           >
             <component :is="m.icon" :size="16" />{{ m.label }}
-          </button>
+          </Button>
         </div>
         <span class="teaching-keyboard-hint">← → 切换练习</span>
         <div class="teaching-pagination">
-          <button
+          <Button
+            variant="plain"
             class="icon-button"
             :disabled="index <= 0 || loading || switching"
             aria-label="上一道授课练习"
             @click="next(-1)"
           >
-            <ChevronLeft :size="20" /></button
-          ><select
-            :value="selected"
+            <ChevronLeft :size="20" /></Button
+          ><Select
+            :model-value="selected"
             :disabled="loading || switching"
             aria-label="授课练习"
-            @change="changeExercise"
+            @update:model-value="changeExercise"
           >
-            <option v-for="(e, i) in exercises" :key="e.id" :value="e.id">
+            <SelectOption v-for="(e, i) in exercises" :key="e.id" :value="e.id">
               {{ i + 1 }} / {{ exercises.length }} · {{ e.title }}
-            </option></select
-          ><button
+            </SelectOption></Select
+          ><Button
+            variant="plain"
             class="icon-button"
             :disabled="index === exercises.length - 1 || loading || switching"
             aria-label="下一道授课练习"
             @click="next(1)"
           >
             <ChevronRight :size="20" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

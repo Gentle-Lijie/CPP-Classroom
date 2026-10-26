@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
+import { Select, SelectOption } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Form } from '@/components/ui/form'
 import { computed, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
@@ -43,6 +48,7 @@ import {
   classrooms,
   type RunRecord,
 } from '@/data/demo'
+import { confirmAction } from '@/lib/confirm'
 import { api, ApiError } from '@/lib/api'
 const route = useRoute(),
   router = useRouter()
@@ -53,7 +59,7 @@ const code = ref(''),
   input = ref(''),
   panel = ref('题目'),
   helpText = ref(''),
-  fontSize = ref(14)
+  fontSize = ref(16)
 const help = ref(false),
   submit = ref(false),
   submitted = ref(false),
@@ -469,10 +475,8 @@ async function returnToRunning() {
   await selectClass(target.classroomId)
   await router.push({ path: '/student/workspace', query: { exercise: target.exerciseId } })
 }
-async function changeExercise(event: Event) {
-  const element = event.target as HTMLSelectElement,
-    id = element.value
-  element.value = selected.value
+async function changeExercise(value: string | number) {
+  const id = String(value)
   if (active()) {
     pendingExercise.value = id
     return
@@ -542,14 +546,17 @@ onBeforeRouteLeave(async (to) => {
     notify('操作尚在进行，请稍后离开')
     return false
   }
-  if (active() && !window.confirm('程序仍在运行。离开后程序会继续，可返回本练习停止。确认离开？'))
+  if (
+    active() &&
+    !(await confirmAction('程序仍在运行。离开后程序会继续，可返回本练习停止。确认离开？'))
+  )
     return false
   if ((await directoryPanel.value?.flush()) === false) {
     notify('本地文件尚未保存，请先处理目录冲突或下载备份', 'error')
     return false
   }
   if (dirty.value && isArchived.value) {
-    if (!window.confirm('课堂或练习已只读，未同步修改无法上传。下载本机代码备份后离开？'))
+    if (!(await confirmAction('课堂或练习已只读，未同步修改无法上传。下载本机代码备份后离开？')))
       return false
     download('未同步-' + (exercise.value?.filename ?? 'source.cpp'), code.value)
     return true
@@ -568,20 +575,20 @@ onBeforeRouteLeave(async (to) => {
           activeClassroom.name
         }}</span>
         <label class="workspace-exercise"
-          ><BookOpen :size="16" /><select
-            :value="selected"
+          ><BookOpen :size="16" /><Select
+            :model-value="selected"
             aria-label="选择练习"
             :disabled="loading || switching || runningRequest"
-            @change="changeExercise"
+            @update:model-value="changeExercise"
           >
-            <option
+            <SelectOption
               v-for="e in exercises.filter((e) => e.status === '已发布' || e.id === selected)"
               :key="e.id"
               :value="e.id"
             >
               {{ e.title }}
-            </option>
-          </select></label
+            </SelectOption>
+          </Select></label
         >
       </div>
       <span v-if="submitted" class="status positive"><Check :size="12" />已提交</span>
@@ -610,6 +617,7 @@ onBeforeRouteLeave(async (to) => {
         /><CloudCheck v-else :size="15" /><span>{{ saveState }}</span></span
       >
       <div class="workspace-actions">
+        <ThemeToggle />
         <LocalDirectoryPanel
           ref="directoryPanel"
           v-model="code"
@@ -651,24 +659,25 @@ onBeforeRouteLeave(async (to) => {
     <div v-if="otherRun" class="workspace-alert amber">
       {{
         classrooms.find((c) => c.id === otherRun?.classroomId)?.name ?? '另一道练习'
-      }}仍有运行中的任务，结束后才能运行本题。<button @click="returnToRunning">
+      }}仍有运行中的任务，结束后才能运行本题。<Button variant="plain" @click="returnToRunning">
         返回该练习控制运行
-      </button>
+      </Button>
     </div>
     <div v-if="loading" class="workspace-alert" role="status">正在读取草稿，请稍候…</div>
     <div v-if="loadError" class="workspace-alert amber" role="alert">
-      {{ loadError }}<button @click="loadCode">重新读取</button>
+      {{ loadError }}<Button variant="plain" @click="loadCode">重新读取</Button>
     </div>
     <div v-if="viewing" class="workspace-alert amber">
-      <History :size="14" />正在查看 {{ viewing.id }} 的只读代码快照，当前草稿独立保留。<button
+      <History :size="14" />正在查看 {{ viewing.id }} 的只读代码快照，当前草稿独立保留。<Button
+        variant="plain"
         @click="viewing = undefined"
       >
         返回当前草稿 <ArrowLeft :size="13" />
-      </button>
+      </Button>
     </div>
     <div v-if="conflict" class="workspace-alert amber">
       <WifiOff :size="14" />{{ saveState
-      }}<button @click="useServer">下载本机修改并读取服务器版本</button>
+      }}<Button variant="plain" @click="useServer">下载本机修改并读取服务器版本</Button>
     </div>
     <div v-else-if="isArchived" class="workspace-alert amber">
       当前课堂或练习只读，作品与历史保留。
@@ -688,11 +697,11 @@ onBeforeRouteLeave(async (to) => {
         :max-size="50"
       >
         <div class="problem-tabs">
-          <button :class="{ selected: panel === '题目' }" @click="panel = '题目'">
-            <BookOpen :size="15" />题目说明</button
-          ><button :class="{ selected: panel === '历史' }" @click="panel = '历史'">
+          <Button variant="plain" :class="{ selected: panel === '题目' }" @click="panel = '题目'">
+            <BookOpen :size="15" />题目说明</Button
+          ><Button variant="plain" :class="{ selected: panel === '历史' }" @click="panel = '历史'">
             <History :size="15" />运行历史
-          </button>
+          </Button>
         </div>
         <div v-if="panel === '题目'" class="problem-content">
           <span class="topic-label"
@@ -733,9 +742,10 @@ onBeforeRouteLeave(async (to) => {
         <div v-else class="workspace-history">
           <div class="history-list">
             <p class="form-hint">服务器固定快照，查看历史不会重新运行。</p>
-            <button
+            <Button
               v-for="r in history"
               :key="r.id"
+              variant="plain"
               class="history-item"
               :class="{ selected: viewing?.id === r.id }"
               @click="viewing = r"
@@ -747,9 +757,10 @@ onBeforeRouteLeave(async (to) => {
                   {{ r.id.slice(0, 8) }}</small
                 ></span
               ><History :size="15" />
-            </button>
+            </Button>
             <p v-if="historyError" class="error-box" role="alert">
-              {{ historyError }} <button class="text-button" @click="loadHistory">重试</button>
+              {{ historyError }}
+              <Button variant="plain" class="text-button" @click="loadHistory">重试</Button>
             </p>
             <p v-else-if="!history.length" class="small-empty">本练习还没有运行记录。</p>
           </div>
@@ -790,22 +801,24 @@ onBeforeRouteLeave(async (to) => {
               >
               <div class="inline-items ml-auto">
                 <label class="compact-select"
-                  ><Settings2 :size="13" /><select
+                  ><Settings2 :size="13" /><Select
                     v-model.number="fontSize"
                     aria-label="编辑器字号"
                   >
-                    <option :value="14">14 px</option>
-                    <option :value="16">16 px</option>
-                    <option :value="18">18 px</option>
-                  </select></label
-                ><button
+                    <SelectOption :value="14">14 px</SelectOption>
+                    <SelectOption :value="16">16 px</SelectOption>
+                    <SelectOption :value="18">18 px</SelectOption>
+                  </Select></label
+                ><Button
+                  variant="plain"
                   class="icon-button"
                   aria-label="下载当前代码"
                   @click="download(viewing?.filename ?? exercise.filename, viewing?.code ?? code)"
                 >
-                  <Download :size="14" /></button
-                ><button
+                  <Download :size="14" /></Button
+                ><Button
                   v-if="undo !== undefined"
+                  variant="plain"
                   class="text-button"
                   :disabled="readonly"
                   @click="
@@ -816,15 +829,16 @@ onBeforeRouteLeave(async (to) => {
                     }
                   "
                 >
-                  撤销重置</button
-                ><button
+                  撤销重置</Button
+                ><Button
                   v-else
+                  variant="plain"
                   class="icon-button"
                   aria-label="重置初始代码"
                   :disabled="readonly"
                   @click="reset = true"
                 >
-                  <RotateCcw :size="14" /></button
+                  <RotateCcw :size="14" /></Button
                 ><span class="language-label"
                   >{{
                     compilerLabel(
@@ -864,7 +878,8 @@ onBeforeRouteLeave(async (to) => {
               >
                 <div class="code-toolbar">
                   <span>输入</span><span class="muted text-xs">stdin</span
-                  ><button
+                  ><Button
+                    variant="plain"
                     class="text-button ml-auto"
                     :disabled="!!viewing"
                     @click="
@@ -875,9 +890,9 @@ onBeforeRouteLeave(async (to) => {
                     "
                   >
                     填入样例
-                  </button>
+                  </Button>
                 </div>
-                <textarea
+                <Textarea
                   v-if="!viewing"
                   v-model="input"
                   aria-label="标准输入"
@@ -888,7 +903,7 @@ onBeforeRouteLeave(async (to) => {
                 <div class="stdin-note">
                   <span v-if="viewing">本次运行使用的固定输入</span>
                   <label v-else class="inline-items" title="运行后可逐行发送输入，最长 60 秒">
-                    <input v-model="interactive" type="checkbox" :disabled="active()" />运行时输入
+                    <Checkbox v-model="interactive" :disabled="active()" />运行时输入
                   </label>
                 </div>
               </SplitterPanel>
@@ -943,9 +958,9 @@ onBeforeRouteLeave(async (to) => {
     v-model:open="help"
     title="告诉老师，你遇到了什么？"
     description="教师会结合你的代码和运行上下文提供帮助。"
-    ><form class="form-stack" @submit.prevent="sendHelp">
+    ><Form class="form-stack" @submit.prevent="sendHelp">
       <label
-        >求助说明<textarea
+        >求助说明<Textarea
           v-model="helpText"
           rows="4"
           placeholder="例如：循环里的变量应该怎么初始化？"
@@ -964,7 +979,7 @@ onBeforeRouteLeave(async (to) => {
           ><Hand />{{ helping ? '发送中…' : helpSent ? '更新求助' : '发起求助' }}</Button
         >
       </div>
-    </form></Modal
+    </Form></Modal
   >
   <Modal
     v-model:open="submit"
@@ -1040,7 +1055,7 @@ onBeforeRouteLeave(async (to) => {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
 }
 .workspace-exercise {
@@ -1049,19 +1064,19 @@ onBeforeRouteLeave(async (to) => {
   gap: 7px;
   color: var(--ui-action);
 }
-.workspace-exercise select {
+.workspace-exercise .ui-select-trigger {
   width: 100%;
   max-width: 320px;
   border: 0;
   padding: 2px 18px 2px 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ui-ink);
   text-overflow: ellipsis;
 }
 .workspace-save {
   margin-left: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-success);
   min-width: 0;
 }
@@ -1149,7 +1164,7 @@ onBeforeRouteLeave(async (to) => {
   flex-shrink: 0;
 }
 .language-label {
-  font-size: 11px;
+  font-size: 13px;
 }
 .stdin-panel {
   min-height: 0;
@@ -1166,7 +1181,7 @@ onBeforeRouteLeave(async (to) => {
   padding: 12px;
 }
 .stdin-note {
-  font-size: 12px;
+  font-size: 14px;
   padding: 8px 12px;
   flex-shrink: 0;
   border-top: 1px solid var(--ui-line);
@@ -1183,12 +1198,12 @@ onBeforeRouteLeave(async (to) => {
   background: var(--ui-warning);
 }
 .ide-statusbar {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .workspace-alert {
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.7;
   flex-shrink: 0;
 }
@@ -1206,7 +1221,7 @@ onBeforeRouteLeave(async (to) => {
 }
 .problem-tabs button {
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 14px;
 }
 .ide-problem .problem-content {
   overflow: auto;

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
+import { Select, SelectOption } from '@/components/ui/select'
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -275,8 +277,10 @@ function closeWindow() {
 </script>
 <template>
   <div v-if="popup" class="inspect-banner">
-    <span><Monitor :size="15" />学生详情 · 独立窗口<span class="demo-tag">实时数据</span></span
-    ><Button variant="outline" size="sm" @click="closeWindow">关闭此窗口</Button>
+    <span><Monitor :size="15" />学生详情 · 独立窗口<span class="demo-tag">实时数据</span></span>
+    <div class="inline-items">
+      <ThemeToggle /><Button variant="outline" size="sm" @click="closeWindow">关闭此窗口</Button>
+    </div>
   </div>
   <div v-if="student && exercise" class="detail-page" :class="{ 'inspect-detail': popup }">
     <div class="detail-heading">
@@ -303,22 +307,24 @@ function closeWindow() {
           ><Monitor />{{ projecting ? '准备投屏…' : '投屏讲解' }}</Button
         >
         <div class="student-pager">
-          <button
+          <Button
+            variant="plain"
             class="icon-button"
             :disabled="index === 0"
             aria-label="上一位学生"
             @click="navigate(-1)"
           >
-            <ChevronLeft :size="18" /></button
+            <ChevronLeft :size="18" /></Button
           ><span>{{ index + 1 }} / {{ students.length }}</span
-          ><button
+          ><Button
+            variant="plain"
             class="icon-button"
             :disabled="index === students.length - 1"
             aria-label="下一位学生"
             @click="navigate(1)"
           >
             <ChevronRight :size="18" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -327,10 +333,10 @@ function closeWindow() {
     </p>
     <p v-if="loading" class="info-box" role="status">正在读取学生作品…</p>
     <label class="detail-exercise-select"
-      >查看练习<select v-model="chosenExercise" aria-label="选择查看学生的练习">
-        <option value="">跟随学生当前练习</option>
-        <option v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</option>
-      </select></label
+      >查看练习<Select v-model="chosenExercise" aria-label="选择查看学生的练习">
+        <SelectOption value="">跟随学生当前练习</SelectOption>
+        <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</SelectOption>
+      </Select></label
     >
     <div class="detail-workbench">
       <div class="detail-code-panel panel">
@@ -363,7 +369,8 @@ function closeWindow() {
         <div class="code-toolbar">
           <span class="file-tab"
             ><CodeXml :size="14" />{{ viewing?.filename ?? exercise.filename }}</span
-          ><button
+          ><Button
+            variant="plain"
             class="icon-button ml-auto"
             aria-label="下载当前查看的代码"
             @click="
@@ -373,7 +380,7 @@ function closeWindow() {
               )
             "
           >
-            <Download :size="14" /></button
+            <Download :size="14" /></Button
           ><span class="language-label">{{
             compilerLabel(viewing ? viewing.compilerProfile : executionSettings.compilerProfile)
           }}</span>
@@ -421,20 +428,22 @@ function closeWindow() {
         </section>
         <section class="panel">
           <div class="filter-tabs">
-            <button
+            <Button
               v-for="t in ['运行记录', '提交记录']"
               :key="t"
+              variant="plain"
               :class="{ selected: sidebarTab === t }"
               @click="sidebarTab = t"
             >
               {{ t }}
-            </button>
+            </Button>
           </div>
           <div v-if="sidebarTab === '运行记录'" class="history-list">
             <p class="form-hint">完整保留每次代码、输入与原始结果。</p>
-            <button
+            <Button
               v-for="r in records"
               :key="r.id"
+              variant="plain"
               class="history-item"
               :class="{ selected: viewing?.id === r.id }"
               @click="viewing = r"
@@ -448,16 +457,22 @@ function closeWindow() {
                 ><strong>{{ r.status }}</strong
                 ><small>{{ formatTime(r.time) }} · {{ r.id.slice(0, 8) }}</small></span
               ><ArrowUpRight :size="14" />
-            </button>
+            </Button>
             <p v-if="!records.length && !loading" class="small-empty">这道练习还没有运行记录。</p>
           </div>
           <div v-else class="history-list">
-            <button v-for="s in submissions" :key="s.id" class="history-item" @click="viewing = s">
+            <Button
+              v-for="s in submissions"
+              :key="s.id"
+              variant="plain"
+              class="history-item"
+              @click="viewing = s"
+            >
               <CircleCheck :size="22" class="positive-text" /><span
                 ><strong>固定提交快照</strong
                 ><small>{{ new Date(s.time).toLocaleString() }}</small></span
               >
-            </button>
+            </Button>
             <div v-if="!submissions.length" class="small-empty">
               <History :size="25" />
               <h3>尚未主动提交</h3>
@@ -504,10 +519,10 @@ function closeWindow() {
   align-items: center;
   gap: 12px;
   margin: 0 0 18px;
-  font-size: 13px;
+  font-size: 15px;
   flex-wrap: wrap;
 }
-.detail-exercise-select select {
+.detail-exercise-select .ui-select-trigger {
   max-width: min(420px, 100%);
 }
 .detail-heading,
@@ -520,7 +535,7 @@ function closeWindow() {
 }
 .detail-heading p {
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.7;
 }
 .detail-workbench > *,
@@ -557,7 +572,7 @@ function closeWindow() {
 .detail-context-note,
 .detail-readonly-note,
 .snapshot-note {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
 }
 .help-detail-panel p {

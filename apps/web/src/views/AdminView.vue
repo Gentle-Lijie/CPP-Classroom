@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { Input } from '@/components/ui/input'
+import { Select, SelectOption } from '@/components/ui/select'
+import { Disclosure } from '@/components/ui/disclosure'
+import { Form } from '@/components/ui/form'
+import { Textarea } from '@/components/ui/textarea'
 import { computed, ref, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
@@ -400,7 +405,7 @@ async function backup() {
     </div>
   </div>
   <p v-if="loadError" class="error-box" role="alert">
-    {{ loadError }} <button class="text-button" @click="load">重试</button>
+    {{ loadError }} <Button variant="plain" class="text-button" @click="load">重试</Button>
   </p>
   <p v-if="loading" class="muted admin-loading" role="status">正在加载…</p>
   <template v-if="section === 'health'"
@@ -454,22 +459,22 @@ async function backup() {
   <section v-else-if="section === 'teachers'" class="panel">
     <div class="table-controls">
       <label class="search-field"
-        ><Search :size="16" /><input
+        ><Search :size="16" /><Input
           v-model="search"
           aria-label="搜索账号"
           placeholder="搜索姓名或登录账号…"
       /></label>
       <div class="inline-items">
-        <select v-model="roleFilter" aria-label="筛选身份">
-          <option value="all">全部身份</option>
-          <option value="teacher">教师</option>
-          <option value="student">学生</option>
-          <option value="admin">管理员</option></select
-        ><select v-model="statusFilter" aria-label="筛选状态">
-          <option value="all">全部状态</option>
-          <option value="active">正常</option>
-          <option value="disabled">停用</option>
-        </select>
+        <Select v-model="roleFilter" aria-label="筛选身份">
+          <SelectOption value="all">全部身份</SelectOption>
+          <SelectOption value="teacher">教师</SelectOption>
+          <SelectOption value="student">学生</SelectOption>
+          <SelectOption value="admin">管理员</SelectOption></Select
+        ><Select v-model="statusFilter" aria-label="筛选状态">
+          <SelectOption value="all">全部状态</SelectOption>
+          <SelectOption value="active">正常</SelectOption>
+          <SelectOption value="disabled">停用</SelectOption>
+        </Select>
       </div>
       <Button v-if="credentials.length" variant="outline" size="sm" @click="credentialsOpen = true"
         ><Download />查看 / 导出凭据</Button
@@ -567,7 +572,7 @@ async function backup() {
   <section v-else-if="section === 'tasks'" class="panel">
     <div class="table-controls">
       <label class="search-field"
-        ><Search :size="16" /><input
+        ><Search :size="16" /><Input
           v-model="search"
           aria-label="搜索失败任务"
           placeholder="搜索课堂、任务编号或失败原因…" /></label
@@ -627,7 +632,7 @@ async function backup() {
       <div class="panel-heading"><h2>管理与备份记录</h2></div>
       <div class="table-controls">
         <label class="search-field"
-          ><Search :size="16" /><input
+          ><Search :size="16" /><Input
             v-model="search"
             aria-label="搜索管理记录"
             placeholder="搜索操作者、事件或对象编号…"
@@ -637,10 +642,9 @@ async function backup() {
         <div>
           <strong>{{ eventLabel(a.event) }}</strong>
           <p>{{ a.actor_name ?? '系统' }} · {{ new Date(a.created_at).toLocaleString() }}</p>
-          <details>
-            <summary>查看操作对象与详情</summary>
+          <Disclosure title="查看操作对象与详情">
             <pre>{{ JSON.stringify(a.details, null, 2) }}</pre>
-          </details>
+          </Disclosure>
         </div>
       </div>
       <p v-if="!audit.length && !loading && !loadError" class="empty-state">暂无管理记录</p>
@@ -657,24 +661,24 @@ async function backup() {
     title="创建平台账号"
     description="创建后可导出账号密码表，再通过可信渠道交付。"
   >
-    <form class="form-stack" @submit.prevent="addUser">
-      <label>姓名<input v-model="name" required maxlength="50" /></label
+    <Form class="form-stack" @submit.prevent="addUser">
+      <label>姓名<Input v-model="name" required maxlength="50" /></label
       ><label
-        >账号<input
+        >账号<Input
           v-model="account"
           required
           maxlength="80"
           pattern="[a-zA-Z0-9._@-]+"
           placeholder="字母、数字、点、下划线或连字符" /></label
       ><label
-        >身份<select v-model="userRole">
-          <option value="teacher">教师</option>
-          <option value="student">学生</option>
-        </select></label
+        >身份<Select v-model="userRole">
+          <SelectOption value="teacher">教师</SelectOption>
+          <SelectOption value="student">学生</SelectOption>
+        </Select></label
       ><label
         >初始密码
         <div class="password-field">
-          <input
+          <Input
             v-model="password"
             :type="showPassword ? 'text' : 'password'"
             required
@@ -682,14 +686,15 @@ async function backup() {
             maxlength="200"
             autocomplete="new-password"
             placeholder="至少 12 位"
-          /><button
+          /><Button
+            variant="plain"
             type="button"
             class="icon-button"
             :aria-label="showPassword ? '隐藏密码' : '显示密码'"
             @click="showPassword = !showPassword"
           >
             <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
-          </button></div
+          </Button></div
       ></label>
       <p v-if="error" class="error-box" role="alert">{{ error }}</p>
       <div class="modal-actions">
@@ -699,7 +704,7 @@ async function backup() {
           busy ? '正在创建…' : '创建账号并生成凭据'
         }}</Button>
       </div>
-    </form>
+    </Form>
   </Modal>
   <Modal
     :open="!!resetUser"
@@ -707,11 +712,11 @@ async function backup() {
     title="重设账号密码"
     description="旧登录会话将失效，正在执行的程序会停止。请核实申请人身份后操作。"
     @update:open="!$event && (resetUser = '')"
-    ><form class="form-stack" @submit.prevent="reset">
+    ><Form class="form-stack" @submit.prevent="reset">
       <label
         >新密码
         <div class="password-field">
-          <input
+          <Input
             v-model="resetPassword"
             required
             minlength="12"
@@ -719,14 +724,15 @@ async function backup() {
             :type="showPassword ? 'text' : 'password'"
             autocomplete="new-password"
             placeholder="至少 12 位"
-          /><button
+          /><Button
+            variant="plain"
             type="button"
             class="icon-button"
             :aria-label="showPassword ? '隐藏密码' : '显示密码'"
             @click="showPassword = !showPassword"
           >
             <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
-          </button></div
+          </Button></div
       ></label>
       <p v-if="error" class="error-box" role="alert">{{ error }}</p>
       <div class="modal-actions">
@@ -736,7 +742,7 @@ async function backup() {
           ><KeyRound />{{ busy ? '正在重设…' : '保存并生成新凭据' }}</Button
         >
       </div>
-    </form></Modal
+    </Form></Modal
   >
   <Modal
     :open="!!toggleUser"
@@ -773,9 +779,9 @@ async function backup() {
     title="关闭这条恢复申请？"
     description="仅关闭待办，不修改账号密码。核实无效或已通过其他方式解决时，请说明原因。"
     @update:open="!$event && (closeRecovery = undefined)"
-    ><form class="form-stack" @submit.prevent="resolveRecovery">
+    ><Form class="form-stack" @submit.prevent="resolveRecovery">
       <p>{{ closeRecovery?.username }}</p>
-      <label>处理原因<textarea v-model="closeReason" required maxlength="500" rows="3" /></label>
+      <label>处理原因<Textarea v-model="closeReason" required maxlength="500" rows="3" /></label>
       <p v-if="error" class="error-box" role="alert">{{ error }}</p>
       <div class="modal-actions">
         <Button type="button" variant="outline" :disabled="busy" @click="closeRecovery = undefined"
@@ -784,7 +790,7 @@ async function backup() {
           busy ? '处理中…' : '确认关闭申请'
         }}</Button>
       </div>
-    </form></Modal
+    </Form></Modal
   >
   <Modal
     :open="!!taskDetail"
@@ -802,10 +808,9 @@ async function backup() {
       <p class="info-box">
         为保护课堂作品，管理员诊断不展示学生源代码、编译输出或程序输出。请根据失败原因与任务指标检查平台服务健康；课堂内容由授课教师核对。
       </p>
-      <details>
-        <summary>任务指标</summary>
+      <Disclosure title="任务指标">
         <pre>{{ JSON.stringify(taskDetail.metrics ?? {}, null, 2) }}</pre>
-      </details>
+      </Disclosure>
       <Button as-child variant="outline"
         ><RouterLink to="/admin/settings">检查平台服务与执行节点</RouterLink></Button
       >
@@ -835,7 +840,7 @@ async function backup() {
   background: var(--ui-surface);
   border: 1px solid var(--ui-line);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .task-detail > code {
   overflow-wrap: anywhere;
@@ -860,10 +865,10 @@ async function backup() {
 }
 .admin-loading {
   margin-bottom: 16px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .task-id {
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -877,8 +882,8 @@ async function backup() {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.table-controls select {
-  font-size: 13px;
+.table-controls .ui-select-trigger {
+  font-size: 15px;
   max-width: 160px;
 }
 
@@ -894,7 +899,7 @@ async function backup() {
 }
 .admin-environment-summary dt {
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 10px;
 }
 .admin-environment-summary dd {
@@ -906,7 +911,7 @@ async function backup() {
   line-height: 1.5;
 }
 .admin-environment-summary dd span {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   font-weight: 400;
 }
@@ -914,7 +919,7 @@ async function backup() {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   line-height: 1.8;
 }
@@ -931,11 +936,11 @@ async function backup() {
   border-top: 1px solid var(--ui-line);
 }
 .admin-recovery-content h3 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .admin-recovery-content p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 @media (max-width: 760px) {

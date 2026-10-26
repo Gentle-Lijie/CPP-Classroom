@@ -1,7 +1,7 @@
 /* Teaching, authoring and native local-file workspaces. */
 .markdown-content {
   color: var(--ui-secondary);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.95;
   overflow-wrap: anywhere;
 }
@@ -29,7 +29,7 @@
   font-size: 17px;
 }
 .markdown-content h4 {
-  font-size: 14px;
+  font-size: 16px;
 }
 .markdown-content ul,
 .markdown-content ol {
@@ -68,7 +68,7 @@
   padding: 0;
   background: transparent;
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 .markdown-content blockquote {
   margin: 16px 0;
@@ -95,7 +95,7 @@
 .markdown-content th {
   padding: 9px 12px;
   border: 1px solid var(--ui-line);
-  font-size: 12px;
+  font-size: 14px;
 }
 .markdown-content hr {
   border: 0;
@@ -116,12 +116,12 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .exercise-meta-fields input {
   width: 100%;
-  font-size: 13px;
+  font-size: 15px;
 }
 .filename-field {
   position: relative;
@@ -143,7 +143,7 @@
   margin-bottom: 10px;
 }
 .exercise-editor-page .page-heading p {
-  font-size: 12px;
+  font-size: 14px;
 }
 .editor-page-tabs {
   display: flex;
@@ -160,7 +160,7 @@
   background: transparent;
   border: 0;
   border-bottom: 2px solid transparent;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
 }
 .editor-page-tabs > button.selected {
@@ -172,7 +172,7 @@
   gap: 7px;
   align-items: center;
   margin-left: auto;
-  font-size: 11px;
+  font-size: 13px;
 }
 .markdown-editor {
   border: 1px solid var(--ui-line);
@@ -188,7 +188,7 @@
   min-height: 53px;
   border-bottom: 1px solid var(--ui-line);
   background: var(--ui-surface);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
 }
 .markdown-editor-toolbar .inline-items {
@@ -200,7 +200,7 @@
   align-items: center;
   gap: 7px;
   color: var(--ui-secondary);
-  font-size: 11px;
+  font-size: 13px;
 }
 .markdown-editor-body {
   display: grid;
@@ -216,7 +216,7 @@
 .markdown-source > span,
 .markdown-preview-label {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.025em;
   color: var(--ui-muted);
   padding: 15px 20px 0;
@@ -252,7 +252,7 @@
 .markdown-placeholder {
   padding: 25px;
   color: var(--ui-muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 .exercise-samples-editor {
   padding: 25px;
@@ -262,7 +262,7 @@
   gap: 25px;
 }
 .exercise-samples-editor textarea {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.8;
 }
 .exercise-samples-editor label:nth-child(n + 3) textarea {
@@ -279,7 +279,7 @@
 }
 .initial-code-page .info-box {
   border-radius: 0;
-  font-size: 11px;
+  font-size: 13px;
 }
 .teaching-page {
   min-height: 100dvh;
@@ -301,12 +301,12 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ui-secondary);
 }
 .teaching-class-name {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   border-left: 1px solid var(--ui-line);
   margin-left: 12px;
@@ -317,7 +317,7 @@
   background: var(--ui-surface);
   color: var(--ui-secondary);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
   margin-left: 4px;
 }
 .teaching-stage {
@@ -331,7 +331,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 15px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-secondary);
   margin-bottom: 17px;
 }
@@ -343,7 +343,7 @@
   background: var(--ui-surface);
   color: var(--ui-secondary);
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 14px;
   margin-right: 6px;
 }
 .teaching-slide {
@@ -380,7 +380,7 @@
 }
 .slide-title-row > span {
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .slide-description {
   max-width: 1020px;
@@ -398,13 +398,13 @@
   margin-bottom: 28px;
 }
 .slide-io-notes h2 {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
   margin-bottom: 10px;
   font-weight: 600;
 }
 .slide-io-notes .markdown-content {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.9;
   color: var(--ui-secondary);
 }
@@ -425,13 +425,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   border-bottom: 1px solid var(--ui-line);
 }
 .slide-samples small {
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .slide-samples pre {
   font-size: 25px;
@@ -464,7 +464,7 @@
   font-weight: 500;
 }
 .teaching-code-note {
-  font-size: 10px;
+  font-size: 12px;
   padding: 8px 17px;
   color: var(--ui-muted);
   background: var(--ui-surface);
@@ -482,7 +482,7 @@
   font-size: 29px;
 }
 .teaching-split .slide-description .markdown-content {
-  font-size: 15px;
+  font-size: 16px;
 }
 .teaching-split .slide-io-notes {
   grid-template-columns: 1fr;
@@ -490,7 +490,7 @@
   margin-top: 22px;
 }
 .teaching-split .slide-io-notes .markdown-content {
-  font-size: 12px;
+  font-size: 14px;
 }
 .teaching-split .slide-samples {
   gap: 12px;
@@ -501,7 +501,7 @@
 }
 .teaching-split .slide-samples > div > span {
   padding: 9px 13px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .teaching-split .slide-samples small {
   display: none;
@@ -530,7 +530,7 @@
   border-radius: 4px;
   padding: 8px 16px;
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 .teaching-view-switch button.selected {
   color: var(--ui-secondary);
@@ -538,7 +538,7 @@
 }
 .teaching-keyboard-hint {
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
   margin-left: auto;
 }
 .teaching-pagination {
@@ -546,10 +546,10 @@
   align-items: center;
   gap: 10px;
 }
-.teaching-pagination select {
+.teaching-pagination .ui-select-trigger {
   border: 0;
   background: transparent;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   max-width: 260px;
 }
@@ -560,7 +560,7 @@
   gap: 15px;
   padding: 10px 28px 18px;
   color: var(--ui-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .monitor-window {
   min-height: 100vh;
@@ -592,7 +592,7 @@
   font-weight: 600;
 }
 .monitor-header h1 > span {
-  font-size: 12px;
+  font-size: 14px;
   background: var(--ui-surface);
   color: var(--ui-secondary);
   padding: 2px 7px;
@@ -601,7 +601,7 @@
   vertical-align: middle;
 }
 .monitor-header p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--ui-muted);
   margin-top: 5px;
 }
@@ -613,7 +613,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   margin-bottom: 23px;
 }
@@ -674,17 +674,17 @@
 .monitor-card-person strong {
   display: block;
   color: var(--ui-secondary);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 .monitor-card-person small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
   margin-top: 3px;
 }
 .monitor-exercise-name {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   margin-bottom: 10px;
 }
@@ -694,7 +694,7 @@
 .monitor-student-card > p {
   margin-top: 12px;
   margin-bottom: 21px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
   color: var(--ui-secondary);
   min-height: 37px;
@@ -707,12 +707,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .monitor-footer {
   padding: 12px 30px 20px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .inspect-banner {
@@ -723,7 +723,7 @@
   align-items: center;
   justify-content: space-between;
   color: var(--ui-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 .inspect-banner > span {
   display: flex;
@@ -761,7 +761,7 @@
   min-width: 0;
 }
 .local-directory-status strong {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ui-secondary);
   white-space: nowrap;
@@ -770,25 +770,25 @@
   max-width: 350px;
 }
 .local-directory-status > span {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-secondary);
 }
 .local-poll-hint {
   margin-left: 20px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-muted);
 }
 .local-directory-panel .text-button {
-  font-size: 10px;
+  font-size: 12px;
 }
 .local-directory-panel [data-slot='button'] {
-  font-size: 11px;
+  font-size: 13px;
 }
 .file-conflict-name {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ui-secondary);
   padding: 12px;
   background: var(--ui-surface);
@@ -808,7 +808,7 @@
   overflow: hidden;
 }
 .file-conflict-comparison h3 {
-  font-size: 11px;
+  font-size: 13px;
   padding: 9px 12px;
   background: var(--ui-surface);
   font-weight: 500;
@@ -820,7 +820,7 @@
   max-height: 300px;
   min-height: 160px;
   overflow: auto;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
   color: var(--ui-secondary);
 }
@@ -828,7 +828,7 @@
   flex-wrap: wrap;
 }
 .file-conflict-actions [data-slot='button'] {
-  font-size: 11px;
+  font-size: 13px;
 }
 @media (min-width: 1700px) {
   .teaching-stage {
@@ -861,7 +861,7 @@
     padding: 25px;
   }
   .teaching-split .slide-description .markdown-content {
-    font-size: 14px;
+    font-size: 16px;
   }
   .teaching-class-name {
     display: none;
@@ -905,10 +905,10 @@
     flex-wrap: wrap;
   }
   .markdown-editor-toolbar > span:first-child {
-    font-size: 11px;
+    font-size: 13px;
   }
   .markdown-live-label {
-    font-size: 10px;
+    font-size: 12px;
   }
   .markdown-editor-body {
     grid-template-columns: 1fr;
@@ -937,25 +937,25 @@
     display: none;
   }
   .teaching-toolbar [data-slot='button'] {
-    font-size: 11px;
+    font-size: 13px;
     padding: 0 9px;
   }
   .teaching-mark {
-    font-size: 12px;
+    font-size: 14px;
     gap: 6px;
   }
   .teaching-stage {
     padding: 20px 18px;
   }
   .teaching-slide-meta {
-    font-size: 10px;
+    font-size: 12px;
     gap: 9px;
   }
   .teaching-slide-meta > .inline-items:last-child {
     gap: 10px;
   }
   .teaching-slide-meta .text-button {
-    font-size: 10px;
+    font-size: 12px;
   }
   .teaching-slide {
     aspect-ratio: auto;
@@ -980,14 +980,14 @@
     margin-top: 26px;
   }
   .slide-io-notes .markdown-content {
-    font-size: 13px;
+    font-size: 15px;
   }
   .slide-samples {
     margin-top: 0;
     gap: 12px;
   }
   .slide-samples > div > span {
-    font-size: 10px;
+    font-size: 12px;
     padding: 9px 12px;
   }
   .slide-samples small {
@@ -1016,7 +1016,7 @@
   .teaching-code .code-toolbar {
     padding: 0 12px;
     gap: 7px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .teaching-code .code-toolbar > .muted {
     display: none;
@@ -1028,7 +1028,7 @@
   }
   .teaching-view-switch button {
     padding: 8px 12px;
-    font-size: 11px;
+    font-size: 13px;
   }
   .teaching-keyboard-hint {
     display: none;
@@ -1037,14 +1037,14 @@
     gap: 5px;
     margin-left: auto;
   }
-  .teaching-pagination select {
+  .teaching-pagination .ui-select-trigger {
     max-width: 190px;
-    font-size: 11px;
+    font-size: 13px;
     padding: 7px;
   }
   .teaching-footer {
     padding: 5px 18px 16px;
-    font-size: 9px;
+    font-size: 12px;
     align-items: flex-start;
   }
   .teaching-footer > span:last-child {
@@ -1064,7 +1064,7 @@
     padding: 20px;
   }
   .monitor-explainer {
-    font-size: 11px;
+    font-size: 13px;
     align-items: flex-start;
   }
   .monitor-explainer > a {
@@ -1084,21 +1084,21 @@
     padding: 17px;
   }
   .monitor-card-person strong {
-    font-size: 13px;
+    font-size: 15px;
   }
   .monitor-card-person {
     gap: 8px;
   }
   .monitor-student-card .status {
-    font-size: 10px;
+    font-size: 12px;
   }
   .monitor-card-footer {
     gap: 5px;
-    font-size: 9px;
+    font-size: 12px;
   }
   .monitor-card-footer .help-label,
   .monitor-card-footer .submitted-label {
-    font-size: 10px;
+    font-size: 12px;
   }
   .monitor-footer {
     padding: 8px 20px 20px;
@@ -1124,13 +1124,13 @@
     max-width: 220px;
   }
   .local-directory-status > span {
-    font-size: 9px;
+    font-size: 12px;
   }
   .local-directory-panel > .inline-items {
     margin-left: 23px;
   }
   .local-directory-panel .text-button {
-    font-size: 9px;
+    font-size: 12px;
   }
   .file-conflict-comparison {
     grid-template-columns: 1fr;
@@ -1152,7 +1152,7 @@
     font-size: 16px;
   }
   .monitor-header [data-slot='button'] {
-    font-size: 10px;
+    font-size: 12px;
   }
   .monitor-icon {
     width: 34px;
@@ -1163,7 +1163,7 @@
   }
   .monitor-controls .segmented > button {
     padding: 6px 11px;
-    font-size: 10px;
+    font-size: 12px;
     flex: 1;
   }
   .teaching-bottom {
@@ -1247,7 +1247,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 16px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.7;
 }
 .teaching-code-note > span:last-child {
@@ -1256,7 +1256,7 @@
 .teaching-pagination {
   min-width: 0;
 }
-.teaching-pagination select {
+.teaching-pagination .ui-select-trigger {
   min-width: 0;
 }
 .teaching-toolbar > .inline-items {
@@ -1267,20 +1267,20 @@
 .monitor-explainer,
 .monitor-footer,
 .teaching-footer {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.7;
 }
 .local-directory-status strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 .local-directory-status > span,
 .local-poll-hint {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .local-directory-panel .text-button,
 .local-directory-panel [data-slot='button'] {
-  font-size: 12px;
+  font-size: 14px;
 }
 @media (max-width: 760px) {
   .teaching-slide {
@@ -1316,7 +1316,7 @@
   }
   .local-directory-status strong,
   .local-directory-status > span {
-    font-size: 12px;
+    font-size: 14px;
   }
   .local-directory-status > span {
     white-space: normal;
@@ -1329,6 +1329,6 @@
   .file-conflict-comparison h3,
   .file-conflict-comparison pre,
   .file-conflict-actions [data-slot='button'] {
-    font-size: 12px;
+    font-size: 14px;
   }
 }

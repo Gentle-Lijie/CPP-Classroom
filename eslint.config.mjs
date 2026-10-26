@@ -26,6 +26,32 @@ export default tseslint.config(
     },
   },
   {
+    files: [
+      'apps/web/src/views/**/*.vue',
+      'apps/web/src/components/classroom/**/*.vue',
+      'apps/web/src/App.vue',
+    ],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        { object: 'window', property: 'confirm', message: 'Use the shared confirmation dialog.' },
+        { object: 'window', property: 'alert', message: 'Use the shared message components.' },
+        { object: 'window', property: 'prompt', message: 'Use a component form dialog.' },
+      ],
+      'vue/no-restricted-html-elements': [
+        'error',
+        'button',
+        'input',
+        'select',
+        'option',
+        'textarea',
+        'details',
+        'summary',
+        'form',
+      ],
+    },
+  },
+  {
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
     },

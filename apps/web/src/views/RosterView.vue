@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { FileUpload } from '@/components/ui/file-upload'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Form } from '@/components/ui/form'
+import { Textarea } from '@/components/ui/textarea'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import {
@@ -455,7 +460,7 @@ function openImport() {
     >
   </div>
   <p v-if="loadError" class="error-box" role="alert">
-    {{ loadError }} <button class="text-button" @click="loadMembers()">重试</button>
+    {{ loadError }} <Button variant="plain" class="text-button" @click="loadMembers()">重试</Button>
   </p>
   <p v-if="error && !add && !importing && !resetting && !remove" class="error-box" role="alert">
     {{ error }}
@@ -463,9 +468,10 @@ function openImport() {
   <section class="panel">
     <div class="panel-heading">
       <div class="filter-tabs borderless">
-        <button
+        <Button
           v-for="t in ['全部成员', '在线成员', '待审批', '已移除']"
           :key="t"
+          variant="plain"
           :class="{ selected: tab === t }"
           @click="tab = t"
         >
@@ -479,7 +485,7 @@ function openImport() {
                   ? students.filter((s) => s.online).length
                   : active.length
           }}</span>
-        </button>
+        </Button>
       </div>
       <div class="inline-items">
         <span class="muted text-xs">{{
@@ -498,7 +504,7 @@ function openImport() {
     </div>
     <div class="table-controls">
       <label class="search-field"
-        ><Search :size="16" /><input
+        ><Search :size="16" /><Input
           v-model="search"
           placeholder="搜索姓名、学号或账号…"
           aria-label="搜索名册"
@@ -507,7 +513,7 @@ function openImport() {
         <span class="muted">已选 {{ selected.length }} 位</span
         ><Button size="sm" variant="warning" @click="openReset(selected)"
           ><KeyRound />重置并生成凭据</Button
-        ><button class="text-button" @click="selected = []">取消选择</button>
+        ><Button variant="plain" class="text-button" @click="selected = []">取消选择</Button>
       </div>
       <span v-else class="muted text-xs">{{
         tab === '待审批'
@@ -522,8 +528,7 @@ function openImport() {
         <thead>
           <tr>
             <th v-if="tab !== '待审批' && tab !== '已移除'">
-              <input
-                type="checkbox"
+              <Checkbox
                 aria-label="选择本页学生"
                 :disabled="busy || !selectablePage.length"
                 :checked="allPageSelected"
@@ -540,10 +545,9 @@ function openImport() {
         <tbody>
           <tr v-for="m in paged" :key="m.id">
             <td v-if="tab !== '待审批' && tab !== '已移除'">
-              <input
+              <Checkbox
                 v-model="selected"
                 :disabled="busy || !m.canResetPassword"
-                type="checkbox"
                 :value="m.id"
                 :aria-label="'选择' + m.name"
               />
@@ -594,17 +598,19 @@ function openImport() {
                 ><span v-if="m.disabled" class="muted text-xs">账号已停用，请联系管理员</span>
               </div>
               <div v-else class="inline-items">
-                <button
+                <Button
                   v-if="m.canResetPassword"
+                  variant="plain"
                   class="text-button"
                   :disabled="busy"
                   @click="openReset([m.id])"
                 >
-                  <KeyRound :size="14" />重置密码</button
+                  <KeyRound :size="14" />重置密码</Button
                 ><span v-else class="muted text-xs">{{
                   m.disabled ? '联系管理员启用' : '密码由管理员或创建教师恢复'
                 }}</span
-                ><button
+                ><Button
+                  variant="plain"
                   class="text-button danger-text"
                   :disabled="busy"
                   @click="
@@ -615,7 +621,7 @@ function openImport() {
                   "
                 >
                   <UserMinus :size="14" />移除
-                </button>
+                </Button>
               </div>
             </td>
           </tr>
@@ -646,10 +652,10 @@ function openImport() {
     :dismissible="!busy"
     title="添加学生"
     description="学号对应唯一学生账号。已有账号加入课堂时保留原密码。"
-    ><form class="form-stack" @submit.prevent="save">
-      <label>学生姓名<input v-model="name" required maxlength="50" placeholder="真实姓名" /></label
+    ><Form class="form-stack" @submit.prevent="save">
+      <label>学生姓名<Input v-model="name" required maxlength="50" placeholder="真实姓名" /></label
       ><label
-        >学号<input
+        >学号<Input
           v-model="number"
           required
           maxlength="50"
@@ -660,14 +666,14 @@ function openImport() {
         <Button type="button" variant="outline" :disabled="busy" @click="add = false">取消</Button
         ><Button type="submit" :disabled="busy">{{ busy ? '正在添加…' : '添加学生' }}</Button>
       </div>
-    </form></Modal
+    </Form></Modal
   >
   <Modal
     v-model:open="importing"
     :dismissible="!busy"
     title="导入学生名单"
     description="支持 UTF-8 CSV 文件或直接从 Excel 粘贴姓名、学号两列。可包含表头，每批最多 50 人。"
-    ><form class="form-stack" @submit.prevent="importRows">
+    ><Form class="form-stack" @submit.prevent="importRows">
       <div class="inline-items">
         <Button
           variant="outline"
@@ -683,16 +689,12 @@ function openImport() {
             )
           "
           ><FileDown />下载模板</Button
-        ><label class="file-upload"
-          >选择 CSV 文件<input
-            type="file"
-            accept=".csv,.tsv,.txt"
-            :disabled="busy"
-            @change="readFile"
-        /></label>
+        ><FileUpload accept=".csv,.tsv,.txt" :disabled="busy" @change="readFile"
+          >选择 CSV 文件</FileUpload
+        >
       </div>
       <label
-        >名单内容<textarea
+        >名单内容<Textarea
           v-model="csv"
           :disabled="busy"
           rows="7"
@@ -725,7 +727,7 @@ function openImport() {
           ><Upload />{{ busy ? `导入中，已处理 ${importResults.length} 位…` : '导入名单' }}</Button
         >
       </div>
-    </form></Modal
+    </Form></Modal
   >
   <CredentialDialog
     v-model:open="credentialsOpen"
@@ -786,7 +788,7 @@ function openImport() {
   min-width: 0;
 }
 .credential-banner p {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-secondary);
   margin-top: 3px;
 }
@@ -811,10 +813,10 @@ function openImport() {
   padding: 12px;
   background: var(--ui-surface);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .file-upload {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ui-text);
   flex: 1;
   min-width: 0;
@@ -823,7 +825,7 @@ function openImport() {
   width: 100%;
   padding: 5px;
   margin-top: 5px;
-  font-size: 12px;
+  font-size: 14px;
 }
 @media (max-width: 760px) {
   .credential-banner {
