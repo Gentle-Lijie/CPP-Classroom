@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import { NumberInput } from '@/components/ui/number-input'
 import { Form } from '@/components/ui/form'
 import { Select, SelectOption } from '@/components/ui/select'
@@ -159,6 +161,7 @@ onBeforeRouteLeave(async () => {
   if (saving.value) return false
   return !dirty.value || (await confirmAction('平台配置尚未保存。确认放弃本次更改并离开？'))
 })
+useActionFeedback(saveError)
 </script>
 <template>
   <div class="runtime-settings-page">
@@ -206,10 +209,13 @@ onBeforeRouteLeave(async () => {
         ><span class="runtime-check-time">连接正常仅代表服务可达</span></template
       >
     </ContentPanel>
-    <div v-if="loadError" class="runtime-error" role="alert">
-      <CircleAlert :size="18" /><span>{{ loadError }}</span
-      ><Button variant="outline" size="sm" @click="load">重试读取</Button>
-    </div>
+    <Alert v-if="loadError" role="alert" type="error" :icon="CircleAlert">
+      <span>{{ loadError }}</span>
+
+      <template #actions
+        ><Button variant="outline" size="sm" @click="load">重试读取</Button></template
+      >
+    </Alert>
     <div class="runtime-settings-layout">
       <ContentPanel
         title="运行环境与限额"
@@ -247,9 +253,6 @@ onBeforeRouteLeave(async () => {
               </div>
             </fieldset>
           </fieldset>
-          <p v-if="saveError" class="runtime-error" role="alert">
-            <CircleAlert :size="16" />{{ saveError }}
-          </p>
         </Form>
         <template #footer
           ><span class="runtime-save-status" :class="{ pending: dirty }"
@@ -300,15 +303,14 @@ onBeforeRouteLeave(async () => {
             <p>墙钟时间包含程序等待输入的时间，与 CPU 时间分别限制。</p>
           </div>
         </ContentPanel>
-        <div class="runtime-isolation-note">
-          <ShieldCheck :size="19" />
+        <Alert type="info" :icon="ShieldCheck">
           <div>
             <strong>独立执行与资源隔离</strong>
             <p>
               学生代码在独立评测节点运行。配置保存后，对后续开始的任务生效，不会重启正在运行的任务。
             </p>
           </div>
-        </div>
+        </Alert>
       </aside>
     </div>
   </div>
@@ -567,45 +569,6 @@ onBeforeRouteLeave(async () => {
   line-height: 1.8;
   margin-top: 14px;
 }
-.runtime-isolation-note {
-  display: flex;
-  gap: 10px;
-  padding: 0 4px;
-  color: var(--ui-icon-slate);
-}
-.runtime-isolation-note > svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.runtime-isolation-note strong {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ui-text);
-}
-.runtime-isolation-note p {
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.9;
-  color: var(--ui-muted);
-}
-.runtime-error {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--ui-error-line);
-  background: var(--ui-error-bg);
-  color: var(--ui-error);
-  padding: 13px 16px;
-  margin-bottom: 20px;
-  border-radius: 5px;
-  font-size: 14px;
-}
-.runtime-error > span {
-  flex: 1;
-}
-.runtime-error > svg {
-  flex-shrink: 0;
-}
 @media (max-width: 1100px) {
   .runtime-settings-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -638,12 +601,6 @@ onBeforeRouteLeave(async () => {
   }
   .runtime-settings-grid {
     gap: 16px;
-  }
-  .runtime-error {
-    flex-wrap: wrap;
-  }
-  .runtime-error > span {
-    min-width: 180px;
   }
 }
 </style>

@@ -391,22 +391,19 @@ th {
 .output-body pre.diagnostic-text {
   color: var(--ui-error);
 }
-.diagnostic-line,
-.error-box {
+.diagnostic-line {
   background: var(--ui-error-bg);
 }
 .diagnostic-line-marker {
   border-left-color: var(--ui-error);
 }
-.error-box,
 .error-count {
   color: var(--ui-error);
 }
 .stdin-panel textarea {
   color: var(--ui-text);
 }
-.ide-statusbar,
-.detail-context-note {
+.ide-statusbar {
   background: var(--ui-page);
   border-top: 1px solid var(--ui-line);
   color: var(--ui-muted);
@@ -417,11 +414,8 @@ th {
 .ide-problem .problem-content > p {
   color: var(--ui-text);
 }
-.problem-tip,
-.info-box,
 .guide-note,
 .guide-notice,
-.class-tip,
 .admin-banner,
 .submission-banner {
   color: var(--ui-secondary);
@@ -429,14 +423,8 @@ th {
   border: 1px solid var(--ui-line);
   border-radius: 4px;
 }
-.problem-tip strong,
 .guide-note h3 {
   color: var(--ui-text);
-}
-.warning-box,
-.workspace-alert {
-  color: var(--ui-warning);
-  background: var(--ui-warning-bg);
 }
 .settings-nav button.selected {
   background: var(--ui-selection);
@@ -503,9 +491,6 @@ th {
 }
 .create-class-card strong {
   color: var(--ui-action);
-}
-.class-tip strong {
-  color: var(--ui-text);
 }
 .guide-grid h3 {
   color: var(--ui-ink);
@@ -583,7 +568,6 @@ th {
   border: 1px solid var(--ui-line);
   color: var(--ui-icon-slate);
 }
-.auth-safety,
 .login-options,
 .auth-state-preview {
   color: var(--ui-muted);
@@ -685,12 +669,6 @@ th {
 .monitor-card-person > svg {
   color: var(--ui-action);
 }
-.monitor-explainer {
-  color: var(--ui-secondary);
-}
-.monitor-explainer > a {
-  color: var(--ui-action);
-}
 .monitor-student-card > p,
 .monitor-exercise-name {
   color: var(--ui-secondary);
@@ -730,13 +708,6 @@ th {
 .file-conflict-comparison pre {
   color: var(--ui-text);
 }
-.toast-message {
-  color: var(--ui-text);
-  border-color: var(--ui-line-strong);
-}
-.toast-message > svg {
-  color: var(--ui-action);
-}
 .modal-content {
   border-radius: 8px;
 }
@@ -766,43 +737,11 @@ th {
 }
 
 /* Application surfaces and semantic actions. Keep blue as the primary brand. */
-.bootstrap-error {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--ui-canvas);
-}
-.bootstrap-error > .panel {
-  width: min(520px, 100%);
-  padding: 48px 24px;
-}
-.bootstrap-error h1 {
-  font-size: 24px;
-  margin: 12px 0;
-}
-.bootstrap-error .empty-state > svg {
-  color: var(--ui-warning);
-}
 .shell-main,
 .teaching-page,
 .monitor-window,
 .projection-page {
   background: var(--ui-canvas);
-}
-.connection-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin: 16px 32px 0;
-  padding: 12px 16px;
-  color: var(--ui-warning);
-  background: var(--ui-warning-bg);
-  border: 1px solid var(--ui-warning-line);
-  border-radius: 6px;
-  font-size: 15px;
 }
 .role-menu p {
   overflow-wrap: anywhere;
@@ -1320,18 +1259,6 @@ tbody tr:hover {
 .class-card-footer > span {
   font-size: 14px;
 }
-.class-tip {
-  background: var(--ui-selection);
-  border-color: var(--ui-blue-line);
-  padding: 18px 20px;
-}
-.class-tip > svg {
-  color: var(--ui-action);
-  flex-shrink: 0;
-}
-.class-tip p {
-  font-size: 15px;
-}
 .exercise-layout {
   grid-template-columns: minmax(280px, 32%) minmax(0, 1fr);
 }
@@ -1355,9 +1282,6 @@ tbody tr:hover {
 }
 .exercise-list-item .status {
   flex-shrink: 0;
-}
-.exercise-list-note {
-  font-size: 14px;
 }
 .problem-content,
 .exercise-feature {
@@ -1417,28 +1341,6 @@ tbody tr:hover {
 .toggle-row small,
 .body-copy {
   font-size: 15px;
-}
-.info-box,
-.warning-box,
-.error-box {
-  padding: 12px 14px;
-  font-size: 15px;
-  line-height: 1.7;
-  border-radius: 6px;
-}
-.info-box {
-  color: var(--ui-action);
-  background: var(--ui-selection);
-  border-color: var(--ui-blue-line);
-}
-.warning-box {
-  color: var(--ui-warning);
-  background: var(--ui-warning-bg);
-  border: 1px solid var(--ui-warning-line);
-}
-.error-box {
-  color: var(--ui-error);
-  border: 1px solid var(--ui-error-line);
 }
 .modal-content {
   width: min(520px, calc(100vw - 32px));
@@ -1552,10 +1454,6 @@ tbody tr:hover {
 .auth-intro {
   font-size: 16px;
 }
-.auth-safety {
-  font-size: 14px;
-  line-height: 1.8;
-}
 .teaching-stage,
 .monitor-window-body {
   min-width: 0;
@@ -1591,28 +1489,6 @@ tbody tr:hover {
 .monitor-footer,
 .teaching-footer {
   font-size: 14px;
-}
-.toast-message {
-  max-width: min(520px, calc(100vw - 32px));
-  font-size: 16px;
-  box-shadow: 0 8px 32px var(--ui-shadow);
-}
-.toast-message > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.toast-message > svg,
-.toast-message > button {
-  flex-shrink: 0;
-}
-.toast-message.success > svg {
-  color: var(--ui-success);
-}
-.toast-message.error {
-  border-color: var(--ui-error-line);
-}
-.toast-message.error > svg {
-  color: var(--ui-error);
 }
 pre {
   max-width: 100%;
@@ -1653,10 +1529,6 @@ pre {
   .page-heading {
     align-items: flex-start;
     text-align: left;
-  }
-  .connection-banner {
-    margin-left: 16px;
-    margin-right: 16px;
   }
   .form-stack input:not([type='checkbox']),
   .form-stack textarea,
@@ -1761,9 +1633,6 @@ pre {
     gap: 12px;
   }
   .monitor-header > .inline-items {
-    flex-wrap: wrap;
-  }
-  .monitor-explainer {
     flex-wrap: wrap;
   }
   .monitor-footer {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Disclosure } from '@/components/ui/disclosure'
@@ -390,6 +392,7 @@ async function backup() {
     busy.value = false
   }
 }
+useActionFeedback(error)
 </script>
 <template>
   <div class="page-heading">
@@ -404,9 +407,15 @@ async function backup() {
       ><Button v-if="section === 'teachers'" @click="openCreate">创建账号</Button>
     </div>
   </div>
-  <p v-if="loadError" class="error-box" role="alert">
-    {{ loadError }} <Button variant="plain" class="text-button" @click="load">重试</Button>
-  </p>
+  <Alert v-if="loadError" role="alert" type="error">
+    <span>{{ loadError }}</span>
+
+    <template #actions
+      ><Button variant="plain" class="text-button" :disabled="loading" @click="load"
+        >重试</Button
+      ></template
+    >
+  </Alert>
   <p v-if="loading" class="muted admin-loading" role="status">正在加载…</p>
   <template v-if="section === 'health'"
     ><div class="stat-grid">
@@ -450,9 +459,9 @@ async function backup() {
         </div>
       </dl>
       <template #footer
-        ><p class="admin-environment-note">
-          <ShieldCheck :size="15" />学生代码由独立评测节点运行，业务服务负责课堂数据与任务调度。
-        </p></template
+        ><Alert type="info" :icon="ShieldCheck">
+          <span>学生代码由独立评测节点运行，业务服务负责课堂数据与任务调度。</span>
+        </Alert></template
       >
     </ContentPanel></template
   >
@@ -532,7 +541,7 @@ async function backup() {
       unit="个账号"
     />
     <div v-if="recoveryTotal" class="admin-recovery-content form-stack">
-      <h3>待核实身份的恢复申请</h3>
+      <h3 data-guide="recovery-requests">待核实身份的恢复申请</h3>
       <div v-for="r in recoveries" :key="r.id" class="recovery-row">
         <div>
           <strong>{{ r.username }}</strong>
@@ -618,17 +627,17 @@ async function backup() {
       class="admin-backup-panel"
     >
       <p>备份保存在服务器本地。验证会使用独立的临时数据库，保留当前课堂、账号和作品数据。</p>
-      <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
       <Button :disabled="busy" @click="backup"
         ><Database :size="15" />{{ busy ? '备份与恢复验证中…' : '创建并验证备份' }}</Button
       >
       <template #footer
-        ><p class="admin-environment-note">
-          <ShieldCheck :size="15" />完成后可在下方管理记录查看备份结果与校验信息。
-        </p></template
+        ><Alert type="info" :icon="ShieldCheck">
+          <span>完成后可在下方管理记录查看备份结果与校验信息。</span>
+        </Alert></template
       >
     </ContentPanel>
-    <section class="panel">
+    <section class="panel" data-guide="audit-records">
       <div class="panel-heading"><h2>管理与备份记录</h2></div>
       <div class="table-controls">
         <label class="search-field"
@@ -682,10 +691,8 @@ async function backup() {
             v-model="password"
             :type="showPassword ? 'text' : 'password'"
             required
-            minlength="12"
             maxlength="200"
             autocomplete="new-password"
-            placeholder="至少 12 位"
           /><Button
             variant="plain"
             type="button"
@@ -696,7 +703,7 @@ async function backup() {
             <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
           </Button></div
       ></label>
-      <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
       <div class="modal-actions">
         <Button type="button" variant="outline" :disabled="busy" @click="create = false"
           >取消</Button
@@ -719,11 +726,9 @@ async function backup() {
           <Input
             v-model="resetPassword"
             required
-            minlength="12"
             maxlength="200"
             :type="showPassword ? 'text' : 'password'"
             autocomplete="new-password"
-            placeholder="至少 12 位"
           /><Button
             variant="plain"
             type="button"
@@ -734,7 +739,7 @@ async function backup() {
             <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
           </Button></div
       ></label>
-      <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
       <div class="modal-actions">
         <Button type="button" variant="outline" :disabled="busy" @click="resetUser = ''"
           >取消</Button
@@ -755,7 +760,7 @@ async function backup() {
     "
     @update:open="!$event && (toggleUser = undefined)"
     ><p class="body-copy">{{ toggleUser?.name }} · {{ toggleUser?.username }}</p>
-    <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
     <div class="modal-actions">
       <Button variant="outline" :disabled="busy" @click="toggleUser = undefined">取消</Button
       ><Button
@@ -782,7 +787,7 @@ async function backup() {
     ><Form class="form-stack" @submit.prevent="resolveRecovery">
       <p>{{ closeRecovery?.username }}</p>
       <label>处理原因<Textarea v-model="closeReason" required maxlength="500" rows="3" /></label>
-      <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
       <div class="modal-actions">
         <Button type="button" variant="outline" :disabled="busy" @click="closeRecovery = undefined"
           >取消</Button
@@ -804,10 +809,10 @@ async function backup() {
         {{ new Date(taskDetail.created_at).toLocaleString() }}
       </p>
       <code>{{ taskDetail.id }}</code>
-      <p class="error-box">{{ taskDetail.exit }}</p>
-      <p class="info-box">
+      <Alert type="error">{{ taskDetail.exit }}</Alert>
+      <Alert type="info">
         为保护课堂作品，管理员诊断不展示学生源代码、编译输出或程序输出。请根据失败原因与任务指标检查平台服务健康；课堂内容由授课教师核对。
-      </p>
+      </Alert>
       <Disclosure title="任务指标">
         <pre>{{ JSON.stringify(taskDetail.metrics ?? {}, null, 2) }}</pre>
       </Disclosure>
@@ -884,6 +889,9 @@ async function backup() {
 }
 .table-controls .ui-select-trigger {
   font-size: 15px;
+  height: 38px;
+  min-height: 38px;
+  padding-block: 0;
   max-width: 160px;
 }
 
@@ -914,19 +922,6 @@ async function backup() {
   font-size: 14px;
   color: var(--ui-secondary);
   font-weight: 400;
-}
-.admin-environment-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--ui-muted);
-  line-height: 1.8;
-}
-.admin-environment-note svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--ui-icon-slate);
 }
 .admin-backup-panel {
   margin-bottom: 24px;

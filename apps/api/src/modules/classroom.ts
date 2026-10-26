@@ -18,7 +18,7 @@ import { z } from 'zod'
 import type { PoolClient } from '@classroom/database'
 import { DatabaseService } from '../database.service.js'
 import { passwordHash } from './auth.js'
-import { actor, parse, role, text, type Actor, type AuthRequest } from './common.js'
+import { actor, parse, role, text, passwordInput, type Actor, type AuthRequest } from './common.js'
 
 const defaults = {
   access: 'approval',
@@ -351,7 +351,7 @@ export class ClassroomController {
       z.object({
         name: text(50),
         number: text(50),
-        password: z.string().min(12).max(200).optional(),
+        password: passwordInput.optional(),
       }),
       body,
     )

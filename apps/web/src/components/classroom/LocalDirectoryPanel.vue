@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent } from 'reka-ui'
 import { FolderOpen, FolderCheck, Unplug, Download, RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from './Modal.vue'
 import { download } from '@/data/demo'
 import { useLocalDirectory } from '@/composables/useLocalDirectory'
+import { spotlight, useGuideSurfaces } from '@/lib/spotlight'
+const popoverOpen = ref(false)
+useGuideSurfaces({
+  'local-directory': () => {
+    const previous = popoverOpen.value
+    popoverOpen.value = true
+    return () => {
+      popoverOpen.value = previous
+    }
+  },
+})
 const props = defineProps<{
   classroomId: string
   exerciseId: string
@@ -25,9 +36,15 @@ const { root, file, conflict, status, needsPermission, busy, backup } = local
 defineExpose({ flush: local.flush })
 </script>
 <template>
-  <PopoverRoot>
+  <PopoverRoot v-model:open="popoverOpen">
     <PopoverTrigger v-if="compact" as-child>
-      <Button variant="outline" size="sm" :title="status" aria-label="本地工作目录">
+      <Button
+        variant="outline"
+        size="sm"
+        :title="status"
+        aria-label="本地工作目录"
+        data-guide="directory-trigger"
+      >
         <FolderCheck v-if="file && !needsPermission" /><FolderOpen v-else />工作目录
       </Button>
     </PopoverTrigger>
@@ -36,6 +53,7 @@ defineExpose({ flush: local.flush })
         :is="compact ? PopoverContent : 'div'"
         v-bind="compact ? { sideOffset: 8, align: 'end' } : {}"
         :class="compact ? 'local-directory-popover' : undefined"
+        @interact-outside="spotlight.active && $event.preventDefault()"
       >
         <section
           class="local-directory-panel"
@@ -59,6 +77,7 @@ defineExpose({ flush: local.flush })
               v-if="backup !== undefined"
               variant="plain"
               class="text-button"
+              data-guide="directory-backup"
               @click="download('backup-' + filename, backup)"
             >
               <Download :size="14" />下载读取前草稿</Button
@@ -67,6 +86,7 @@ defineExpose({ flush: local.flush })
               variant="outline"
               size="sm"
               :disabled="readonly || busy"
+              data-guide="directory-connect"
               @click="local.connect"
               ><RefreshCw v-if="needsPermission" /><FolderOpen v-else />{{
                 needsPermission ? '重新授权' : root ? '关联当前文件' : '选择工作目录'
@@ -108,18 +128,28 @@ defineExpose({ flush: local.flush })
       </div>
       <p class="form-hint">预览最多显示各版本前 6,000 个字符；选择版本会处理完整文件。</p>
       <div class="modal-actions file-conflict-actions">
-        <Button variant="ghost" :disabled="busy" @click="download('backup-' + filename, code)"
+        <Button
+          variant="ghost"
+          :disabled="busy"
+          data-guide="disk-backup"
+          @click="download('backup-' + filename, code)"
           ><Download />备份编辑器草稿</Button
-        ><Button variant="outline" :disabled="busy || readonly" @click="local.useEditor"
+        ><Button
+          variant="outline"
+          :disabled="busy || readonly"
+          data-guide="disk-use-editor"
+          @click="local.useEditor"
           >用草稿覆盖磁盘</Button
-        ><Button :disabled="busy || readonly" @click="local.useDisk">读取磁盘文件</Button>
+        ><Button :disabled="busy || readonly" data-guide="disk-use-disk" @click="local.useDisk"
+          >读取磁盘文件</Button
+        >
       </div></template
     ></Modal
   >
 </template>
 
 <style scoped>
-.local-directory-popover {
+:global(.local-directory-popover) {
   width: 400px;
   max-width: calc(100vw - 32px);
   z-index: 60;

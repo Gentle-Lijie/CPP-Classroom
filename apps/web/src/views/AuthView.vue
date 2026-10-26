@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -47,6 +49,7 @@ async function submit() {
       await api('/auth/recover', 'POST', { username: username.value })
       if (token !== generation) return
       done.value = true
+      notify('恢复申请已记录，请联系平台管理员。')
       return
     }
     if (activeMode === 'join') {
@@ -76,6 +79,7 @@ async function submit() {
     if (token === generation) busy.value = false
   }
 }
+useActionFeedback(error)
 </script>
 <template>
   <main class="auth-page">
@@ -120,16 +124,7 @@ int main() {
                 : '账号由教师或平台管理员分配。'
           }}
         </p>
-        <template v-if="done"
-          ><p class="info-box">
-            {{
-              mode === 'join'
-                ? joinStatus === 'active'
-                  ? '你已经是课堂成员，可以直接进入课堂。'
-                  : '入班申请已提交。课堂列表会显示待审批状态，请等待教师处理。'
-                : '恢复申请已记录，请联系平台管理员。'
-            }}
-          </p>
+        <div v-if="done" class="auth-result">
           <Button
             @click="
               router.push(
@@ -147,8 +142,8 @@ int main() {
                   : '查看申请状态'
                 : '返回登录'
             }}</Button
-          ></template
-        >
+          >
+        </div>
         <Form v-else class="form-stack" @submit.prevent="submit">
           <label v-if="mode === 'join'"
             >课堂码<Input v-model="code" required maxlength="30" /></label
@@ -179,10 +174,10 @@ int main() {
                   <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
                 </Button></div></label
           ></template>
-          <p v-if="capsLock && mode === 'login'" class="warning-box" role="status">
+          <Alert v-if="capsLock && mode === 'login'" role="status" type="warning">
             大写锁定已开启，请核对密码大小写。
-          </p>
-          <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+          </Alert>
+
           <Button type="submit" :disabled="busy"
             >{{
               busy
@@ -197,11 +192,16 @@ int main() {
         </Form>
         <div class="auth-bottom-link">
           <RouterLink v-if="mode === 'login'" to="/recover">忘记密码</RouterLink
-          ><RouterLink v-else to="/login">返回登录</RouterLink>
+          ><RouterLink
+            v-else
+            :to="mode === 'join' ? '/student/classes' : '/login'"
+            data-guide="join-back"
+            >{{ mode === 'join' ? '返回我的课堂' : '返回登录' }}</RouterLink
+          >
         </div>
-        <p class="auth-safety">
-          <ShieldCheck :size="14" />课堂教师可查看学生代码和运行记录，用于教学辅导。
-        </p>
+        <Alert type="info" :icon="ShieldCheck">
+          <span>课堂教师可查看学生代码和运行记录，用于教学辅导。</span>
+        </Alert>
       </div>
       <footer class="auth-footer">C++ Classroom · 原生 Linux 编译环境</footer>
     </section>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import { ref } from 'vue'
 import { Copy, Download, Trash2 } from '@lucide/vue'
 import Modal from './Modal.vue'
@@ -44,9 +45,9 @@ function clear() {
         ><Download />导出账号密码 CSV</Button
       ><Button variant="outline" @click="emit('update:open', false)">稍后继续</Button>
     </div>
-    <p class="warning-box">
+    <Alert type="warning">
       这是生成时的密码副本，并非当前密码验证。学生改密或其他恢复操作后可能失效，请核对生成时间。
-    </p>
+    </Alert>
     <div class="table-scroll credential-table">
       <table>
         <thead>
@@ -103,13 +104,11 @@ function clear() {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
 }
 .credential-table {
   max-height: 360px;
   border: 1px solid var(--ui-line);
   border-radius: 6px;
-  margin: 16px 0;
 }
 .credential-account {
   min-width: 200px;

@@ -25,3 +25,4 @@ export function parse<T extends z.ZodType>(schema: T, value: unknown): z.infer<T
 }
 export const idSchema = z.uuid()
 export const text = (max = 200) => z.string().trim().min(1).max(max)
+export const passwordInput = z.string().min(1).max(200)

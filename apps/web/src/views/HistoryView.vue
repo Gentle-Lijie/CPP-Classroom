@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import { Select, SelectOption } from '@/components/ui/select'
 import { ref, watch } from 'vue'
 import { History, Download, CodeXml, RefreshCw } from '@lucide/vue'
@@ -66,8 +67,10 @@ void load()
       <p>查看当次代码、输入与诊断，不会重新执行程序。</p>
     </div>
     <div class="heading-actions">
-      <Button variant="outline" :disabled="loading" @click="load"><RefreshCw />刷新</Button
+      <Button variant="outline" :disabled="loading" data-guide="history-refresh" @click="load"
+        ><RefreshCw />刷新</Button
       ><Button
+        data-guide="history-download"
         :disabled="!run"
         variant="outline"
         @click="run && download(run.id + '-' + run.filename, run.code)"
@@ -101,9 +104,11 @@ void load()
       </Select></label
     ><span>{{ total }} 条运行记录</span>
   </div>
-  <div v-if="error" class="error-box" role="alert">
-    {{ error }} <Button variant="outline" size="sm" @click="load">重试</Button>
-  </div>
+  <Alert v-if="error" role="alert" type="error">
+    {{ error }}
+
+    <template #actions><Button variant="outline" size="sm" @click="load">重试</Button></template>
+  </Alert>
   <div v-if="loading && !records.length" class="panel empty-state" role="status">
     正在读取运行历史…
   </div>
@@ -117,7 +122,9 @@ void load()
           : '进入课堂编写并运行程序后，代码与结果会保存在这里。'
       }}
     </p>
-    <RouterLink to="/student/classes" class="text-button">前往我的课堂 →</RouterLink>
+    <RouterLink data-guide="history-empty-back" to="/student/classes" class="text-button"
+      >前往我的课堂 →</RouterLink
+    >
   </div>
   <div v-else-if="records.length" class="history-page-layout" :aria-busy="loading">
     <section class="panel">

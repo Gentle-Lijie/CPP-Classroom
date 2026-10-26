@@ -136,9 +136,6 @@
   padding-left: 36px;
   font-family: 'SFMono-Regular', Consolas, monospace;
 }
-.editor-error {
-  margin-bottom: 20px;
-}
 .exercise-editor-page .back-link {
   margin-bottom: 10px;
 }
@@ -276,10 +273,6 @@
 .initial-code-page .code-editor {
   flex: 1;
   min-height: 0;
-}
-.initial-code-page .info-box {
-  border-radius: 0;
-  font-size: 13px;
 }
 .teaching-page {
   min-height: 100dvh;
@@ -608,30 +601,6 @@
 .monitor-window-body {
   padding: 22px 30px 30px;
   flex: 1;
-}
-.monitor-explainer {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 14px;
-  color: var(--ui-secondary);
-  margin-bottom: 23px;
-}
-.monitor-explainer > svg {
-  flex-shrink: 0;
-}
-.monitor-explainer > a {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  white-space: nowrap;
-}
-.popup-blocked {
-  margin-bottom: 20px;
-}
-.popup-blocked a {
-  text-decoration: underline;
 }
 .monitor-controls {
   display: flex;
@@ -1063,13 +1032,6 @@
   .monitor-window-body {
     padding: 20px;
   }
-  .monitor-explainer {
-    font-size: 13px;
-    align-items: flex-start;
-  }
-  .monitor-explainer > a {
-    display: none;
-  }
   .monitor-controls {
     flex-wrap: wrap;
     gap: 13px;
@@ -1264,7 +1226,6 @@
   min-width: 0;
 }
 .monitor-header p,
-.monitor-explainer,
 .monitor-footer,
 .teaching-footer {
   font-size: 14px;

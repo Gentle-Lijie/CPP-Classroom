@@ -1,6 +1,8 @@
 import { computed, reactive, ref } from 'vue'
 import { api, ApiError, connectionState } from '@/lib/api'
 import { executionDefaults } from '@classroom/contracts'
+import { clearNotifications, notify } from '@/lib/notifications'
+export { notify } from '@/lib/notifications'
 export const executionSettings = reactive({ ...executionDefaults })
 export const starterCode =
   '#include <iostream>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n'
@@ -85,8 +87,6 @@ export const exampleRuns = reactive<RunRecord[]>([])
 export const demo = reactive({
   classroomId: '',
   recommended: '',
-  notice: '',
-  noticeKind: 'success' as 'success' | 'error' | 'info',
   role: '',
   inviteCode: '',
   helpSent: false,
@@ -156,7 +156,7 @@ export function clearSession() {
   demo.recommended = ''
   demo.helpSent = false
   demo.inviteCode = ''
-  demo.notice = ''
+  clearNotifications()
   bootstrapError.value = ''
   try {
     for (const key of Object.keys(sessionStorage))
@@ -280,13 +280,6 @@ export function saveDraft(
   const key = draftStorageKey(exerciseId, studentId)
   localStorage.setItem(key, code)
   drafts[key] = code
-}
-let timer: ReturnType<typeof setTimeout>
-export function notify(message: string, kind: 'success' | 'error' | 'info' = 'success') {
-  demo.notice = message
-  demo.noticeKind = kind
-  clearTimeout(timer)
-  timer = setTimeout(() => (demo.notice = ''), 6000)
 }
 export function reportError(error: unknown) {
   notify(error instanceof Error ? error.message : '请求失败，请重试', 'error')

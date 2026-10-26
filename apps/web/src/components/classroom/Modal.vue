@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogClose,
 } from 'reka-ui'
+import { spotlight } from '@/lib/spotlight'
 import { X } from '@lucide/vue'
 withDefaults(
   defineProps<{
@@ -23,14 +24,18 @@ withDefaults(
 defineEmits<{ 'update:open': [value: boolean] }>()
 </script>
 <template>
-  <DialogRoot :open="open" @update:open="!busy && dismissible && $emit('update:open', $event)">
+  <DialogRoot
+    :modal="!spotlight.active"
+    :open="open"
+    @update:open="!busy && dismissible && $emit('update:open', $event)"
+  >
     <DialogPortal
       ><DialogOverlay class="modal-overlay" /><DialogContent
         class="modal-content"
         :class="{ wide }"
         :aria-busy="busy"
-        @escape-key-down="(busy || !dismissible) && $event.preventDefault()"
-        @interact-outside="(busy || !dismissible) && $event.preventDefault()"
+        @escape-key-down="(busy || !dismissible || spotlight.active) && $event.preventDefault()"
+        @interact-outside="(busy || !dismissible || spotlight.active) && $event.preventDefault()"
       >
         <div class="modal-heading">
           <div>
@@ -43,7 +48,7 @@ defineEmits<{ 'update:open': [value: boolean] }>()
             ><X :size="18"
           /></DialogClose>
         </div>
-        <slot /> </DialogContent
+        <div class="modal-body"><slot /></div> </DialogContent
     ></DialogPortal>
   </DialogRoot>
 </template>

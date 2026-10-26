@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -112,9 +113,13 @@ async function fullscreen() {
         ><Button @click="fullscreen"><Maximize />全屏</Button>
       </div>
     </header>
-    <p v-if="error" class="warning-box projection-warning" role="status">
-      {{ error }} <Button variant="outline" size="sm" @click="retry"><RefreshCw />重试连接</Button>
-    </p>
+    <Alert v-if="error" role="status" type="warning">
+      {{ error }}
+
+      <template #actions
+        ><Button variant="outline" size="sm" @click="retry"><RefreshCw />重试连接</Button></template
+      >
+    </Alert>
     <div class="projection-title">
       <div>
         <h1>{{ snapshot.title }}</h1>
@@ -158,7 +163,7 @@ async function fullscreen() {
         loading ? '正在读取投屏…' : expired ? '展示已过期、已撤销或无权访问' : '暂时无法读取投屏'
       }}
     </h2>
-    <p v-if="error" role="alert">{{ error }}</p>
+    <Alert v-if="error" role="alert" type="error">{{ error }}</Alert>
     <Button v-if="!loading" variant="outline" @click="retry">重新读取</Button
     ><RouterLink to="/teacher/overview">返回课堂</RouterLink>
   </div>
@@ -194,13 +199,6 @@ async function fullscreen() {
 .projection-title p {
   font-size: 15px;
   line-height: 1.7;
-}
-.projection-warning {
-  margin: 16px 40px 0;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
 }
 .projection-body > * {
   min-width: 0;
@@ -238,9 +236,6 @@ async function fullscreen() {
   }
   .projection-title h1 {
     font-size: 24px;
-  }
-  .projection-warning {
-    margin: 16px;
   }
   .projection-code {
     height: 480px;

@@ -129,6 +129,9 @@ importers:
       monaco-editor:
         specifier: 0.55.1
         version: 0.55.1
+      notivue:
+        specifier: ^2.4.5
+        version: 2.4.5(defu@6.1.7)
       reka-ui:
         specifier: 2.11.0
         version: 2.11.0(vue@3.5.44(typescript@5.9.3))
@@ -2222,6 +2225,20 @@ packages:
   non-error@0.1.0:
     resolution: {integrity: sha512-TMB1uHiGsHRGv1uYclfhivcnf0/PdFp2pNqRxXjncaAsjYMoisaQJI+SSZCqRq+VliwRTC8tsMQfmrWjDMhkPQ==}
     engines: {node: '>=20'}
+
+  notivue@2.4.5:
+    resolution: {integrity: sha512-7yBdaKesUZIwdcQP3nv1oWYyisI2bURkZ+D9KfLgeNqguHUzkQ1WdhGcTj59PBZa8mqa1/K5Mh8YsphSToMKcQ==}
+    peerDependencies:
+      '@nuxt/kit': '>=3.5.0'
+      '@nuxt/schema': '>=3.5.0'
+      defu: '>=6'
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
+      '@nuxt/schema':
+        optional: true
+      defu:
+        optional: true
 
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
@@ -4478,6 +4495,10 @@ snapshots:
       content-type: 2.1.0
 
   non-error@0.1.0: {}
+
+  notivue@2.4.5(defu@6.1.7):
+    optionalDependencies:
+      defu: 6.1.7
 
   nth-check@2.1.1:
     dependencies:

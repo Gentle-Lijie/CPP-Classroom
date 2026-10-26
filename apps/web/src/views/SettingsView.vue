@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
+import { useGuideSurfaces } from '@/lib/spotlight'
 import { NumberInput } from '@/components/ui/number-input'
 import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -59,6 +62,20 @@ function beforeUnload(event: BeforeUnloadEvent) {
 onMounted(() => window.addEventListener('beforeunload', beforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 const tab = ref('基本信息')
+useGuideSurfaces(
+  Object.fromEntries(
+    ['基本信息', '加入与邀请', '编程环境', '课堂策略', '归档课堂'].map((name) => [
+      `settings-${name}`,
+      () => {
+        const previous = tab.value
+        tab.value = name
+        return () => {
+          tab.value = previous
+        }
+      },
+    ]),
+  ),
+)
 const archive = ref(false)
 const reopen = ref(false)
 const confirmState = ref('')
@@ -155,6 +172,7 @@ async function regenerateInvite() {
 async function archiveClass() {
   if (await save('已归档', true)) archive.value = false
 }
+useActionFeedback(error)
 </script>
 <template>
   <div class="page-heading">
@@ -167,10 +185,10 @@ async function archiveClass() {
       ><Save />{{ busy ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}</Button
     >
   </div>
-  <p v-if="error" role="alert" class="error-box settings-error">{{ error }}</p>
-  <p v-if="dirty" class="warning-box settings-error" role="status">
+
+  <Alert v-if="dirty" role="status" type="warning">
     有尚未保存的课堂设置，开关调整需点击“保存设置”后生效。
-  </p>
+  </Alert>
   <div class="settings-layout" :inert="busy">
     <nav class="settings-nav">
       <Button
@@ -242,7 +260,7 @@ async function archiveClass() {
           <Settings2 :size="19" />
           <h2>统一编程环境</h2>
         </div>
-        <div class="info-box">编译标准与运行限制由平台管理员统一配置。</div>
+        <Alert type="info">编译标准与运行限制由平台管理员统一配置。</Alert>
         <p>GCC · {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</p>
         <div class="environment-grid">
           <div><span>项目类型</span><strong>每题一个 C++ 源文件</strong></div>
@@ -289,7 +307,7 @@ async function archiveClass() {
         <p class="body-copy">
           归档会关闭新成员加入、编辑与新运行，并停止正在执行的任务。历史作品按只读访问策略保留；需要继续教学时可恢复课堂。
         </p>
-        <div class="warning-box">归档保留账号、作品和历史记录，不会永久删除数据。</div>
+        <Alert type="warning">归档保留账号、作品和历史记录，不会永久删除数据。</Alert>
         <Button
           v-if="activeClassroom.status === '已归档'"
           variant="success"
@@ -397,9 +415,6 @@ async function archiveClass() {
   margin-top: 24px;
   font-size: 14px;
   color: var(--ui-secondary);
-}
-.settings-error {
-  margin-bottom: 20px;
 }
 .settings-panel,
 .settings-panel .form-stack > label {

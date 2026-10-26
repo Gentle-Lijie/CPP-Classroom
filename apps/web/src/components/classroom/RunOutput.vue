@@ -16,8 +16,7 @@ const props = defineProps<{
 const tab = ref('运行输出'),
   line = ref(''),
   cleared = ref(false),
-  busy = ref(false),
-  error = ref('')
+  busy = ref(false)
 const value = computed(() =>
   !props.run
     ? ''
@@ -32,7 +31,6 @@ watch(
   () => {
     cleared.value = false
     tab.value = props.run?.status === '编译失败' ? '编译诊断' : '运行输出'
-    error.value = ''
     line.value = ''
   },
 )
@@ -61,10 +59,8 @@ async function copy() {
 async function send() {
   if (busy.value || !props.sendInput) return
   busy.value = true
-  error.value = ''
   try {
     if (await props.sendInput(line.value)) line.value = ''
-    else error.value = '输入未发送，请核对后重试。'
   } finally {
     busy.value = false
   }
@@ -72,9 +68,8 @@ async function send() {
 async function eof() {
   if (busy.value || !props.closeInput) return
   busy.value = true
-  error.value = ''
   try {
-    if (!(await props.closeInput())) error.value = 'EOF 未发送，请重试。'
+    await props.closeInput()
   } finally {
     busy.value = false
   }
@@ -89,6 +84,7 @@ async function eof() {
           role="tab"
           :aria-selected="tab === '运行输出'"
           :class="{ selected: tab === '运行输出' }"
+          data-guide="output-tab"
           @click="select('运行输出')"
         >
           <Terminal :size="14" />运行输出</Button
@@ -97,6 +93,7 @@ async function eof() {
           role="tab"
           :aria-selected="tab === '编译诊断'"
           :class="{ selected: tab === '编译诊断' }"
+          data-guide="diagnostic-tab"
           @click="select('编译诊断')"
         >
           <CircleAlert :size="14" />编译诊断<span
@@ -110,6 +107,7 @@ async function eof() {
           role="tab"
           :aria-selected="tab === '标准错误'"
           :class="{ selected: tab === '标准错误' }"
+          data-guide="stderr-tab"
           @click="select('标准错误')"
         >
           标准错误
@@ -129,6 +127,7 @@ async function eof() {
           class="icon-button"
           :aria-label="cleared ? '恢复显示输出' : '清空可见输出（保留记录）'"
           :disabled="!run"
+          data-guide="clear-output"
           @click="cleared = !cleared"
         >
           <RotateCcw v-if="cleared" :size="14" /><Trash2 v-else :size="14" />
@@ -175,18 +174,20 @@ async function eof() {
         placeholder="输入一行文本…"
         :disabled="busy"
         maxlength="4095"
-      /><Button type="submit" size="sm" :disabled="busy">{{ busy ? '发送中…' : '发送' }}</Button
+      /><Button data-guide="send-input" type="submit" size="sm" :disabled="busy">{{
+        busy ? '发送中…' : '发送'
+      }}</Button
       ><Button
         type="button"
         variant="outline"
         size="sm"
         :disabled="busy"
         title="关闭标准输入，之后不能继续发送文本"
+        data-guide="send-eof"
         @click="eof"
         >EOF</Button
       >
     </Form>
-    <p v-if="error" class="input-error" role="alert">{{ error }}</p>
   </section>
 </template>
 <style scoped>
@@ -269,8 +270,7 @@ async function eof() {
 .runtime-input [data-slot='button'] {
   font-size: 14px;
 }
-.stdin-closed,
-.input-error {
+.stdin-closed {
   font-size: 14px;
   padding: 8px 12px;
   line-height: 1.6;
@@ -279,9 +279,5 @@ async function eof() {
 .stdin-closed {
   color: var(--ui-secondary);
   background: var(--ui-surface);
-}
-.input-error {
-  color: var(--ui-error);
-  background: var(--ui-error-bg);
 }
 </style>

@@ -281,9 +281,3 @@
   background: var(--ui-code-bg);
   color: var(--ui-code-fg);
 }
-.ui-form-errors {
-  border: 1px solid var(--ui-error-line);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: var(--ui-error-bg);
-}

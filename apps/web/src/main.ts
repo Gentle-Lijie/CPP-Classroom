@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { createNotivue } from 'notivue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import { initialize, currentUser, demo, exercises, bootstrapError } from './data/demo'
@@ -9,6 +10,9 @@ import './platform.css'
 import './editor-language.css'
 import './controls.css'
 import './density.css'
+import 'notivue/notification.css'
+import 'notivue/animations.css'
+import './alerts.css'
 
 initializeTheme()
 
@@ -97,4 +101,7 @@ router.beforeEach(async (to) => {
 router.afterEach((to) => {
   document.title = `${to.path.startsWith('/teacher/inspect/') ? '学生详情独立窗口' : to.path === '/teacher/teach' ? '教师授课' : to.path === '/teacher/monitor' ? '在线课堂巡视' : to.path.startsWith('/student/workspace') ? '练习工作区' : to.path.startsWith('/projection') ? '课堂投屏' : '教学工作台'} · 码上课堂`
 })
-createApp(App).use(router).mount('#app')
+createApp(App)
+  .use(createNotivue({ position: 'top-right', limit: 3, avoidDuplicates: true }))
+  .use(router)
+  .mount('#app')

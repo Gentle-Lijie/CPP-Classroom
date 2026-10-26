@@ -1,40 +1,223 @@
 <script setup lang="ts">
-import ContentPanel from '@/components/classroom/ContentPanel.vue'
-import { currentUser } from '@/data/demo'
+import { Alert } from '@/components/ui/alert'
+import { computed } from 'vue'
+import { ArrowRight, ScanLine, BookOpen, Check, LockKeyhole } from '@lucide/vue'
+import { Button } from '@/components/ui/button'
+import { currentUser, demo, exercises } from '@/data/demo'
+import {
+  chapterAvailable,
+  guideCatalog,
+  roleLabels,
+  type GuideChapter,
+  type GuideRole,
+} from '@/lib/guide-catalog'
+import { startGuide } from '@/lib/spotlight'
+const role = computed(() => (currentUser.value?.role ?? 'student') as GuideRole)
+const chapters = computed(() => guideCatalog[role.value])
+const available = (chapter: GuideChapter) =>
+  chapterAvailable(chapter, !!demo.classroomId, exercises.length > 0)
+const ready = computed(() => chapters.value.filter(available))
+const count = computed(() =>
+  chapters.value.reduce((total, chapter) => total + chapter.steps.length, 0),
+)
+function begin(chapter?: GuideChapter) {
+  startGuide(role.value, chapter ? [chapter] : ready.value)
+}
 </script>
 <template>
-  <ContentPanel>
-    <h1>码上课堂使用指南</h1>
-    <p>使用教师或管理员分配的账号登录，服务器验证每次请求的课堂权限。</p>
-    <template v-if="currentUser?.role === 'teacher'"
-      ><h2>教师</h2>
-      <ol>
-        <li>创建课堂，在课堂设置中开放课堂。</li>
-        <li>
-          添加或导入学生后，在名册下载账号密码表并交付给对应学生。本标签页可再次导出；忘记密码时可重置并重新交付。已有账号可申请入班，由教师审批。
-        </li>
-        <li>创建并发布练习，设置推荐题目。</li>
-        <li>巡视查看在线状态、求助和运行结果；详情每秒同步当前草稿和历史快照。</li>
-        <li>固定快照可以匿名投屏，结束时撤销；提交与导出保留真实作品。</li>
-        <li>归档关闭编辑和运行，保留作品和历史。</li>
-      </ol>
-      <RouterLink to="/teacher/classes">我的课堂 →</RouterLink></template
-    ><template v-else-if="currentUser?.role === 'student'"
-      ><h2>学生</h2>
-      <ol>
-        <li>进入已加入的课堂，或用教师提供的课堂码申请。</li>
-        <li>编辑后等待“已同步到服务器”；断网时本机备份并自动重试。</li>
-        <li>运行使用已保存的固定版本，之后修改不会改变旧结果。</li>
-        <li>勾选运行时输入，可发送文本行、EOF 或停止。EOF 真正关闭 stdin。</li>
-        <li>冲突时先下载本机修改，再读取服务器版本；读取后如需合并，请在保留的备份中核对。</li>
-        <li>提交保存不可变版本，求助发送给本课堂教师。</li>
-      </ol>
-      <RouterLink to="/student/classes">我的课堂 →</RouterLink></template
-    ><template v-else
-      ><h2>管理员</h2>
-      <p>管理账号、核实恢复申请后重设密码、配置执行限额、查看失败任务与审计记录。</p>
-      <p>备份使用原生 pg_dump，在独立临时数据库恢复验证，不覆盖现有数据。</p>
-      <RouterLink to="/admin/health">平台概况 →</RouterLink></template
-    >
-  </ContentPanel>
+  <div class="guide-page">
+    <div class="page-heading">
+      <div>
+        <div class="heading-meta">{{ roleLabels[role] }}工作台 · 使用导览</div>
+        <h1>几步熟悉课堂工作流</h1>
+        <p>跟随关键任务认识工作台，随时跳转或退出。</p>
+      </div>
+    </div>
+    <section class="panel guide-intro">
+      <div class="guide-intro-icon"><ScanLine :size="30" /></div>
+      <div class="guide-intro-copy">
+        <span class="guide-eyebrow">{{ roleLabels[role] }}专属导览</span>
+        <h2>
+          {{
+            role === 'student'
+              ? '用模拟工作区，试一遍编程流程'
+              : role === 'teacher'
+                ? '从准备课堂，到授课、巡视与作品管理'
+                : '从平台状态，到账号、执行配置与备份'
+          }}
+        </h2>
+        <p>共 {{ count }} 步，了解主要工作流程。也可以只看下面某个环节。</p>
+        <div class="guide-assurances">
+          <span><Check :size="14" />支持键盘切换</span
+          ><span><Check :size="14" />不会自动运行或提交</span
+          ><span><Check :size="14" />随时重新查看</span>
+        </div>
+      </div>
+      <Button size="lg" @click="begin()"
+        ><ScanLine :size="17" />开始导览<ArrowRight :size="16"
+      /></Button>
+    </section>
+    <Alert v-if="ready.length < chapters.length" type="warning" :icon="LockKeyhole">
+      <span
+        >部分章节需要先{{
+          role === 'student' ? '加入课堂并等待教师发布练习' : '选择课堂并准备练习'
+        }}。完整导览会先介绍当前可用的章节。</span
+      >
+    </Alert>
+    <div class="guide-section-title">
+      <h2><BookOpen :size="18" />只看需要的环节</h2>
+      <span>每个环节 1–3 步</span>
+    </div>
+    <div class="guide-chapters">
+      <section
+        v-for="(chapter, index) in chapters"
+        :key="chapter.id"
+        class="panel guide-chapter"
+        :class="{ unavailable: !available(chapter) }"
+      >
+        <div class="guide-chapter-number">{{ String(index + 1).padStart(2, '0') }}</div>
+        <div class="guide-chapter-copy">
+          <h3>{{ chapter.title }}</h3>
+          <p>{{ chapter.description }}</p>
+          <span
+            >{{ chapter.steps.length }} 步{{
+              !available(chapter)
+                ? chapter.requires === 'exercises'
+                  ? ' · 需要课堂中有可访问的练习'
+                  : ' · 需要先选择课堂'
+                : ''
+            }}</span
+          >
+        </div>
+        <Button
+          variant="outline"
+          :disabled="!available(chapter)"
+          :aria-label="`开始${chapter.title}导览`"
+          @click="begin(chapter)"
+          >开始<ArrowRight :size="15"
+        /></Button>
+      </section>
+    </div>
+    <p class="guide-footnote">← → 切换步骤，Esc 退出；导览不会替你运行、提交或修改数据。</p>
+  </div>
 </template>
+<style scoped>
+.guide-page {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.guide-intro {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 28px;
+  border-top: 3px solid var(--ui-action);
+}
+.guide-intro-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--ui-blue-line);
+  border-radius: 12px;
+  background: var(--ui-selection);
+  color: var(--ui-action);
+  flex-shrink: 0;
+}
+.guide-intro-copy {
+  flex: 1;
+  min-width: 0;
+}
+.guide-eyebrow {
+  color: var(--ui-action);
+  font-size: 13px;
+  font-weight: 600;
+}
+.guide-intro h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 8px 0;
+}
+.guide-intro p {
+  max-width: 660px;
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--ui-secondary);
+}
+.guide-assurances {
+  display: flex;
+  gap: 20px;
+  margin-top: 15px;
+  color: var(--ui-secondary);
+  font-size: 12px;
+}
+.guide-assurances span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.guide-assurances svg {
+  color: var(--ui-success);
+}
+.guide-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 30px 0 16px;
+}
+.guide-section-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.guide-section-title > span {
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.guide-chapters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.guide-chapter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+.guide-chapter-number {
+  align-self: flex-start;
+  color: var(--ui-faint);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.guide-chapter-copy {
+  flex: 1;
+  min-width: 0;
+}
+.guide-chapter h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.guide-chapter p {
+  margin: 6px 0 8px;
+  color: var(--ui-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.guide-chapter-copy > span {
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.guide-chapter.unavailable {
+  background: var(--ui-surface);
+}
+.guide-footnote {
+  margin: 20px 0 0;
+  color: var(--ui-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+</style>

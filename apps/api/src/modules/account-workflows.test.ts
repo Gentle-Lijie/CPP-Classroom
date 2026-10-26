@@ -89,13 +89,13 @@ describe('account recovery authorization and atomicity', () => {
     const mock = service(query)
     await expect(
       new AdminController(mock.value, {} as Environment).update(req('admin'), studentId, {
-        password: 'new-long-password',
+        password: '123456',
       }),
     ).rejects.toThrow('database unavailable')
     expect(query.mock.calls.at(-1)?.[0]).toBe('rollback')
     expect(query.mock.calls.some((call) => call[0] === 'commit')).toBe(false)
   })
-  it('preserves whitespace in the current password and enforces twelve characters for a replacement', async () => {
+  it('preserves whitespace in the current password and accepts short replacements while rejecting empty passwords', async () => {
     const current = '  existing password  '
     const query = vi.fn(async (sql: string) => ({
       rows: sql.startsWith('select password_hash')
@@ -107,10 +107,15 @@ describe('account recovery authorization and atomicity', () => {
     const controller = new AuthController({
       database: { pool: { connect: async () => mock.client } },
     } as unknown as DatabaseService)
-    await expect(
-      controller.password({ current, password: 'new-long-password' }, req()),
-    ).resolves.toEqual({ ok: true })
-    await expect(controller.password({ current, password: 'short' }, req())).rejects.toThrow()
+    await expect(controller.password({ current, password: '123456' }, req())).resolves.toEqual({
+      ok: true,
+    })
+    const update = query.mock.calls.find((call) =>
+      call[0].startsWith('update users'),
+    ) as unknown as [string, unknown[]]
+    expect(verifyPassword('123456', String(update[1][0]))).toBe(true)
+    expect(verifyPassword(current, String(update[1][0]))).toBe(false)
+    await expect(controller.password({ current, password: '' }, req())).rejects.toThrow()
     expect(query.mock.calls.some((call) => call[0] === 'commit')).toBe(true)
   })
 })

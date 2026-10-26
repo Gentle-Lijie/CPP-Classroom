@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, ref, watch } from 'vue'
@@ -209,10 +210,9 @@ function edit(e: Exercise) {
         :total="filtered.length"
         unit="道练习"
       />
-      <div class="exercise-list-note">
-        <BookOpen :size="17" />
+      <Alert type="info" :icon="BookOpen" class="app-alert--inset">
         <p>学生可查看已发布和已关闭练习。<br />题目编辑在独立页面完成。</p>
-      </div>
+      </Alert>
     </section>
     <section class="panel exercise-preview">
       <div class="panel-heading">

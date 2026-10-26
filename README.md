@@ -11,7 +11,7 @@ Vue 3、TypeScript、shadcn-vue、Tailwind CSS、NestJS、PostgreSQL 与原生 L
 ```sh
 pnpm install
 pnpm setup:local
-# 首次创建管理员，从环境变量提供至少 12 位密码；不会覆盖已有账号
+# 首次创建管理员，从环境变量提供非空密码；不会覆盖已有账号
 ADMIN_PASSWORD='自行生成的随机密码' pnpm auth:bootstrap
 pnpm dev
 ```

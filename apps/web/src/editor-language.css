@@ -107,29 +107,6 @@
   position: relative;
   min-width: 0;
 }
-.editor-resource-state {
-  position: absolute;
-  z-index: 5;
-  inset: 0 0 30px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 24px;
-  gap: 10px;
-  background: var(--ui-page);
-  color: var(--ui-secondary);
-  font-size: 15px;
-  text-align: center;
-  overflow: auto;
-}
-.editor-resource-state[role='alert'] {
-  color: var(--ui-error);
-}
-.editor-resource-state p {
-  overflow-wrap: anywhere;
-  line-height: 1.7;
-}
 .editor-language-bar,
 .editor-language-toggle,
 .editor-language-bar > .text-button {

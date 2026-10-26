@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -23,6 +25,7 @@ import {
   Settings2,
   WifiOff,
   Monitor,
+  HelpCircle,
 } from '@lucide/vue'
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'reka-ui'
 import { Button } from '@/components/ui/button'
@@ -50,6 +53,8 @@ import {
 } from '@/data/demo'
 import { confirmAction } from '@/lib/confirm'
 import { api, ApiError } from '@/lib/api'
+import { studentGuideActive, useGuideSurfaces } from '@/lib/spotlight'
+import { startUserGuide } from '@/lib/user-guide'
 const route = useRoute(),
   router = useRouter()
 const initial = String(route.query.exercise ?? demo.recommended ?? '')
@@ -64,6 +69,43 @@ const help = ref(false),
   submit = ref(false),
   submitted = ref(false),
   reset = ref(false)
+useGuideSurfaces({
+  'workspace-problem': () => {
+    const previous = panel.value
+    panel.value = '题目'
+    return () => {
+      panel.value = previous
+    }
+  },
+  'workspace-history': () => {
+    const previous = panel.value
+    panel.value = '历史'
+    return () => {
+      panel.value = previous
+    }
+  },
+  'workspace-help': () => {
+    const previous = help.value
+    help.value = true
+    return () => {
+      help.value = previous
+    }
+  },
+  'workspace-submit': () => {
+    const previous = submit.value
+    submit.value = true
+    return () => {
+      submit.value = previous
+    }
+  },
+  'workspace-reset': () => {
+    const previous = reset.value
+    reset.value = true
+    return () => {
+      reset.value = previous
+    }
+  },
+})
 const helpSent = ref(false),
   submittedAt = ref(''),
   undo = ref<string>()
@@ -236,6 +278,7 @@ async function loadCode() {
   if (matches(c) && !loadError.value) void heartbeat()
 }
 async function saveNow(): Promise<boolean> {
+  if (studentGuideActive.value) return false
   clearTimeout(saveTimer)
   if (saving) {
     const ok = await saving
@@ -336,7 +379,6 @@ async function startRun() {
     }
   } catch (e) {
     actionError.value = e instanceof Error ? e.message : '运行失败'
-    reportError(e)
   } finally {
     runningRequest.value = false
   }
@@ -434,7 +476,7 @@ async function sendHelp() {
   }
 }
 async function heartbeat() {
-  if (loading.value || loadError.value || !selected.value) return
+  if (studentGuideActive.value || loading.value || loadError.value || !selected.value) return
   try {
     const c = context()
     await api(path(c, '/heartbeat'), 'POST', { exerciseId: c.exercise })
@@ -491,7 +533,7 @@ async function stopAndSwitch() {
   }
 }
 const poll = setInterval(async () => {
-  if (polling || loading.value || loadError.value) return
+  if (studentGuideActive.value || polling || loading.value || loadError.value) return
   polling = true
   const c = context(),
     id = run.value?.id
@@ -563,6 +605,7 @@ onBeforeRouteLeave(async (to) => {
   }
   return !dirty.value || (await saveNow())
 })
+useActionFeedback(actionError)
 </script>
 <template>
   <div v-if="exercise" class="ide-page">
@@ -617,6 +660,14 @@ onBeforeRouteLeave(async (to) => {
         /><CloudCheck v-else :size="15" /><span>{{ saveState }}</span></span
       >
       <div class="workspace-actions">
+        <Button
+          variant="plain"
+          class="icon-button"
+          aria-label="使用导览"
+          data-guide="workspace-guide"
+          @click="startUserGuide"
+          ><HelpCircle :size="18"
+        /></Button>
         <ThemeToggle />
         <LocalDirectoryPanel
           ref="directoryPanel"
@@ -627,13 +678,14 @@ onBeforeRouteLeave(async (to) => {
           :readonly="readonly"
           compact
         />
-        <Button variant="outline" size="sm" :disabled="readonly" @click="openHelp"
+        <Button variant="outline" size="sm" :disabled="readonly" data-guide="help" @click="openHelp"
           ><Hand />{{ helpSent ? '已求助' : '求助' }}</Button
         >
         <Button
           variant="outline"
           size="sm"
           :disabled="readonly || (submitted && activeClassroom.settings?.allowResubmit === false)"
+          data-guide="submit"
           @click="openSubmit"
           ><Send />提交作品</Button
         >
@@ -642,12 +694,14 @@ onBeforeRouteLeave(async (to) => {
           variant="destructive"
           size="sm"
           :disabled="stopping"
+          data-guide="stop"
           @click="stop"
           ><Square />{{ stopping ? '停止中…' : '停止' }}</Button
         >
         <Button
           :disabled="readonly || runningRequest || active() || !!otherRun"
           size="sm"
+          data-guide="run"
           @click="startRun"
           ><Play />{{ runningRequest ? '正在创建…' : '编译运行' }}</Button
         >
@@ -656,32 +710,49 @@ onBeforeRouteLeave(async (to) => {
         }}</span>
       </div>
     </header>
-    <div v-if="otherRun" class="workspace-alert amber">
+    <Alert v-if="otherRun" class="app-alert--banner" type="warning">
       {{
         classrooms.find((c) => c.id === otherRun?.classroomId)?.name ?? '另一道练习'
-      }}仍有运行中的任务，结束后才能运行本题。<Button variant="plain" @click="returnToRunning">
-        返回该练习控制运行
-      </Button>
-    </div>
-    <div v-if="loading" class="workspace-alert" role="status">正在读取草稿，请稍候…</div>
-    <div v-if="loadError" class="workspace-alert amber" role="alert">
-      {{ loadError }}<Button variant="plain" @click="loadCode">重新读取</Button>
-    </div>
-    <div v-if="viewing" class="workspace-alert amber">
-      <History :size="14" />正在查看 {{ viewing.id }} 的只读代码快照，当前草稿独立保留。<Button
-        variant="plain"
-        @click="viewing = undefined"
+      }}仍有运行中的任务，结束后才能运行本题。
+
+      <template #actions
+        ><Button variant="plain" data-guide="other-run" @click="returnToRunning">
+          返回该练习控制运行
+        </Button></template
       >
-        返回当前草稿 <ArrowLeft :size="13" />
-      </Button>
-    </div>
-    <div v-if="conflict" class="workspace-alert amber">
-      <WifiOff :size="14" />{{ saveState
-      }}<Button variant="plain" @click="useServer">下载本机修改并读取服务器版本</Button>
-    </div>
-    <div v-else-if="isArchived" class="workspace-alert amber">
+    </Alert>
+    <Alert v-if="loading" class="app-alert--banner" role="status" type="info"
+      >正在读取草稿，请稍候…</Alert
+    >
+    <Alert v-if="loadError" class="app-alert--banner" role="alert" type="error">
+      {{ loadError }}
+
+      <template #actions
+        ><Button variant="plain" data-guide="draft-retry" @click="loadCode"
+          >重新读取</Button
+        ></template
+      >
+    </Alert>
+    <Alert v-if="viewing" class="app-alert--banner" type="info" :icon="History">
+      正在查看 {{ viewing.id }} 的只读代码快照，当前草稿独立保留。
+
+      <template #actions
+        ><Button variant="plain" data-guide="return-draft" @click="viewing = undefined">
+          返回当前草稿 <ArrowLeft :size="13" /> </Button
+      ></template>
+    </Alert>
+    <Alert v-if="conflict" class="app-alert--banner" type="warning" :icon="WifiOff">
+      {{ saveState }}
+
+      <template #actions
+        ><Button variant="plain" data-guide="server-conflict" @click="useServer"
+          >下载本机修改并读取服务器版本</Button
+        ></template
+      >
+    </Alert>
+    <Alert v-else-if="isArchived" class="app-alert--banner" type="warning">
       当前课堂或练习只读，作品与历史保留。
-    </div>
+    </Alert>
     <SplitterGroup
       direction="horizontal"
       auto-save-id="student-workspace-columns"
@@ -697,9 +768,19 @@ onBeforeRouteLeave(async (to) => {
         :max-size="50"
       >
         <div class="problem-tabs">
-          <Button variant="plain" :class="{ selected: panel === '题目' }" @click="panel = '题目'">
+          <Button
+            variant="plain"
+            :class="{ selected: panel === '题目' }"
+            data-guide="problem-tab"
+            @click="panel = '题目'"
+          >
             <BookOpen :size="15" />题目说明</Button
-          ><Button variant="plain" :class="{ selected: panel === '历史' }" @click="panel = '历史'">
+          ><Button
+            variant="plain"
+            :class="{ selected: panel === '历史' }"
+            data-guide="history-tab"
+            @click="panel = '历史'"
+          >
             <History :size="15" />运行历史
           </Button>
         </div>
@@ -729,15 +810,13 @@ onBeforeRouteLeave(async (to) => {
               <pre>{{ exercise.sampleOutput }}</pre>
             </div>
           </div>
-          <div class="problem-tip">
+          <Alert type="info" class="app-alert--section">
             <strong>想一想</strong>
             <p>先检查样例的输入和预期输出，再逐步编写程序。</p>
-          </div>
-          <div class="privacy-note">
-            <Monitor :size="15" /><span
-              >课堂内的教师可以查看你的代码和运行记录，及时提供辅导。</span
-            >
-          </div>
+          </Alert>
+          <Alert type="info" :icon="Monitor">
+            <span>课堂内的教师可以查看你的代码和运行记录，及时提供辅导。</span>
+          </Alert>
         </div>
         <div v-else class="workspace-history">
           <div class="history-list">
@@ -758,10 +837,19 @@ onBeforeRouteLeave(async (to) => {
                 ></span
               ><History :size="15" />
             </Button>
-            <p v-if="historyError" class="error-box" role="alert">
+            <Alert v-if="historyError" role="alert" type="error">
               {{ historyError }}
-              <Button variant="plain" class="text-button" @click="loadHistory">重试</Button>
-            </p>
+
+              <template #actions
+                ><Button
+                  variant="plain"
+                  class="text-button"
+                  data-guide="history-retry"
+                  @click="loadHistory"
+                  >重试</Button
+                ></template
+              >
+            </Alert>
             <p v-else-if="!history.length" class="small-empty">本练习还没有运行记录。</p>
           </div>
           <Pagination
@@ -818,6 +906,7 @@ onBeforeRouteLeave(async (to) => {
                   <Download :size="14" /></Button
                 ><Button
                   v-if="undo !== undefined"
+                  data-guide="undo-reset"
                   variant="plain"
                   class="text-button"
                   :disabled="readonly"
@@ -882,6 +971,7 @@ onBeforeRouteLeave(async (to) => {
                     variant="plain"
                     class="text-button ml-auto"
                     :disabled="!!viewing"
+                    data-guide="fill-sample"
                     @click="
                       () => {
                         input = exercise?.sampleInput ?? ''
@@ -902,7 +992,12 @@ onBeforeRouteLeave(async (to) => {
                 <pre v-else class="snapshot-input">{{ viewing.input }}</pre>
                 <div class="stdin-note">
                   <span v-if="viewing">本次运行使用的固定输入</span>
-                  <label v-else class="inline-items" title="运行后可逐行发送输入，最长 60 秒">
+                  <label
+                    v-else
+                    data-guide="interactive-toggle"
+                    class="inline-items"
+                    title="运行后可逐行发送输入，最长 60 秒"
+                  >
                     <Checkbox v-model="interactive" :disabled="active()" />运行时输入
                   </label>
                 </div>
@@ -962,20 +1057,26 @@ onBeforeRouteLeave(async (to) => {
       <label
         >求助说明<Textarea
           v-model="helpText"
+          data-guide="help-message"
           rows="4"
           placeholder="例如：循环里的变量应该怎么初始化？"
           maxlength="300"
           required
         />
       </label>
-      <div class="info-box">
+      <Alert data-guide="help-context" type="info">
         关联练习：{{ exercise?.title }}<br />关联运行：{{ run?.id ?? '无最近运行' }}
-      </div>
-      <p v-if="actionError" class="error-box" role="alert">{{ actionError }}</p>
+      </Alert>
+
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="helping" @click="help = false"
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="helping"
+          data-guide="help-cancel"
+          @click="help = false"
           >取消</Button
-        ><Button type="submit" :disabled="helping || !helpText.trim()"
+        ><Button data-guide="help-send" type="submit" :disabled="helping || !helpText.trim()"
           ><Hand />{{ helping ? '发送中…' : helpSent ? '更新求助' : '发起求助' }}</Button
         >
       </div>
@@ -985,16 +1086,21 @@ onBeforeRouteLeave(async (to) => {
     v-model:open="submit"
     title="提交当前作品？"
     description="提交会保存固定代码版本，你仍然可以继续修改。"
-    ><div class="info-box">
+    ><Alert data-guide="submit-info" type="info">
       {{ exercise?.title }} · {{ exercise?.filename }}<br />提交保存到服务器。提交不等于通过判题。
-    </div>
-    <p v-if="actionError" class="error-box" role="alert">{{ actionError }}</p>
+    </Alert>
+
     <p v-if="submittedAt" class="form-hint">
       最近提交：{{ new Date(submittedAt).toLocaleString('zh-CN') }}
     </p>
     <div class="modal-actions">
-      <Button variant="outline" :disabled="submitting" @click="submit = false">继续修改</Button
-      ><Button :disabled="submitting" @click="doSubmit"
+      <Button
+        variant="outline"
+        :disabled="submitting"
+        data-guide="submit-cancel"
+        @click="submit = false"
+        >继续修改</Button
+      ><Button :disabled="submitting" data-guide="submit-confirm" @click="doSubmit"
         ><Send />{{ submitting ? '提交中…' : '确认提交' }}</Button
       >
     </div></Modal
@@ -1004,8 +1110,9 @@ onBeforeRouteLeave(async (to) => {
     title="重置为初始代码？"
     description="当前代码会保留在本次页面的恢复区，可通过工具栏撤销。"
     ><div class="modal-actions">
-      <Button variant="outline" @click="reset = false">保留当前代码</Button
-      ><Button variant="destructive" @click="resetCode">确认重置</Button>
+      <Button variant="outline" data-guide="reset-cancel" @click="reset = false"
+        >保留当前代码</Button
+      ><Button variant="destructive" data-guide="reset-confirm" @click="resetCode">确认重置</Button>
     </div></Modal
   >
   <Modal
@@ -1014,11 +1121,19 @@ onBeforeRouteLeave(async (to) => {
     description="当前程序尚未结束。停止后将保留代码与运行记录，再打开所选练习。"
     @update:open="!$event && !stopping && (pendingExercise = '')"
     ><div class="modal-actions">
-      <Button variant="outline" :disabled="stopping" @click="pendingExercise = ''"
+      <Button
+        variant="outline"
+        :disabled="stopping"
+        data-guide="switch-cancel"
+        @click="pendingExercise = ''"
         >留在当前练习</Button
-      ><Button variant="destructive" :disabled="stopping" @click="stopAndSwitch">{{
-        stopping ? '等待程序停止…' : '停止并切换'
-      }}</Button>
+      ><Button
+        variant="destructive"
+        :disabled="stopping"
+        data-guide="switch-confirm"
+        @click="stopAndSwitch"
+        >{{ stopping ? '等待程序停止…' : '停止并切换' }}</Button
+      >
     </div></Modal
   >
   <div v-if="!exercise" class="empty-state">
@@ -1200,12 +1315,6 @@ onBeforeRouteLeave(async (to) => {
 .ide-statusbar {
   font-size: 14px;
   line-height: 1.6;
-}
-.workspace-alert {
-  flex-wrap: wrap;
-  font-size: 15px;
-  line-height: 1.7;
-  flex-shrink: 0;
 }
 .ide-problem {
   display: flex;

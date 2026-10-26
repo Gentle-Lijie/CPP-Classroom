@@ -17,7 +17,7 @@ import {
 import { z } from 'zod'
 import { ClassroomService } from './classroom.js'
 import { passwordHash } from './auth.js'
-import { actor, parse, role, text, type AuthRequest } from './common.js'
+import { actor, parse, role, text, passwordInput, type AuthRequest } from './common.js'
 import { ENVIRONMENT } from '../environment.js'
 import type { Environment } from '@classroom/config'
 import { executionDefaults, executionLimits } from '@classroom/contracts'
@@ -86,7 +86,7 @@ export class AdminController {
         name: text(50),
         number: z.string().max(50).default(''),
         role: z.enum(['teacher', 'student']),
-        password: z.string().min(12).max(200),
+        password: passwordInput,
       }),
       body,
     )
@@ -122,7 +122,7 @@ export class AdminController {
     const data = parse(
       z.object({
         disabled: z.boolean().optional(),
-        password: z.string().min(12).max(200).optional(),
+        password: passwordInput.optional(),
       }),
       body,
     )

@@ -254,9 +254,6 @@
   font-size: 13px;
   padding: 16px 0;
 }
-.platform-panels > .error-box {
-  margin-top: 18px;
-}
 .probe-spinning {
   animation: probe-rotate 1.2s linear infinite;
 }

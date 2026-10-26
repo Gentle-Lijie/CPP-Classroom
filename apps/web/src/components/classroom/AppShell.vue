@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Button } from '@/components/ui/button'
 import { computed, ref } from 'vue'
@@ -25,6 +26,8 @@ import {
 } from '@lucide/vue'
 import { activeClassroom, counts, currentUser, logout, reportError, refresh } from '@/data/demo'
 import { connectionState } from '@/lib/api'
+import { useGuideSurfaces } from '@/lib/spotlight'
+import { startUserGuide } from '@/lib/user-guide'
 import AccountDialog from './AccountDialog.vue'
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +35,22 @@ const mobileOpen = ref(false)
 const roleMenu = ref(false)
 const accountOpen = ref(false)
 const signingOut = ref(false)
+useGuideSurfaces({
+  'account-menu': () => {
+    const previous = roleMenu.value
+    roleMenu.value = true
+    return () => {
+      roleMenu.value = previous
+    }
+  },
+  'account-dialog': () => {
+    const previous = accountOpen.value
+    accountOpen.value = true
+    return () => {
+      accountOpen.value = previous
+    }
+  },
+})
 const role = computed(() => currentUser.value?.role ?? 'student')
 function openAccount() {
   accountOpen.value = true
@@ -161,14 +180,16 @@ async function signOut() {
         <RouterLink to="/teacher/overview">开始课堂巡视 <ArrowUpRight :size="14" /></RouterLink>
       </div>
       <div class="sidebar-bottom">
-        <RouterLink to="/guide" class="nav-item"
-          ><HelpCircle :size="18" />使用导览 <ArrowUpRight :size="14" class="ml-auto"
-        /></RouterLink>
+        <Button variant="plain" class="nav-item w-full" @click="startUserGuide"
+          ><HelpCircle :size="18" />使用导览</Button
+        >
         <div class="profile-wrap">
           <div v-if="roleMenu" class="role-menu">
             <p>{{ currentUser?.username }}</p>
-            <Button variant="plain" @click="openAccount"><KeyRound :size="14" />账号与密码</Button>
-            <Button variant="plain" :disabled="signingOut" @click="signOut">
+            <Button variant="plain" data-guide="account-open" @click="openAccount"
+              ><KeyRound :size="14" />账号与密码</Button
+            >
+            <Button variant="plain" data-guide="sign-out" :disabled="signingOut" @click="signOut">
               <LogOut :size="14" />{{ signingOut ? '退出中…' : '退出登录' }}
             </Button>
           </div>
@@ -212,12 +233,20 @@ async function signOut() {
           ><span class="topbar-avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
         </div>
       </header>
-      <div v-if="connectionState === 'disconnected'" class="connection-banner" role="alert">
-        <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span
-        ><Button variant="plain" class="text-button" @click="refresh().catch(reportError)">
-          <RefreshCw :size="14" />重试连接
-        </Button>
-      </div>
+      <Alert
+        v-if="connectionState === 'disconnected'"
+        class="app-alert--banner"
+        role="alert"
+        type="warning"
+      >
+        <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span>
+
+        <template #actions
+          ><Button variant="plain" class="text-button" @click="refresh().catch(reportError)">
+            <RefreshCw :size="14" />重试连接
+          </Button></template
+        >
+      </Alert>
       <main class="page-content"><slot /></main>
       <footer class="app-footer">
         <span>码上课堂 · C++ Classroom</span><span>C++ 编程与课堂协作</span>

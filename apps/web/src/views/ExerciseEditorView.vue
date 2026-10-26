@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import { FileUpload } from '@/components/ui/file-upload'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -106,6 +108,7 @@ async function importDraft(event: Event) {
   const target = event.target as HTMLInputElement,
     file = target.files?.[0]
   if (!file) return
+  error.value = ''
   try {
     if (file.size > 1024 * 1024) throw new Error('备份文件过大，最多 1 MiB')
     const value = JSON.parse(await file.text()) as Exercise
@@ -152,7 +155,7 @@ function keepLocal() {
   draft.version = conflict.value.version
   draft.position = conflict.value.position
   conflict.value = undefined
-  error.value = '已保留本地内容并采用最新版本号，请核对差异后再次保存。'
+  notify('已保留本地内容并采用最新版本号，请核对差异后再次保存。', 'info')
 }
 function beforeUnload(event: BeforeUnloadEvent) {
   keepBackup()
@@ -224,6 +227,7 @@ async function save(publish: boolean) {
   }
   router.push('/teacher/exercises?exercise=' + value.id)
 }
+useActionFeedback(error)
 </script>
 <template>
   <div v-if="!missing" class="exercise-editor-page">
@@ -246,18 +250,21 @@ async function save(publish: boolean) {
         >
       </div>
     </div>
-    <div v-if="restore" class="warning-box backup-offer">
-      <span>找到此题未保存的本机备份。</span
-      ><Button variant="outline" size="sm" @click="restoreDraft">恢复编辑</Button
-      ><Button variant="ghost" size="sm" @click="restore = undefined">暂不恢复</Button>
-    </div>
+    <Alert v-if="restore" type="warning">
+      <span>找到此题未保存的本机备份。</span>
+
+      <template #actions
+        ><Button variant="outline" size="sm" @click="restoreDraft">恢复编辑</Button>
+        <Button variant="ghost" size="sm" @click="restore = undefined">暂不恢复</Button></template
+      >
+    </Alert>
     <div class="draft-tools">
       <Button variant="outline" size="sm" :disabled="busy" @click="downloadDraft"
         ><Download />下载题目备份</Button
       ><FileUpload accept=".json" :disabled="busy" @change="importDraft">导入备份</FileUpload>
       <span>未保存修改自动备份在本机浏览器</span>
     </div>
-    <div v-if="error" role="alert" class="error-box editor-error">{{ error }}</div>
+
     <section class="panel exercise-meta-panel" :inert="busy">
       <div class="exercise-meta-fields">
         <label
@@ -328,7 +335,7 @@ async function save(publish: boolean) {
         >
       </div>
       <CodeEditor v-model="draft.code" :filename="draft.filename" />
-      <div class="info-box">初始代码只用于创建学生的工作区，不会替换已经编辑的学生草稿。</div>
+      <Alert type="info">初始代码只用于创建学生的工作区，不会替换已经编辑的学生草稿。</Alert>
     </section>
   </div>
   <div v-else class="empty-state">
@@ -371,8 +378,7 @@ async function save(publish: boolean) {
 </template>
 
 <style scoped>
-.draft-tools,
-.backup-offer {
+.draft-tools {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -440,11 +446,6 @@ async function save(publish: boolean) {
 }
 .exercise-editor-page .heading-actions {
   flex-wrap: wrap;
-}
-.editor-error {
-  position: sticky;
-  top: 12px;
-  z-index: 5;
 }
 @media (max-width: 600px) {
   .exercise-meta-fields,

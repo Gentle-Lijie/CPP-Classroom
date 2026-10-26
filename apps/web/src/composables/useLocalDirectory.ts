@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from 'vue'
+import { studentGuideActive } from '@/lib/spotlight'
 import { validSourceFilename } from '@/lib/source-file'
 import {
   DiskConflictError,
@@ -71,12 +72,20 @@ export function useLocalDirectory(options: Options) {
     const handle = file.value
     const documentKey = key()
     const text = options.code.value
-    if (!handle || conflict.value || options.readonly.value || needsPermission.value || disposed)
+    if (
+      studentGuideActive.value ||
+      !handle ||
+      conflict.value ||
+      options.readonly.value ||
+      needsPermission.value ||
+      disposed
+    )
       return
     queue = queue
       .catch(() => {})
       .then(async () => {
         if (
+          studentGuideActive.value ||
           documentKey !== key() ||
           handle !== file.value ||
           conflict.value ||
@@ -281,6 +290,16 @@ export function useLocalDirectory(options: Options) {
       void write()
     }, 750)
   })
+  watch(studentGuideActive, (active) => {
+    if (
+      !active &&
+      file.value &&
+      !options.readonly.value &&
+      !conflict.value &&
+      options.code.value !== lastDiskText
+    )
+      void write()
+  })
   watch(options.readonly, (readonly) => {
     if (!readonly && file.value && !conflict.value && options.code.value !== lastDiskText)
       void write()
@@ -317,6 +336,7 @@ export function useLocalDirectory(options: Options) {
       const handle = file.value
       const documentKey = key()
       if (
+        studentGuideActive.value ||
         !handle ||
         reading ||
         conflict.value ||
@@ -328,8 +348,15 @@ export function useLocalDirectory(options: Options) {
       reading = true
       try {
         await queue
+        if (studentGuideActive.value) return
         const disk = await readSourceFile(handle)
-        if (documentKey !== key() || handle !== file.value || disposed || disk === lastDiskText)
+        if (
+          studentGuideActive.value ||
+          documentKey !== key() ||
+          handle !== file.value ||
+          disposed ||
+          disk === lastDiskText
+        )
           return
         if (options.code.value !== lastDiskText) {
           setConflict(handle, disk, 'external', documentKey)

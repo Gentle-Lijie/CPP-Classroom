@@ -20,7 +20,7 @@ defineProps<{
 const error = ref('')
 </script>
 <template>
-  <span class="ui-number-field" data-ui="number-input">
+  <div class="ui-number-field" data-ui="number-input">
     <NumberFieldRoot
       v-model="model"
       :min="min === undefined ? undefined : Number(min)"
@@ -43,6 +43,6 @@ const error = ref('')
         ><NumberFieldDecrement aria-label="减少数值"><Minus :size="12" /></NumberFieldDecrement
       ></span>
     </NumberFieldRoot>
-    <span v-if="error" class="ui-field-error" role="alert">{{ error }}</span>
-  </span>
+    <small v-if="error" class="ui-field-error">{{ error }}</small>
+  </div>
 </template>

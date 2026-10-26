@@ -16,7 +16,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import type { Response } from 'express'
 import { z } from 'zod'
 import { DatabaseService } from '../database.service.js'
-import { actor, parse, text, type Actor, type AuthRequest } from './common.js'
+import { actor, parse, text, passwordInput, type Actor, type AuthRequest } from './common.js'
 
 export function passwordHash(password: string) {
   const salt = randomBytes(16).toString('hex')
@@ -78,7 +78,7 @@ export class AuthController {
     @Req() req: AuthRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const data = parse(z.object({ username: text(80), password: z.string().min(1).max(200) }), body)
+    const data = parse(z.object({ username: text(80), password: passwordInput }), body)
     const db = this.database.database.pool
     const key = digest(`${req.ip}:${data.username}`)
     const attempt = await db.query(
@@ -144,10 +144,7 @@ export class AuthController {
     return { ok: true }
   }
   @Post('password') async password(@Body() body: unknown, @Req() req: AuthRequest) {
-    const data = parse(
-      z.object({ current: z.string().min(1).max(200), password: z.string().min(12).max(200) }),
-      body,
-    )
+    const data = parse(z.object({ current: passwordInput, password: passwordInput }), body)
     const client = await this.database.database.pool.connect()
     try {
       await client.query('begin')

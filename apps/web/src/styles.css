@@ -1191,19 +1191,6 @@ tbody tr:last-child td {
   color: var(--ui-muted);
   line-height: 1.8;
 }
-.info-box,
-.warning-box {
-  border-radius: 6px;
-  background: var(--ui-surface);
-  color: var(--ui-secondary);
-  padding: 13px 15px;
-  font-size: 13px;
-  line-height: 1.8;
-}
-.warning-box {
-  background: var(--ui-surface);
-  color: var(--ui-secondary);
-}
 .field-label {
   font-size: 13px;
   color: var(--ui-secondary);
@@ -1239,45 +1226,6 @@ tbody tr:last-child td {
 }
 .copy-row + .form-hint {
   margin: 12px 0 22px;
-}
-.toast-message {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 110;
-  background: var(--ui-page);
-  border: 1px solid var(--ui-line);
-  box-shadow: 0 4px 25px var(--ui-shadow);
-  padding: 13px 17px;
-  border-radius: 9px;
-  color: var(--ui-secondary);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  max-width: calc(100vw - 30px);
-}
-.toast-message > svg {
-  flex-shrink: 0;
-}
-.toast-message > button {
-  display: flex;
-  padding: 4px;
-  background: none;
-  border: 0;
-  color: var(--ui-muted);
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition:
-    opacity 0.2s,
-    bottom 0.2s;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  bottom: 18px;
 }
 .empty-state {
   min-height: 260px;
@@ -1481,25 +1429,6 @@ tbody tr:last-child td {
   color: var(--ui-secondary);
   font-weight: 500;
 }
-.class-tip {
-  display: flex;
-  align-items: center;
-  gap: 17px;
-  margin-top: 30px;
-  padding: 20px;
-  background: var(--ui-surface);
-  border-radius: 7px;
-  color: var(--ui-muted);
-}
-.class-tip strong {
-  font-size: 14px;
-  font-weight: 500;
-}
-.class-tip p {
-  font-size: 12px;
-  color: var(--ui-muted);
-  margin-top: 4px;
-}
 .exercise-layout {
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr);
@@ -1542,19 +1471,6 @@ tbody tr:last-child td {
 }
 .exercise-list-item > svg {
   color: var(--ui-muted);
-}
-.exercise-list-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 20px;
-  color: var(--ui-muted);
-  font-size: 12px;
-  line-height: 2;
-}
-.exercise-list-note svg {
-  flex-shrink: 0;
-  margin-top: 3px;
 }
 .recommended {
   display: flex;
@@ -2118,35 +2034,6 @@ tbody tr:last-child td {
 .sample-grid.stacked {
   grid-template-columns: 1fr;
 }
-.problem-tip {
-  padding: 15px;
-  background: var(--ui-surface);
-  color: var(--ui-muted);
-  border-radius: 6px;
-  margin-top: 24px;
-  font-size: 13px;
-}
-.problem-tip strong {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ui-secondary);
-}
-.problem-tip p {
-  margin-top: 8px;
-  line-height: 1.9;
-}
-.privacy-note {
-  display: flex;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--ui-muted);
-  margin: 25px 0 10px;
-  line-height: 1.9;
-}
-.privacy-note svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
 .ide-statusbar {
   height: 28px;
   background: var(--ui-surface);
@@ -2174,26 +2061,6 @@ tbody tr:last-child td {
   font-size: 12px;
   background: transparent;
   color: var(--ui-secondary);
-}
-.workspace-alert {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 20px;
-  background: var(--ui-surface);
-  color: var(--ui-secondary);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.workspace-alert button {
-  margin-left: auto;
-  background: none;
-  border: 0;
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  color: var(--ui-secondary);
-  font-size: 12px;
 }
 .run-output {
   display: flex;
@@ -2355,12 +2222,6 @@ tbody tr:last-child td {
   color: var(--ui-muted);
   font-size: 12px;
 }
-.snapshot-note {
-  padding: 8px 15px;
-  background: var(--ui-surface);
-  color: var(--ui-secondary);
-  font-size: 12px;
-}
 .detail-editor {
   height: 392px;
 }
@@ -2377,16 +2238,6 @@ tbody tr:last-child td {
   margin: 16px;
   color: var(--ui-muted);
   font-size: 14px;
-}
-.detail-context-note {
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 15px;
-  background: var(--ui-surface);
-  color: var(--ui-muted);
-  border-top: 1px solid var(--ui-line);
 }
 .detail-aside {
   display: flex;
@@ -2466,21 +2317,6 @@ tbody tr:last-child td {
 }
 .history-state-dot.amber {
   background: var(--ui-surface);
-}
-.detail-readonly-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 5px;
-  color: var(--ui-muted);
-}
-.detail-readonly-note svg {
-  flex-shrink: 0;
-  margin-top: 3px;
-}
-.detail-readonly-note p {
-  font-size: 12px;
-  line-height: 1.9;
 }
 .submission-mini {
   text-align: center;
@@ -2867,18 +2703,6 @@ tbody tr:last-child td {
   color: var(--ui-secondary);
   margin-left: 6px;
 }
-.auth-safety {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 6px;
-  color: var(--ui-muted);
-  font-size: 12px;
-  margin-top: 25px;
-}
-.auth-safety svg {
-  flex-shrink: 0;
-}
 .auth-footer {
   font-size: 12px;
   color: var(--ui-muted);
@@ -2942,21 +2766,6 @@ tbody tr:last-child td {
   font-size: 13px;
   color: var(--ui-muted);
   margin-bottom: 28px;
-}
-.error-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-  line-height: 1.8;
-  background: var(--ui-surface);
-  color: var(--ui-muted);
-  padding: 12px;
-  border-radius: 5px;
-}
-.error-box svg {
-  flex-shrink: 0;
-  margin-top: 2px;
 }
 .auth-success-icon {
   width: 55px;
@@ -3225,9 +3034,6 @@ tbody tr:last-child td {
   .exercise-list-panel:has(.exercise-list-item) {
     display: block;
   }
-  .exercise-list-note {
-    display: none;
-  }
   .exercise-list-item {
     padding: 14px;
   }
@@ -3244,9 +3050,6 @@ tbody tr:last-child td {
   .detail-aside {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-  .detail-readonly-note {
-    display: none;
   }
   .detail-heading .heading-count {
     display: block;
@@ -3406,9 +3209,6 @@ tbody tr:last-child td {
     align-items: flex-start;
     gap: 6px;
   }
-  .class-tip {
-    padding: 17px;
-  }
   .settings-layout {
     grid-template-columns: 1fr;
   }
@@ -3479,15 +3279,6 @@ tbody tr:last-child td {
   }
   .detail-followbar {
     padding: 10px;
-  }
-  .detail-context-note {
-    font-size: 12px;
-    align-items: flex-start;
-    line-height: 1.8;
-  }
-  .detail-context-note svg {
-    flex-shrink: 0;
-    margin-top: 3px;
   }
   .detail-io {
     grid-template-columns: 22% minmax(0, 1fr);
@@ -3693,18 +3484,6 @@ tbody tr:last-child td {
     padding: 5px 12px;
   }
   .state-demo-select .ui-select-trigger {
-    font-size: 12px;
-  }
-  .workspace-alert {
-    padding: 10px 13px;
-    font-size: 12px;
-    align-items: flex-start;
-  }
-  .workspace-alert > svg {
-    flex-shrink: 0;
-  }
-  .workspace-alert button {
-    flex-shrink: 0;
     font-size: 12px;
   }
   .problem-content {
@@ -4005,8 +3784,7 @@ td {
 }
 .class-card-body > p,
 .class-card-meta,
-.class-card-footer > span,
-.class-tip p {
+.class-card-footer > span {
   font-size: 14px;
   color: var(--ui-secondary);
 }
@@ -4022,7 +3800,6 @@ td {
   font-size: 15px;
 }
 .exercise-list-item small,
-.exercise-list-note,
 .form-hint,
 .modal-heading .muted {
   font-size: 13px;
@@ -4041,11 +3818,6 @@ td {
   font-size: 13px;
   color: var(--ui-secondary);
 }
-.problem-tip,
-.problem-tip strong {
-  color: var(--ui-secondary);
-}
-.privacy-note,
 .history-disclaimer {
   color: var(--ui-secondary);
   font-size: 13px;
@@ -4072,9 +3844,7 @@ td {
 .output-body pre.diagnostic-text {
   font-size: 14px;
 }
-.detail-heading p,
-.detail-context-note,
-.detail-readonly-note p {
+.detail-heading p {
   font-size: 13px;
   color: var(--ui-secondary);
 }
@@ -4111,20 +3881,9 @@ td {
   color: var(--ui-secondary);
   font-size: 13px;
 }
-.info-box,
-.warning-box {
-  font-size: 14px;
-}
-.info-box {
-  color: var(--ui-secondary);
-}
-.warning-box {
-  color: var(--ui-secondary);
-}
 .auth-intro,
 .auth-form-container .form-stack > label,
 .auth-bottom-link,
-.auth-safety,
 .auth-top > a,
 .login-options,
 .auth-class-info p,
@@ -4142,8 +3901,7 @@ td {
 .auth-form-container input:not([type='checkbox']) {
   font-size: 15px;
 }
-.auth-class-info p,
-.auth-safety {
+.auth-class-info p {
   font-size: 13px;
 }
 .guide-notice p,

@@ -1,0 +1,119 @@
+/* Notivue Pastel owns colors, radii, shadows and icons. */
+.app-alert.Notivue__notification {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  flex: none;
+  min-width: 0;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  font-size: var(--nv-message-size);
+  line-height: 1.5;
+  color: var(--nv-fg);
+}
+/* Inline notes use the native notification surface with rich content/actions. */
+.app-alert > .Notivue__content {
+  display: none;
+}
+.app-alert > .Notivue__icon {
+  align-self: start;
+  height: 1lh;
+  margin: 0;
+}
+.app-alert-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.app-alert .Notivue__content-title {
+  line-height: 1.5;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.app-alert > .app-alert-actions {
+  align-self: center;
+  margin-inline-start: 6px;
+}
+.app-alert-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.app-alert .text-button {
+  line-height: inherit;
+}
+.app-alert p + p {
+  margin-top: 8px;
+}
+.app-alert:last-child,
+:is(.form-stack, .modal-body, .content-panel-body, .auth-result, .runtime-settings-aside)
+  > .app-alert {
+  margin-bottom: 0;
+}
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+:is(.modal-body, .form-stack) > .modal-actions {
+  margin-top: 4px;
+}
+.auth-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+.auth-result > .app-alert {
+  align-self: stretch;
+}
+.app-alert--banner.Notivue__notification {
+  margin: 0;
+  border-radius: 0;
+  border-inline: 0;
+}
+.app-alert--inset.Notivue__notification {
+  margin: 12px 16px 16px;
+}
+.app-alert--section.Notivue__notification {
+  margin-top: 16px;
+}
+.editor-resource-alert.Notivue__notification {
+  position: absolute;
+  z-index: 5;
+  inset: 12px 12px auto;
+  max-height: calc(100% - 54px);
+  overflow: auto;
+  margin: 0;
+}
+.runtime-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.runtime-settings-form > .app-alert {
+  margin: 0;
+}
+.export-panel > .app-alert,
+.spotlight-copy > .app-alert,
+.mock-floating-panel > .app-alert {
+  margin-block: 12px 0;
+}
+.projection-page > .app-alert {
+  margin: 16px 40px 0;
+}
+:is(.mock-input, .mock-output, .run-output, .history-list) > .app-alert {
+  margin: 12px 16px;
+}
+.app-alert a:not([data-slot='button']) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.app-alert--field.Notivue__notification {
+  margin: 6px 0 0;
+}
+.mock-output-content > .app-alert {
+  margin-top: 12px;
+}

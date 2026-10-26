@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -195,6 +197,7 @@ async function exportWorks() {
     exporting.value = false
   }
 }
+useActionFeedback(exportError)
 </script>
 
 <template>
@@ -253,7 +256,6 @@ async function exportWorks() {
       }}
       JSON 可包含运行上下文；超过一万条记录或 64 MiB 时请按学生、练习分批。
     </p>
-    <p v-if="exportError" class="error-box" role="alert">{{ exportError }}</p>
   </section>
   <section class="panel">
     <div class="panel-heading">
@@ -289,9 +291,13 @@ async function exportWorks() {
         ><X :size="14" />清除选择</Button
       >
     </div>
-    <div v-if="error" role="alert" class="error-box submission-error">
-      {{ error }} <Button variant="outline" size="sm" @click="load">重新加载</Button>
-    </div>
+    <Alert v-if="error" role="alert" type="error" class="app-alert--inset">
+      {{ error }}
+
+      <template #actions
+        ><Button variant="outline" size="sm" @click="load">重新加载</Button></template
+      >
+    </Alert>
     <div class="table-scroll" :aria-busy="loading">
       <table>
         <thead>
@@ -424,9 +430,6 @@ async function exportWorks() {
   font-size: 15px;
   align-self: center;
 }
-.export-panel .error-box {
-  margin-top: 14px;
-}
 .submission-filters {
   display: flex;
   align-items: center;
@@ -452,13 +455,6 @@ async function exportWorks() {
   color: var(--ui-action);
   background: var(--ui-selection);
   font-size: 15px;
-}
-.submission-error {
-  margin: 0 20px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 @media (max-width: 600px) {
   .export-panel {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import { FileUpload } from '@/components/ui/file-upload'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -428,6 +430,7 @@ function openImport() {
   importResults.value = []
   importing.value = true
 }
+useActionFeedback(error)
 </script>
 <template>
   <div class="page-heading">
@@ -443,8 +446,7 @@ function openImport() {
       ><Button @click="openAdd"><UserPlus />添加学生</Button>
     </div>
   </div>
-  <div class="credential-banner">
-    <KeyRound :size="21" />
+  <Alert type="info" :icon="KeyRound">
     <div>
       <strong>账号交付与找回</strong>
       <p>
@@ -455,16 +457,21 @@ function openImport() {
         }}
       </p>
     </div>
-    <Button v-if="credentials.length" variant="outline" @click="credentialsOpen = true"
-      >查看 / 导出凭据</Button
+
+    <template #actions
+      ><Button v-if="credentials.length" variant="outline" @click="credentialsOpen = true"
+        >查看 / 导出凭据</Button
+      ></template
     >
-  </div>
-  <p v-if="loadError" class="error-box" role="alert">
-    {{ loadError }} <Button variant="plain" class="text-button" @click="loadMembers()">重试</Button>
-  </p>
-  <p v-if="error && !add && !importing && !resetting && !remove" class="error-box" role="alert">
-    {{ error }}
-  </p>
+  </Alert>
+  <Alert v-if="loadError" role="alert" type="error">
+    {{ loadError }}
+
+    <template #actions
+      ><Button variant="plain" class="text-button" @click="loadMembers()">重试</Button></template
+    >
+  </Alert>
+
   <section class="panel">
     <div class="panel-heading">
       <div class="filter-tabs borderless">
@@ -661,7 +668,7 @@ function openImport() {
           maxlength="50"
           placeholder="例如：2026001（保留前导零）"
       /></label>
-      <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
       <div class="modal-actions">
         <Button type="button" variant="outline" :disabled="busy" @click="add = false">取消</Button
         ><Button type="submit" :disabled="busy">{{ busy ? '正在添加…' : '添加学生' }}</Button>
@@ -702,7 +709,7 @@ function openImport() {
           placeholder="姓名,学号&#10;刘亦安,2026013&#10;方可欣,2026014"
         />
       </label>
-      <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
       <div v-if="importResults.length" class="import-results">
         <p
           v-for="(r, i) in importResults"
@@ -740,8 +747,8 @@ function openImport() {
     :dismissible="!busy"
     title="重置所选学生的密码？"
     :description="`将为 ${resetTargets.length} 位学生生成新密码。该账号在所有课堂使用的新密码都会改变，旧登录会话失效，正在执行的程序会停止。`"
-    ><p class="warning-box">请确认学生已保存学习进度。重置成功后可复制、下载新凭据。</p>
-    <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+    ><Alert type="warning">请确认学生已保存学习进度。重置成功后可复制、下载新凭据。</Alert>
+
     <div class="modal-actions">
       <Button variant="outline" :disabled="busy" @click="resetting = false">取消</Button
       ><Button variant="warning" :disabled="busy || !resetTargets.length" @click="resetPasswords"
@@ -755,7 +762,7 @@ function openImport() {
     :title="`移除 ${remove?.name ?? '这位学生'}？`"
     description="撤销该学生的课堂访问权限，保留历史作品。不删除账号或其他课堂成员关系。"
     @update:open="!$event && (remove = undefined)"
-    ><p v-if="error" class="error-box" role="alert">{{ error }}</p>
+  >
     <div class="modal-actions">
       <Button variant="outline" :disabled="busy" @click="remove = undefined">取消</Button
       ><Button variant="destructive" :disabled="busy" @click="removeStudent">{{
@@ -770,30 +777,6 @@ function openImport() {
   max-width: 220px;
   white-space: normal;
   overflow-wrap: anywhere;
-}
-
-.credential-banner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 20px;
-  margin-bottom: 24px;
-  border: 1px solid var(--ui-blue-line);
-  border-radius: 8px;
-  background: var(--ui-selection);
-  color: var(--ui-action);
-}
-.credential-banner > div {
-  flex: 1;
-  min-width: 0;
-}
-.credential-banner p {
-  font-size: 15px;
-  color: var(--ui-secondary);
-  margin-top: 3px;
-}
-.credential-banner > svg {
-  flex-shrink: 0;
 }
 .credential-actions {
   display: flex;
@@ -826,13 +809,5 @@ function openImport() {
   padding: 5px;
   margin-top: 5px;
   font-size: 14px;
-}
-@media (max-width: 760px) {
-  .credential-banner {
-    flex-wrap: wrap;
-  }
-  .credential-banner > div {
-    flex-basis: calc(100% - 40px);
-  }
 }
 </style>

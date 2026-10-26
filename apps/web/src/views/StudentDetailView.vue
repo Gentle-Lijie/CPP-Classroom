@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
@@ -328,10 +329,14 @@ function closeWindow() {
         </div>
       </div>
     </div>
-    <p v-if="error" class="error-box" role="alert">
-      {{ error }} <Button variant="outline" size="sm" @click="reload(true)">重新读取</Button>
-    </p>
-    <p v-if="loading" class="info-box" role="status">正在读取学生作品…</p>
+    <Alert v-if="error" role="alert" type="error">
+      {{ error }}
+
+      <template #actions
+        ><Button variant="outline" size="sm" @click="reload(true)">重新读取</Button></template
+      >
+    </Alert>
+    <Alert v-if="loading" role="status" type="info">正在读取学生作品…</Alert>
     <label class="detail-exercise-select"
       >查看练习<Select v-model="chosenExercise" aria-label="选择查看学生的练习">
         <SelectOption value="">跟随学生当前练习</SelectOption>
@@ -363,9 +368,9 @@ function closeWindow() {
             >返回当前代码<ArrowRight /></Button
           ><span v-else class="readonly-label"><LockKeyhole :size="12" />教师只读</span>
         </div>
-        <div v-if="viewing" class="snapshot-note">
+        <Alert v-if="viewing" type="info" class="app-alert--banner">
           所选快照固定保留。学生后续修改不会改变此处代码；提交快照不代表已通过运行。
-        </div>
+        </Alert>
         <div class="code-toolbar">
           <span class="file-tab"
             ><CodeXml :size="14" />{{ viewing?.filename ?? exercise.filename }}</span
@@ -403,13 +408,18 @@ function closeWindow() {
             :run="viewing ?? latestRun"
             readonly-context
           />
-          <div v-else class="info-box">这是提交时的代码版本，不包含运行结果。</div>
+          <Alert v-else type="info">这是提交时的代码版本，不包含运行结果。</Alert>
         </div>
-        <div v-if="viewing?.kind !== 'submission'" class="detail-context-note">
-          <History :size="13" />结果来自{{ viewing ? '所选历史运行' : '最近一次真实运行' }}；{{
+        <Alert
+          v-if="viewing?.kind !== 'submission'"
+          type="info"
+          :icon="History"
+          class="app-alert--banner"
+        >
+          结果来自{{ viewing ? '所选历史运行' : '最近一次真实运行' }}；{{
             viewing ? '代码与结果对应同一快照。' : '运行结果属于最近一次快照，可能与当前草稿不同。'
           }}
-        </div>
+        </Alert>
       </div>
       <aside class="detail-aside">
         <section v-if="currentHelp" class="help-detail-panel">
@@ -495,10 +505,9 @@ function closeWindow() {
             unit="次提交"
           />
         </section>
-        <div class="detail-readonly-note">
-          <LockKeyhole :size="16" />
+        <Alert type="info" :icon="LockKeyhole">
           <p>首版教师巡视为只读。查看与投屏均不会修改学生代码或触发重新运行。</p>
-        </div>
+        </Alert>
       </aside>
     </div>
   </div>
@@ -568,12 +577,6 @@ function closeWindow() {
 .detail-io :deep(.run-output) {
   min-height: 240px;
   max-height: 420px;
-}
-.detail-context-note,
-.detail-readonly-note,
-.snapshot-note {
-  font-size: 14px;
-  line-height: 1.8;
 }
 .help-detail-panel p {
   white-space: pre-wrap;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { ref, watch } from 'vue'
@@ -33,10 +34,6 @@ async function save() {
     error.value = '两次输入的新密码不一致'
     return
   }
-  if (password.value === current.value) {
-    error.value = '新密码不能与当前密码相同'
-    return
-  }
   busy.value = true
   try {
     await api('/auth/password', 'POST', { current: current.value, password: password.value })
@@ -53,6 +50,7 @@ async function save() {
     busy.value = false
   }
 }
+useActionFeedback(error)
 </script>
 <template>
   <Modal
@@ -65,7 +63,7 @@ async function save() {
       <strong>{{ currentUser?.name }}</strong
       ><span>{{ currentUser?.username }} · {{ roleLabels[currentUser?.role ?? ''] }}</span>
     </div>
-    <Form class="form-stack" @submit.prevent="save">
+    <Form class="form-stack account-form" @submit.prevent="save">
       <label
         >当前密码<Input
           v-model="current"
@@ -80,18 +78,15 @@ async function save() {
           v-model="password"
           :type="visible ? 'text' : 'password'"
           required
-          minlength="12"
           maxlength="200"
           autocomplete="new-password"
           :disabled="busy"
-        /><small class="form-hint">至少12位，可使用字母、数字与符号。</small></label
-      >
+      /></label>
       <label
         >确认新密码<Input
           v-model="confirm"
           :type="visible ? 'text' : 'password'"
           required
-          minlength="12"
           maxlength="200"
           autocomplete="new-password"
           :disabled="busy"
@@ -100,15 +95,22 @@ async function save() {
         variant="plain"
         class="text-button"
         type="button"
+        data-guide="password-visible"
         :aria-pressed="visible"
         @click="visible = !visible"
       >
         <component :is="visible ? EyeOff : Eye" :size="15" />{{ visible ? '隐藏密码' : '显示密码' }}
       </Button>
-      <p v-if="error" class="error-box" role="alert">{{ error }}</p>
+
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="open = false">取消</Button
-        ><Button type="submit" :disabled="busy"
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="busy"
+          data-guide="password-cancel"
+          @click="open = false"
+          >取消</Button
+        ><Button data-guide="password-save" type="submit" :disabled="busy"
           ><KeyRound />{{ busy ? '正在更新…' : '更新密码' }}</Button
         >
       </div>

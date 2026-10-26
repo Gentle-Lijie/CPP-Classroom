@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -297,7 +298,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
     <div class="teaching-stage">
-      <p v-if="monitorBlocked" class="warning-box">
+      <Alert v-if="monitorBlocked" type="warning">
         独立窗口被拦截。<a
           href="/teacher/monitor"
           target="_blank"
@@ -305,18 +306,23 @@ onBeforeUnmount(() => {
           class="text-button"
           >点此打开巡视窗口</a
         >
-      </p>
-      <p v-if="error" class="error-box" role="alert">
-        {{ error }} <Button variant="outline" size="sm" @click="load">重试读取</Button>
-      </p>
-      <p v-if="conflict" class="warning-box" role="alert">
-        其他窗口已修改示范代码。先下载本机修改，再读取服务器版本。<Button
-          variant="outline"
-          size="sm"
-          @click="useServer"
-          >下载本机修改并读取服务器版本</Button
+      </Alert>
+      <Alert v-if="error" role="alert" type="error">
+        {{ error }}
+
+        <template #actions
+          ><Button variant="outline" size="sm" @click="load">重试读取</Button></template
         >
-      </p>
+      </Alert>
+      <Alert v-if="conflict" role="alert" type="warning">
+        其他窗口已修改示范代码。先下载本机修改，再读取服务器版本。
+
+        <template #actions
+          ><Button variant="outline" size="sm" @click="useServer"
+            >下载本机修改并读取服务器版本</Button
+          ></template
+        >
+      </Alert>
       <div class="teaching-slide-meta">
         <span class="inline-items"
           ><span class="lesson-number">{{ String(index + 1).padStart(2, '0') }}</span

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Input } from '@/components/ui/input'
 import { computed, ref } from 'vue'
@@ -70,17 +71,16 @@ function clearFilters() {
       </div>
     </header>
     <div class="monitor-window-body">
-      <div class="monitor-explainer">
-        <Radio :size="16" /><span
-          >点击任意学生，在独立窗口查看代码与处理求助；可同时打开多位学生。</span
+      <Alert type="info" :icon="Radio">
+        <span>点击任意学生，在独立窗口查看代码与处理求助；可同时打开多位学生。</span
         ><RouterLink to="/teacher/teach" target="_blank"
           >授课页<ArrowUpRight :size="13"
         /></RouterLink>
-      </div>
-      <div v-if="blocked" class="warning-box popup-blocked">
+      </Alert>
+      <Alert v-if="blocked" type="warning">
         浏览器拦截了弹窗，请允许本站弹出窗口，或
         <a :href="blocked" target="_blank" rel="noopener">点此打开学生详情</a>。
-      </div>
+      </Alert>
       <div class="monitor-controls">
         <div class="segmented">
           <Button

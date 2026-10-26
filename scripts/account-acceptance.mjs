@@ -217,12 +217,14 @@ try {
   await admin('/admin/users/' + old.id, 'PATCH', { password: spacedPassword })
   const oldFresh = client()
   await oldFresh('/auth/login', 'POST', { username: old.username, password: spacedPassword })
-  await oldFresh('/auth/password', 'POST', { current: spacedPassword, password: 'short' }, 400)
-  await oldFresh('/auth/password', 'POST', { current: spacedPassword, password })
+  await oldFresh('/auth/password', 'POST', { current: spacedPassword, password: '' }, 400)
+  await oldFresh('/auth/password', 'POST', { current: spacedPassword, password: '123456' })
   await oldFresh('/auth/me', 'GET', undefined, 401)
+  await oldFresh('/auth/login', 'POST', { username: old.username, password: '123456' })
+  await oldFresh('/auth/password', 'POST', { current: '123456', password })
   await client()('/auth/login', 'POST', { username: old.username, password })
   accounts.find((u) => u.id === old.id).password = password
-  checks.push('管理员恢复与个人改密支持原始空格密码，统一12位，成功撤销旧会话')
+  checks.push('管理员恢复与个人改密支持原始空格密码和短密码，拒绝空密码，成功撤销旧会话')
   completed = true
 } finally {
   const cleanup = []

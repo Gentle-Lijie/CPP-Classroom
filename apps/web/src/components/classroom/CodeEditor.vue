@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -211,15 +212,25 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <div class="code-editor-shell">
-    <div v-if="editorError" class="editor-resource-state" role="alert">
+    <Alert v-if="editorError" class="editor-resource-alert" role="alert" type="error">
       <strong>代码编辑器加载失败</strong>
       <p>{{ editorError }}</p>
-      <Button variant="plain" class="text-button" @click="initializeEditor">重新加载编辑器</Button>
+
       <p>草稿内容仍保留在页面，重试不会清空。</p>
-    </div>
-    <div v-else-if="editorLoading" class="editor-resource-state" role="status">
+
+      <template #actions
+        ><Button
+          variant="plain"
+          class="text-button"
+          data-guide="editor-reload"
+          @click="initializeEditor"
+          >重新加载编辑器</Button
+        ></template
+      >
+    </Alert>
+    <Alert v-else-if="editorLoading" class="editor-resource-alert" role="status" type="info">
       正在加载代码编辑器…
-    </div>
+    </Alert>
     <div
       ref="container"
       class="code-editor"
@@ -253,6 +264,7 @@ onBeforeUnmount(() => {
         variant="plain"
         type="button"
         class="text-button"
+        data-guide="language-retry"
         @click="startLanguageService"
       >
         重试</Button

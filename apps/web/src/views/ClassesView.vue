@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useActionFeedback } from '@/composables/useActionFeedback'
+import { Alert } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Form } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
@@ -47,12 +49,12 @@ const visible = computed(() =>
 const { page, pageSize, paged } = usePagination(visible, [search, filter], 10)
 async function add() {
   if (busy.value) return
+  error.value = ''
   if (!name.value.trim()) {
     error.value = '请输入课堂名称'
     return
   }
   busy.value = true
-  error.value = ''
   try {
     const created = await api<{ id: string }>('/classes', 'POST', {
       name: name.value.trim(),
@@ -86,6 +88,7 @@ async function enter(id: string) {
     entering.value = ''
   }
 }
+useActionFeedback(error)
 </script>
 <template>
   <div class="page-heading">
@@ -98,7 +101,7 @@ async function enter(id: string) {
         {{ student ? '查看已加入的课堂和当前练习。' : '管理课堂、学生名单与练习。' }}
       </p>
     </div>
-    <Button @click="student ? router.push('/join') : openCreate()"
+    <Button data-guide="class-add" @click="student ? router.push('/join') : openCreate()"
       ><KeyRound v-if="student" /><Plus v-else />{{ student ? '加入课堂' : '创建课堂' }}</Button
     >
   </div>
@@ -107,6 +110,7 @@ async function enter(id: string) {
       <Button
         v-for="f in ['全部课堂', '进行中', '未开始', '已关闭', '已归档']"
         :key="f"
+        :data-guide-filter="f"
         variant="plain"
         :class="{ selected: filter === f }"
         @click="filter = f"
@@ -149,6 +153,7 @@ async function enter(id: string) {
           ><Button
             variant="outline"
             :disabled="!!entering || c.membershipStatus === 'pending' || (student && !c.exercises)"
+            data-guide="class-enter"
             @click="enter(c.id)"
             >{{
               entering === c.id
@@ -200,8 +205,7 @@ async function enter(id: string) {
       >{{ student ? '申请加入课堂' : '创建第一个课堂' }}</Button
     >
   </div>
-  <div class="class-tip">
-    <GraduationCap :size="21" />
+  <Alert type="info" :icon="GraduationCap" class="app-alert--section">
     <div>
       <strong>{{ student ? '课堂访问说明' : '课堂工作区' }}</strong>
       <p>
@@ -212,7 +216,7 @@ async function enter(id: string) {
         }}
       </p>
     </div>
-  </div>
+  </Alert>
   <Modal
     v-model:open="create"
     title="创建新课堂"
@@ -233,8 +237,8 @@ async function enter(id: string) {
           placeholder="介绍课程目标、上课安排…"
         />
       </label>
-      <div class="info-box">创建后可添加学生、准备练习，再将课堂状态设为“进行中”。</div>
-      <p v-if="error" role="alert" class="error-box">{{ error }}</p>
+      <Alert type="info">创建后可添加学生、准备练习，再将课堂状态设为“进行中”。</Alert>
+
       <div class="modal-actions">
         <Button type="button" variant="outline" @click="create = false">取消</Button
         ><Button type="submit" :disabled="busy">{{ busy ? '正在创建…' : '创建课堂' }}</Button>

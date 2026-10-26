@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CircleCheck, CircleAlert, Info, X } from '@lucide/vue'
+import ServiceUnavailable from '@/components/classroom/ServiceUnavailable.vue'
+import Notification from '@/components/ui/alert/Notification.vue'
 import ConfirmationDialog from '@/components/classroom/ConfirmationDialog.vue'
+import { studentGuideActive } from '@/lib/spotlight'
+import SpotlightGuide from '@/components/classroom/SpotlightGuide.vue'
 import AppShell from '@/components/classroom/AppShell.vue'
 import { demo, currentUser, refresh, clearSession, notify, bootstrapError } from '@/data/demo'
-import { Button } from '@/components/ui/button'
+import { api, ApiError } from '@/lib/api'
 const route = useRoute()
 const router = useRouter()
 let poll: ReturnType<typeof setInterval>
@@ -22,7 +25,8 @@ async function expireSession() {
 onMounted(() => {
   window.addEventListener('classroom:session-expired', expireSession)
   poll = setInterval(() => {
-    if (currentUser.value && !document.hidden) void refresh().catch(() => {})
+    if (currentUser.value && !document.hidden && !studentGuideActive.value)
+      void refresh().catch(() => {})
   }, 2000)
 })
 onBeforeUnmount(() => {
@@ -31,41 +35,30 @@ onBeforeUnmount(() => {
 })
 const standalone = computed(() => route.meta.standalone)
 const pageKey = computed(() => route.path + ':' + demo.classroomId)
-function retryBootstrap() {
-  window.location.reload()
+const reconnecting = ref(false)
+async function retryBootstrap() {
+  if (reconnecting.value) return
+  reconnecting.value = true
+  try {
+    try {
+      await api('/auth/me')
+    } catch (error) {
+      // A signed-out response still confirms the server is available again.
+      if (!(error instanceof ApiError) || error.status !== 401) throw error
+    }
+    window.location.reload()
+  } catch {
+    notify('仍然无法连接服务器，请检查网络或稍后重试。', 'error')
+  } finally {
+    reconnecting.value = false
+  }
 }
 </script>
 <template>
-  <main v-if="bootstrapError" class="bootstrap-error">
-    <div class="panel empty-state">
-      <CircleAlert :size="32" />
-      <h1>连接暂时中断</h1>
-      <p>{{ bootstrapError }}</p>
-      <Button @click="retryBootstrap">重新连接</Button>
-    </div>
-  </main>
+  <ServiceUnavailable v-if="bootstrapError" :busy="reconnecting" @retry="retryBootstrap" />
   <RouterView v-else-if="standalone" :key="pageKey" />
   <AppShell v-else><RouterView :key="pageKey" /></AppShell>
   <ConfirmationDialog />
-  <Transition name="toast"
-    ><div
-      v-if="demo.notice"
-      :role="demo.noticeKind === 'error' ? 'alert' : 'status'"
-      class="toast-message"
-      :class="demo.noticeKind"
-    >
-      <component
-        :is="
-          demo.noticeKind === 'error'
-            ? CircleAlert
-            : demo.noticeKind === 'info'
-              ? Info
-              : CircleCheck
-        "
-        :size="18"
-      /><span>{{ demo.notice }}</span
-      ><Button variant="plain" aria-label="关闭提示" @click="demo.notice = ''"
-        ><X :size="15"
-      /></Button></div
-  ></Transition>
+  <SpotlightGuide />
+  <Notification />
 </template>
