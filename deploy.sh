@@ -1,12 +1,37 @@
 #!/usr/bin/env bash
-set -euo pipefail
-# Secret delivery uses umask 077; build outputs must be readable by cppclass.
+set -Eeuo pipefail
 umask 022
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")"
 base="$PWD"
-[[ "$(id -u)" == 0 && "$base" == /root/cpp-classroom ]] || {
-  echo 'Run as root from ~/cpp-classroom' >&2; exit 1;
+[[ "$(uname -s)" == Linux && "$(id -u)" == 0 && "$base" == /root/cpp-classroom ]] || {
+  echo '请在 ssh b 的 ~/cpp-classroom 中，以 root 运行 bash deploy.sh。' >&2; exit 1;
 }
+[[ -f .env ]] || { echo '缺少服务器 .env，请先配置。' >&2; exit 1; }
+for tool in flock pm2 curl runuser setfacl systemctl; do
+  command -v "$tool" >/dev/null || { echo "缺少原生命令：$tool" >&2; exit 1; }
+done
+[[ -x /usr/lib/postgresql/17/bin/pg_ctl ]] || {
+  echo '请先安装原生 PostgreSQL 17，参见 docs/deployment.md。' >&2; exit 1;
+}
+mkdir -p .local
+if [[ "${1:-}" != --locked ]]; then
+  if flock --nonblock --close --conflict-exit-code 75 .local/deploy.lock bash "$base/deploy.sh" --locked; then
+    exit 0
+  else
+    status=$?
+    if [[ "$status" == 75 ]]; then echo '已有部署正在运行；请查看 .local/deploy.log。' >&2; fi
+    exit "$status"
+  fi
+fi
+log="$base/.local/deploy.log"
+exec > >(tee -a "$log") 2>&1
+stage='preflight'
+step() { stage="$1"; printf '\n[deploy] %s\n' "$stage"; }
+trap 'printf "[deploy] 阶段失败：%s；日志：%s\n" "$stage" "$log" >&2' ERR
+printf '\n[deploy] Start %s at %s\n' "$(date -Is)" "$base"
+# Keep an optional first-install password out of dependency/build subprocesses.
+bootstrap_password="${ADMIN_PASSWORD:-}"
+unset ADMIN_PASSWORD
 id cppclass >/dev/null 2>&1 || useradd --system --home-dir "$base" --shell /usr/sbin/nologin cppclass
 if [[ "$(getent passwd cppclass | cut -d: -f6)" != "$base" ]]; then
   usermod --home "$base" cppclass
@@ -17,18 +42,17 @@ setfacl -m u:cppclass:--x /root
 chmod 755 "$base"
 chown cppclass:cppclass .env
 chmod 600 .env
-ADMIN_PASSWORD=$(cat .local/admin-password)
-python3 -c 'from pathlib import Path; Path(".local/admin-password").unlink()'
+step 'Prepare Node 24 runtime'
 bash scripts/with-node24.sh true
 export PATH="$base/.local/runtime/node-v24.18.0-linux-x64/bin:$base/.local/runtime/bin:$PATH"
+step 'Install locked dependencies'
 pnpm install --frozen-lockfile
+step 'Build API and worker'
 pnpm build:backend
 chmod -R go+rX node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist
 chown -R cppclass:cppclass .local
 chmod 700 .local
-[[ -x /usr/lib/postgresql/17/bin/pg_ctl ]] || {
-  echo 'Install native PostgreSQL 17 before deployment; see docs/deployment.md' >&2; exit 1;
-}
+step 'Check persistent PostgreSQL'
 runuser -u cppclass -- env PATH="$PATH" node scripts/postgres.mjs start
 if ! systemctl is-active --quiet cpp-classroom-postgres; then
   runuser -u cppclass -- env PATH="$PATH" node scripts/postgres.mjs stop
@@ -53,16 +77,22 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable --now cpp-classroom-postgres
+step 'Apply database migrations'
 runuser -u cppclass -- env PATH="$PATH" pnpm db:migrate
-export ADMIN_PASSWORD
+step 'Check administrator bootstrap (existing account is preserved)'
+export ADMIN_PASSWORD="$bootstrap_password"
 runuser -u cppclass --preserve-environment -- node scripts/bootstrap-admin.mjs
-unset ADMIN_PASSWORD
+unset ADMIN_PASSWORD bootstrap_password
+step 'Restart PM2 API and worker'
 pm2 startOrRestart "$base/ecosystem.config.cjs" --update-env
+step 'Wait for API readiness'
 for attempt in $(seq 1 30); do
-  if curl --fail --silent http://127.0.0.1:3020/api/health/readiness >/dev/null; then break; fi
+  if curl --fail --silent --connect-timeout 2 --max-time 15 http://127.0.0.1:3020/api/health/readiness >/dev/null; then break; fi
   if [[ "$attempt" == 30 ]]; then echo 'API readiness failed; inspect PM2 logs' >&2; exit 1; fi
+  printf '[deploy] API readiness retry %s/30\n' "$attempt"
   sleep 1
 done
+step 'Verify worker queue'
 runuser -u cppclass -- env PATH="$PATH" pnpm queue:probe
 pm2 save
-echo "Backend deployed: $(git rev-parse --short HEAD) at $base"
+step "Deployment complete: $(git rev-parse --short HEAD). Log: $log"

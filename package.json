@@ -20,7 +20,7 @@
     "build": "pnpm -r build",
     "build:web": "pnpm --filter @classroom/contracts build && pnpm --filter @classroom/web build",
     "build:backend": "pnpm build:packages && pnpm --filter @classroom/api build && pnpm --filter @classroom/worker build",
-    "deploy:backend": "bash scripts/deploy-backend.sh",
+    "deploy:backend": "bash deploy.sh",
     "typecheck": "pnpm build:packages && pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",

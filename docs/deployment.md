@@ -31,7 +31,7 @@ CDN 使用 `@algoproclub/clangd-wasm@0.1.1`，不使用浮动版本。首次加�
 
 ## 后端部署
 
-服务器需要 Linux x86_64、root SSH、Git、curl、tar、Python 3、acl、原生 PostgreSQL 17、可全局访问的 PM2，以及已启用的 `pm2-root.service`。
+服务器需要 Linux x86_64、root SSH、Git、curl、tar、flock、acl、原生 PostgreSQL 17、可全局访问的 PM2，以及已启用的 `pm2-root.service`。
 该机器现有 Nginx／PM2 服务继续使用现有系统运行时；项目另外下载校验过的 Node 24，不替换系统 Node。
 若重建服务器，先从 PostgreSQL 官方 PGDG 仓库安装 `postgresql-common`，在其 `createcluster.conf` 设置 `create_main_cluster = false`，再安装 `postgresql-17`。
 如 dpkg 提示已存在的配置文件，保留服务器现有配置，不覆盖。
@@ -45,31 +45,48 @@ pnpm test
 pnpm build
 ```
 
-先提交并 Push 到 GitHub `main`，然后通过环境变量提供初始化密码，执行 `pnpm deploy:backend`（可用 `DEPLOY_HOST` 覆盖默认 SSH 别名 `b`）。
-初始化用户名默认 `admin`，只创建不存在的账号；重复部署不会重置密码、权限或数据库。
-所有文件传输只使用 Git。业务源码从 GitHub clone／pull 到 `ssh b:~/cpp-classroom`，不使用 scp 或 rsync。
-环境文件和初始化密码通过单独的临时私有 Git 仓库经 SSH 传输；它位于本机忽略的 `.local/` 和远端 `.local/` 下，不接入 GitHub、不推到业务仓库，传入后立即删除两端临时 Git 历史。
-环境文件最终仅保存为后端忽略的 `.env`（0600），初始化密码读入进程后删除临时文件，不写日志。
+后端更新在服务器上运行，代码拉取由你手动执行：
+
+```sh
+ssh b
+cd ~/cpp-classroom
+git pull --ff-only origin main
+bash deploy.sh
+```
+
+`deploy.sh` 只部署服务器当前工作区，不执行 Git pull／fetch／push，也不从本机复制任何文件。
+`pnpm deploy:backend` 是同一个脚本的别名，也必须在服务器项目目录运行。
+服务器现有 `.env`（0600）直接沿用；需要调整配置时，在服务器修改它后重新部署。
+首次安装如果还没有管理员，通过 `ADMIN_PASSWORD` 环境变量提供初始化密码；现有管理员的日常更新无需输入密码，保留密码与权限。
+所有代码仍通过 Git 传输；旧的本机远程部署及临时环境仓库传输入口已移除。
 
 部署脚本完成：
 
-1. clone／快进 pull GitHub `main`，核对远端版本与本地提交一致；不强制 reset 服务器工作区。
-2. 经独立私有 Git 原样传入本地 `.env`，保留上一份配置为 `.local/env.previous`。
-3. 创建专用 `cppclass` 系统账号，仅授予其穿过 `/root` 的 ACL 权限（无目录列举权限），以锁文件安装依赖并构建 API／worker。
-4. 由非 root 的 `cppclass` 账号启动 `.local/` 内的 PostgreSQL，以版本化 Drizzle 迁移更新数据库并初始化管理员。
-5. 启用 PostgreSQL systemd 自启，使用现有 PM2 管理器启动／重启两个独立进程；它们以 `cppclass` 身份运行。
-6. 等待 API readiness，通过 `pnpm queue:probe` 后保存 PM2 进程列表。
+1. 检查 Linux、root、项目目录、原生依赖和服务器 `.env`，获取部署锁，防止两个部署同时运行。
+2. 检查独立 Node 24，按锁文件安装依赖，构建 API／worker。
+3. 保留专用 `cppclass` 服务身份和权限，检查持久化 PostgreSQL 及 systemd 自启配置。
+4. 应用版本化 Drizzle 迁移，检查管理员，保留已有账号。
+5. 使用 PM2 重启 API／worker，等待 API readiness，运行 `pnpm queue:probe`，验证后保存 PM2 列表。
 
-本地 `.env` 内容保持不变。生产环境覆盖值只放在 `ecosystem.config.cjs`：`NODE_ENV=production`、`API_HOST=127.0.0.1`、`API_PORT=3020`。
-复制环境配置不会复制本地业务数据；服务器初次部署创建空数据库和指定管理员。
-同一服务器后续部署通过忽略的 `.local/` 保留业务数据、备份与运行时，不执行数据库重置或反向迁移。
+执行时打印阶段进度，同时追加保存到 `.local/deploy.log`。失败时显示所在阶段，并立即退出。
+另开终端可查看进度：
+
+```sh
+ssh b 'tail -f ~/cpp-classroom/.local/deploy.log'
+```
+
+只有进入 PM2 重启步骤才替换运行进程；依赖安装和构建失败会停止部署。
+迁移在重启前执行，因此数据库迁移仍需与现有版本兼容；脚本不自动回滚迁移，也不重置数据库。
+生产环境覆盖值保留在 `ecosystem.config.cjs`：`NODE_ENV=production`、`API_HOST=127.0.0.1`、`API_PORT=3020`。
+服务数据、备份与运行时保留在忽略的 `.local/`。
 
 ```text
 /root/cpp-classroom/           Git clone、依赖与后端产物
-  .env                        本地环境文件的原样副本
+  .env                        服务器环境配置，部署时沿用
   .local/runtime/             独立 Node 与 pnpm
   .local/postgres/             PostgreSQL 数据，仅本机 55432
   .local/backups/              业务备份
+  .local/deploy.log            部署阶段与输出日志
 ```
 
 ## 检查与维护
@@ -87,6 +104,6 @@ Makers 上线后必须确认首页、直接打开／刷新 `/login` 和教师嵌
 错误 Origin 的 POST 应返回 403；浏览器的同源请求不需要跨域 CORS 预检。
 此前本地构建和服务器验证不能替代 Makers 上线后的浏览器验证。
 
-Git pull 只接受快进；发布失败时检查日志，必要时人工检出已知兼容的旧提交、重新构建并用 PM2 重启。
+手动 Git pull 建议使用 `--ff-only`。发布失败时检查日志，必要时人工检出已知兼容的旧提交，再运行 `bash deploy.sh`。
 迁移不自动回滚；不要删除共享数据目录，也不要在未经核对时把旧环境文件覆盖回当前数据库配置。
 源码版本由 Git 历史保存，部署脚本不创建文件复制的 release 目录。
