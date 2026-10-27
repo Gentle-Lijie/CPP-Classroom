@@ -36,6 +36,8 @@ import {
 } from '@/data/demo'
 import { api } from '@/lib/api'
 import { csvDocument, parseRoster } from '@/lib/csv'
+import { readRosterFile, rosterCsvTemplate, rosterExcelTemplate } from '@/lib/roster-file'
+import { downloadBlob } from '@/lib/source-archive'
 interface Member {
   id: string
   name: string
@@ -63,6 +65,8 @@ const remove = ref<Member>(),
   csv = ref(''),
   busy = ref(false),
   error = ref('')
+const readingFile = ref(false),
+  downloadingTemplate = ref(false)
 const loading = ref(false),
   loadError = ref(''),
   updatedAt = ref('')
@@ -320,16 +324,31 @@ async function importRows() {
 async function readFile(event: Event) {
   const input = event.target as HTMLInputElement,
     file = input.files?.[0]
+  if (!file || busy.value) return
+  busy.value = true
+  readingFile.value = true
+  csv.value = ''
+  error.value = ''
+  importResults.value = []
   try {
-    if (!file) return
-    if (file.size > 1024 * 1024) throw new Error('文件超过 1 MiB，请分批导入')
-    csv.value = await file.text()
-    error.value = ''
-    importResults.value = []
+    csv.value = await readRosterFile(file)
   } catch (e) {
     error.value = e instanceof Error ? e.message : '无法读取文件，请重选或粘贴名单'
   } finally {
     input.value = ''
+    readingFile.value = false
+    busy.value = false
+  }
+}
+async function downloadExcelTemplate() {
+  if (downloadingTemplate.value) return
+  downloadingTemplate.value = true
+  try {
+    downloadBlob('学生名单模板.xlsx', await rosterExcelTemplate())
+  } catch {
+    error.value = 'Excel 模板下载失败，请重试或下载 CSV 模板'
+  } finally {
+    downloadingTemplate.value = false
   }
 }
 function exportRoster() {
@@ -679,27 +698,28 @@ useActionFeedback(error)
     v-model:open="importing"
     :dismissible="!busy"
     title="导入学生名单"
-    description="支持 UTF-8 CSV 文件或直接从 Excel 粘贴姓名、学号两列。可包含表头，每批最多 50 人。"
+    description="支持 Excel（.xlsx，读取首个工作表）、UTF-8 / GB2312 CSV，或从 Excel 粘贴姓名、学号两列。可包含表头，每批最多 50 人。"
     ><Form class="form-stack" @submit.prevent="importRows">
-      <div class="inline-items">
+      <div class="inline-items roster-import-files">
         <Button
           variant="outline"
           type="button"
-          @click="
-            download(
-              '学生名单模板.csv',
-              csvDocument([
-                ['姓名', '学号'],
-                ['张三', '2026001'],
-              ]),
-              'text/csv;charset=utf-8',
-            )
-          "
-          ><FileDown />下载模板</Button
-        ><FileUpload accept=".csv,.tsv,.txt" :disabled="busy" @change="readFile"
-          >选择 CSV 文件</FileUpload
+          :disabled="downloadingTemplate"
+          @click="downloadExcelTemplate"
+          ><FileDown />{{ downloadingTemplate ? '正在生成…' : '下载 Excel 模板' }}</Button
+        ><Button
+          variant="outline"
+          type="button"
+          @click="downloadBlob('学生名单模板.csv', rosterCsvTemplate())"
+          ><FileDown />CSV 模板（GB2312）</Button
+        ><FileUpload accept=".xlsx,.csv,.tsv,.txt" :disabled="busy" @change="readFile"
+          >选择名单文件</FileUpload
         >
       </div>
+      <p class="form-hint">
+        请替换模板中的示例学生。学号列请保持文本格式以保留前导零；CSV 含中文时请使用 GB2312
+        编码保存。
+      </p>
       <label
         >名单内容<Textarea
           v-model="csv"
@@ -731,7 +751,13 @@ useActionFeedback(error)
         <Button type="button" variant="outline" :disabled="busy" @click="importing = false"
           >关闭</Button
         ><Button type="submit" :disabled="busy || !csv.trim()"
-          ><Upload />{{ busy ? `导入中，已处理 ${importResults.length} 位…` : '导入名单' }}</Button
+          ><Upload />{{
+            readingFile
+              ? '正在读取文件…'
+              : busy
+                ? `导入中，已处理 ${importResults.length} 位…`
+                : '导入名单'
+          }}</Button
         >
       </div>
     </Form></Modal
@@ -772,6 +798,9 @@ useActionFeedback(error)
   >
 </template>
 <style scoped>
+.roster-import-files {
+  flex-wrap: wrap;
+}
 .roster-table .roster-account {
   min-width: 200px;
   max-width: 220px;
