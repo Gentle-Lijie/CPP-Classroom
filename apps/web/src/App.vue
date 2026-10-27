@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ServiceUnavailable from '@/components/classroom/ServiceUnavailable.vue'
 import Notification from '@/components/ui/alert/Notification.vue'
 import ConfirmationDialog from '@/components/classroom/ConfirmationDialog.vue'
+import { useFirstVisitGuide } from '@/composables/useFirstVisitGuide'
 import { studentGuideActive } from '@/lib/spotlight'
 import SpotlightGuide from '@/components/classroom/SpotlightGuide.vue'
 import AppShell from '@/components/classroom/AppShell.vue'
@@ -11,6 +12,7 @@ import { demo, currentUser, refresh, clearSession, notify, bootstrapError } from
 import { api, ApiError } from '@/lib/api'
 const route = useRoute()
 const router = useRouter()
+useFirstVisitGuide()
 let poll: ReturnType<typeof setInterval>
 let expiring = false
 async function expireSession() {

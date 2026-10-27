@@ -11,6 +11,7 @@ import {
   type GuideChapter,
   type GuideRole,
 } from '@/lib/guide-catalog'
+import { guideVisits } from '@/lib/guide-visit'
 import { startGuide } from '@/lib/spotlight'
 const role = computed(() => (currentUser.value?.role ?? 'student') as GuideRole)
 const chapters = computed(() => guideCatalog[role.value])
@@ -22,6 +23,7 @@ const count = computed(() =>
 )
 function begin(chapter?: GuideChapter) {
   startGuide(role.value, chapter ? [chapter] : ready.value)
+  if (currentUser.value) guideVisits.remember({ id: currentUser.value.id, role: role.value })
 }
 </script>
 <template>
