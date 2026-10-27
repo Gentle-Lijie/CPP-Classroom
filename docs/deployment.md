@@ -25,6 +25,7 @@
 因此生产和预览站点都使用自己的第一方 Cookie，无需开放跨域凭据或第三方 Cookie。
 
 Makers 单文件上限为 25 MB。生产构建从固定版本的 jsDelivr npm CDN 加载 clangd WASM、标准库数据和系统索引，SharedWorker 与运行时代码保留在本站。
+Makers 将 `.mjs` 静态文件返回为 `application/octet-stream`，浏览器会拒绝动态导入。因此 Worker 构建将本站 clangd runtime 资产输出为 `.js`，构建检查同时确认 Worker 引用的 runtime 文件存在。
 Vite 的 Worker 构建插件在打包前替换资源地址，避免把超过限制的资源打入发布产物；Makers 构建还会检查产物大小和固定版本 CDN 引用。
 CDN 使用 `@algoproclub/clangd-wasm@0.1.1`，不使用浮动版本。首次加载依赖浏览器到公共 CDN 的网络连通性；CDN 不接收学生源码，分析仍在浏览器内完成。
 参考：[Makers 配置](https://cloud.tencent.com/document/product/1552/127389)、[函数路由](https://pages.edgeone.ai/document/edge-functions)、[文件限制](https://pages.edgeone.ai/document/limits-and-quotas)。

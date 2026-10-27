@@ -2,7 +2,7 @@
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import type * as Monaco from 'monaco-editor'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { RefreshCw } from '@lucide/vue'
@@ -28,6 +28,8 @@ let editor: Monaco.editor.IStandaloneCodeEditor | undefined
 let disposed = false
 let monacoApi: typeof import('monaco-editor/esm/vs/editor/editor.api.js') | undefined
 const languageEnabled = ref(false)
+const languagePending = ref(false)
+const languageStatusId = useId()
 const languageStatus = ref<ClangdStatus>()
 let languageConnection: BrowserClangd | undefined
 let languageController: AbortController | undefined
@@ -38,49 +40,79 @@ function stopLanguageService() {
   languageController = undefined
   languageConnection?.dispose()
   languageConnection = undefined
+  languageEnabled.value = false
+  languagePending.value = false
   languageStatus.value = undefined
 }
 async function startLanguageService() {
+  if (languagePending.value) return
   stopLanguageService()
   const model = editor?.getModel()
-  if (!model || !monacoApi || !languageEnabled.value || props.readonly || disposed) return
+  if (!model || !monacoApi || props.readonly || disposed) return
   const generation = languageGeneration
   const controller = new AbortController()
   languageController = controller
+  languagePending.value = true
   languageStatus.value = {
     state: 'loading',
     errors: 0,
     warnings: 0,
     message: '正在准备浏览器 clangd…',
   }
+  function fail(error: unknown) {
+    if (generation !== languageGeneration || disposed) return
+    languageEnabled.value = false
+    languagePending.value = false
+    languageStatus.value = {
+      state: 'error',
+      errors: 0,
+      warnings: 0,
+      message: error instanceof Error ? error.message : 'clangd 加载失败，请重试',
+    }
+  }
+  const aborted = () => fail(controller.signal.reason)
+  controller.signal.addEventListener('abort', aborted, { once: true })
   const timer = setTimeout(
-    () => controller.abort(new Error('语言服务加载超时，请检查静态资源后重试')),
+    () => controller.abort(new Error('语言服务加载超时，请检查网络后重试')),
     120000,
   )
   try {
     const { attachBrowserClangd } = await import('@/lib/browser-clangd')
-    if (generation !== languageGeneration || disposed) return
+    if (generation !== languageGeneration || disposed || controller.signal.aborted) return
     const connection = await attachBrowserClangd(
       monacoApi,
       model,
       (status) => {
-        if (generation === languageGeneration && !disposed) languageStatus.value = status
+        if (generation !== languageGeneration || disposed || controller.signal.aborted) return
+        languageStatus.value = status
+        if (status.state === 'error' || status.state === 'unsupported') {
+          languageEnabled.value = false
+          languagePending.value = false
+        }
       },
       controller.signal,
     )
-    if (generation === languageGeneration && !disposed) languageConnection = connection
-    else connection.dispose()
+    if (
+      generation === languageGeneration &&
+      !disposed &&
+      !controller.signal.aborted &&
+      languageStatus.value?.state !== 'error' &&
+      languageStatus.value?.state !== 'unsupported'
+    ) {
+      languageConnection = connection
+      languageEnabled.value = true
+    } else connection.dispose()
   } catch (error) {
-    if (generation === languageGeneration && !disposed)
-      languageStatus.value = {
-        state: 'error',
-        errors: 0,
-        warnings: 0,
-        message: error instanceof Error ? error.message : 'clangd 加载失败，请重试',
-      }
+    fail(error)
   } finally {
     clearTimeout(timer)
+    controller.signal.removeEventListener('abort', aborted)
+    if (generation === languageGeneration && !disposed) languagePending.value = false
   }
+}
+function toggleLanguageService(enabled: boolean) {
+  if (enabled) void startLanguageService()
+  else stopLanguageService()
 }
 function createModel() {
   const filename = validSourceFilename(props.filename) ? props.filename : 'source.cpp'
@@ -149,7 +181,6 @@ async function initializeEditor() {
     const currentEditor = editor
     currentEditor.onDidChangeModelContent(() => emit('update:modelValue', currentEditor.getValue()))
     markError()
-    if (languageEnabled.value) void startLanguageService()
   } catch (error) {
     editorError.value = error instanceof Error ? error.message : '编辑器资源加载失败'
     const failedModel = editor?.getModel()
@@ -174,14 +205,11 @@ watch(
 watch(resolvedTheme, (theme) => {
   monacoApi?.editor.setTheme(theme === 'dark' ? 'classroom-monokai' : 'classroom-light')
 })
-watch(languageEnabled, (enabled) => {
-  if (enabled) void startLanguageService()
-  else stopLanguageService()
-})
 watch(
   () => props.filename,
   () => {
     if (!editor || !monacoApi || disposed) return
+    const restartLanguage = languageEnabled.value || languagePending.value
     stopLanguageService()
     const previous = editor.getModel()
     errorDecoration?.clear()
@@ -189,7 +217,7 @@ watch(
     previous?.dispose()
     editor.setModel(createModel())
     markError()
-    if (languageEnabled.value) void startLanguageService()
+    if (restartLanguage) void startLanguageService()
   },
 )
 watch(() => props.errorLine, markError)
@@ -202,7 +230,6 @@ watch(
   (readOnly) => {
     editor?.updateOptions({ readOnly })
     if (readOnly) {
-      languageEnabled.value = false
       stopLanguageService()
     }
   },
@@ -245,25 +272,33 @@ onBeforeUnmount(() => {
     <div v-if="!readonly" class="editor-language-bar">
       <label
         class="editor-language-toggle"
-        title="仅为当前编辑器启用补全和诊断。首次开启需加载约 75 MB 的本地语言服务资源。"
+        title="仅为当前编辑器启用补全和诊断。首次开启需下载语言服务资源，分析在浏览器内完成。"
       >
-        <Switch v-model="languageEnabled" aria-label="clangd 语言服务" /><span>clangd</span>
+        <Switch
+          :model-value="languageEnabled"
+          :disabled="editorLoading || !!editorError || languagePending"
+          :aria-busy="languagePending"
+          aria-label="clangd 语言服务"
+          :aria-describedby="languageStatusId"
+          @update:model-value="toggleLanguageService"
+        /><span>clangd</span>
       </label>
       <RefreshCw
         v-if="languageStatus?.state === 'loading' || languageStatus?.state === 'analyzing'"
         :size="12"
         class="probe-spinning"
       /><span
+        :id="languageStatusId"
         class="editor-language-message"
         :class="languageStatus?.state"
         role="status"
         :title="languageStatus?.message"
         >{{
-          !languageEnabled
-            ? '补全与诊断已关闭'
+          languagePending
+            ? '正在启动 · ' + languageStatus?.message
             : languageStatus?.state === 'ready'
               ? `浏览器分析 · ${languageStatus.errors} 个错误 / ${languageStatus.warnings} 个警告`
-              : (languageStatus?.message ?? '正在准备…')
+              : (languageStatus?.message ?? '补全与诊断已关闭')
         }}</span
       ><Button
         v-if="languageStatus?.state === 'error'"

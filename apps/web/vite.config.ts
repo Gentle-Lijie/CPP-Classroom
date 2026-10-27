@@ -57,7 +57,20 @@ export default defineConfig(({ mode }) => {
       exclude: ['@algoproclub/clangd-wasm'],
       include: ['vscode-jsonrpc/browser', 'vscode-jsonrpc/lib/common/messages.js'],
     },
-    worker: { format: 'es', plugins: () => [clangdCdnAssets()] },
+    worker: {
+      format: 'es',
+      plugins: () => [clangdCdnAssets()],
+      rolldownOptions: {
+        output: {
+          // Makers serves .mjs as application/octet-stream, which browsers
+          // reject for dynamic imports. Keep the runtime local with a JS suffix.
+          assetFileNames: (asset) =>
+            asset.names.includes('clangd-runtime.mjs')
+              ? 'assets/[name]-[hash].js'
+              : 'assets/[name]-[hash][extname]',
+        },
+      },
+    },
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     server: {
       port: Number(env.WEB_PORT || 5173),
