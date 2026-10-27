@@ -13,9 +13,10 @@ import {
   Post,
   Req,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common'
 import { z } from 'zod'
-import { validSourceFilename } from '@classroom/contracts'
+import { exerciseImportLimits, validSourceFilename } from '@classroom/contracts'
 import type { PoolClient } from '@classroom/database'
 import { DatabaseService } from '../database.service.js'
 import { passwordHash } from './auth.js'
@@ -620,6 +621,78 @@ export class ClassroomController {
       await client.query('rollback')
       if ((e as { code: string }).code === '23505') throw new ConflictException('文件名已存在')
       throw e
+    } finally {
+      client.release()
+    }
+  }
+  @Post(':id/exercises/import') async importExercises(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: AuthRequest,
+  ) {
+    const user = actor(req)
+    await this.service.access(user, id, true)
+    if (Buffer.byteLength(JSON.stringify(body) ?? '') > exerciseImportLimits.bodyBytes)
+      throw new BadRequestException('导入内容超过 500 KiB，请减少所选文件后分批导入')
+    const { exercises } = parse(
+      z.object({
+        exercises: z
+          .array(
+            exerciseSchema
+              .omit({ status: true, position: true, version: true })
+              .refine(
+                (exercise) => Object.values(exercise).every((value) => !value.includes('\0')),
+                '题目包含无效的空字符',
+              ),
+          )
+          .min(1)
+          .max(exerciseImportLimits.files),
+      }),
+      body,
+    )
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      await client.query('select id from classrooms where id=$1 for update', [id])
+      const existing = (
+        await client.query('select filename from exercises where classroom_id=$1', [id])
+      ).rows as { filename: string }[]
+      const filenames = new Set(existing.map((e) => e.filename.toLowerCase()).filter(Boolean))
+      for (const exercise of exercises) {
+        if (!exercise.filename) continue
+        const filename = exercise.filename.toLowerCase()
+        if (filenames.has(filename))
+          throw new ConflictException(
+            `源文件名「${exercise.filename}」已存在或在本批次重复（不区分大小写），请核对后重试`,
+          )
+        filenames.add(filename)
+      }
+      const { position } = (
+        await client.query(
+          'select coalesce(max(position),0) as position from exercises where classroom_id=$1',
+          [id],
+        )
+      ).rows[0] as { position: number }
+      const ids: string[] = []
+      for (const [index, exercise] of exercises.entries()) {
+        const result = await client.query(
+          'insert into exercises(classroom_id,filename,status,position,content) values($1,$2,$3,$4,$5) returning id',
+          [id, exercise.filename, '草稿', position + index + 1, JSON.stringify(exercise)],
+        )
+        ids.push(result.rows[0].id as string)
+      }
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'exercises.imported',
+        user.id,
+        JSON.stringify({ classroomId: id, ids }),
+      ])
+      await client.query('commit')
+      return { ids }
+    } catch (error) {
+      await client.query('rollback')
+      if ((error as { code: string }).code === '23505')
+        throw new ConflictException('文件名已存在，本批次未导入，请核对后重试')
+      throw error
     } finally {
       client.release()
     }

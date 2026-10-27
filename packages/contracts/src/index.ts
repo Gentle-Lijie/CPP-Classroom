@@ -1,5 +1,12 @@
 export type DependencyState = 'healthy' | 'unavailable' | 'unconfigured'
 
+// Leave headroom below the API and reverse proxy's 512 KiB JSON body limit.
+export const exerciseImportLimits = {
+  files: 50,
+  fileBytes: 1024 * 1024,
+  bodyBytes: 500 * 1024,
+} as const
+
 export function validSourceFilename(filename: string): boolean {
   return (
     filename.length <= 80 &&

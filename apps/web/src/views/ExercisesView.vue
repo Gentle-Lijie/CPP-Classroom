@@ -22,6 +22,7 @@ import {
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
+import ExerciseBatchImport from '@/components/classroom/ExerciseBatchImport.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import MarkdownContent from '@/components/classroom/MarkdownContent.vue'
@@ -136,6 +137,18 @@ async function move(direction = -1) {
 function edit(e: Exercise) {
   router.push('/teacher/exercises/' + e.id + '/edit')
 }
+async function imported(ids: string[]) {
+  try {
+    await refresh()
+    search.value = ''
+    status.value = ''
+    selected.value = ids[0] ?? selected.value
+    const index = exercises.findIndex((exercise) => exercise.id === selected.value)
+    if (index >= 0) page.value = Math.floor(index / pageSize.value) + 1
+  } catch {
+    notify('练习已导入，列表刷新失败，请刷新页面查看，勿重复导入', 'error')
+  }
+}
 </script>
 <template>
   <div class="page-heading">
@@ -145,6 +158,7 @@ function edit(e: Exercise) {
       <p>编排课堂练习，可直接导入 Markdown；所有题目字段均可留空。</p>
     </div>
     <div class="heading-actions">
+      <ExerciseBatchImport @imported="imported" />
       <Button
         variant="outline"
         :disabled="!exercise"

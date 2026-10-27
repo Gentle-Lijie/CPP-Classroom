@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { Upload } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-defineProps<{ accept?: string; disabled?: boolean }>()
+defineProps<{ accept?: string; disabled?: boolean; multiple?: boolean }>()
 const emit = defineEmits<{ change: [event: Event] }>()
 const input = ref<HTMLInputElement>()
 </script>
@@ -15,6 +15,7 @@ const input = ref<HTMLInputElement>()
       ref="input"
       type="file"
       :accept="accept"
+      :multiple="multiple"
       :disabled="disabled"
       hidden
       tabindex="-1"
