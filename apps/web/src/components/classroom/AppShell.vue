@@ -278,7 +278,10 @@ async function signOut() {
         </div>
       </div>
     </aside>
-    <div class="shell-main">
+    <div
+      class="shell-main"
+      :class="{ 'exercise-management-shell': route.path === '/teacher/exercises' }"
+    >
       <header class="topbar">
         <div class="breadcrumbs">
           <Button

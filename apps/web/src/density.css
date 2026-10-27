@@ -6,6 +6,20 @@ body {
   padding: 20px 24px;
   max-width: none;
 }
+.shell-main.exercise-management-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.exercise-management-shell > .page-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.exercise-management-shell > :not(.page-content) {
+  flex-shrink: 0;
+}
 .page-heading {
   margin-bottom: 16px;
   gap: 12px;

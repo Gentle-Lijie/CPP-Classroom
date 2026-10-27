@@ -735,6 +735,83 @@ export class ClassroomController {
       client.release()
     }
   }
+  @Patch(':id/exercises/batch') async batchUpdateExercises(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: AuthRequest,
+  ) {
+    const user = actor(req)
+    await this.service.access(user, id, true)
+    const { exercises, changes } = parse(
+      z.object({
+        exercises: z
+          .array(z.object({ id: z.uuid(), version: z.number().int().min(1) }))
+          .min(1)
+          .max(500)
+          .refine(
+            (items) => new Set(items.map((item) => item.id)).size === items.length,
+            '练习重复',
+          ),
+        changes: z
+          .object({
+            status: z.enum(['草稿', '已发布', '已关闭']).optional(),
+            topic: z
+              .string()
+              .trim()
+              .max(100)
+              .refine((value) => !value.includes('\0'))
+              .optional(),
+          })
+          .strict()
+          .refine(
+            (value) => Object.values(value).some((field) => field !== undefined),
+            '请选择要修改的字段',
+          ),
+      }),
+      body,
+    )
+    const ids = exercises.map((exercise) => exercise.id)
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      await client.query('select id from classrooms where id=$1 for update', [id])
+      const current = (
+        await client.query(
+          'select id,version from exercises where classroom_id=$1 and id=any($2::uuid[]) order by id for update',
+          [id, ids],
+        )
+      ).rows as { id: string; version: number }[]
+      const versions = new Map(current.map((exercise) => [exercise.id, exercise.version]))
+      if (exercises.some((exercise) => versions.get(exercise.id) !== exercise.version))
+        throw new ConflictException('部分练习已被修改或移除，本批次未保存，请刷新后重新选择')
+      await client.query(
+        'update exercises set status=coalesce($3,status),content=content || $4::jsonb,version=version+1,updated_at=now() where classroom_id=$1 and id=any($2::uuid[])',
+        [id, ids, changes.status ?? null, JSON.stringify(changes)],
+      )
+      if (changes.status && changes.status !== '已发布') {
+        await client.query(
+          'update classrooms set recommended=null where id=$1 and recommended=any($2::uuid[])',
+          [id, ids],
+        )
+        await client.query(
+          "update runs set stop_requested=true where classroom_id=$1 and exercise_id=any($2::uuid[]) and status in ('排队','编译中','运行中／可输入')",
+          [id, ids],
+        )
+      }
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'exercises.updated',
+        user.id,
+        JSON.stringify({ classroomId: id, ids, changes }),
+      ])
+      await client.query('commit')
+      return { ids }
+    } catch (error) {
+      await client.query('rollback')
+      throw error
+    } finally {
+      client.release()
+    }
+  }
   @Patch(':id/exercises/:exerciseId') async updateExercise(
     @Param('id') id: string,
     @Param('exerciseId') exerciseId: string,
