@@ -336,12 +336,7 @@ async function signOut() {
         type="warning">
         <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span>
 
-        <template #actions>
-          <Button variant="plain" class="text-button" @click="refresh().catch(reportError)">
-            <RefreshCw :size="14" />
-            重试连接
-          </Button>
-        </template>
+        
       </Alert>
       <main class="page-content"><slot /></main>
     </div>
