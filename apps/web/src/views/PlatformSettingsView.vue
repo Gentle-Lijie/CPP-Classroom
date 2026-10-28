@@ -48,7 +48,7 @@ const services = [
 const groups = [
   {
     title: '编译阶段',
-    description: '限制每次编译可使用的 CPU 时间和内存。',
+    // description: '限制每次编译可使用的 CPU 时间和内存。',
     fields: [
       { key: 'compileTimeMs', name: '编译 CPU 时间', unit: 'ms', min: 1000, max: 20000 },
       { key: 'compileMemoryMb', name: '编译内存', unit: 'MiB', min: 128, max: 1024 },
@@ -56,7 +56,7 @@ const groups = [
   },
   {
     title: '程序运行',
-    description: '限制单次学生程序的资源用量。',
+    // description: '限制单次学生程序的资源用量。',
     fields: [
       { key: 'runTimeMs', name: '运行 CPU 时间', unit: 'ms', min: 100, max: 10000 },
       { key: 'runMemoryMb', name: '运行内存', unit: 'MiB', min: 16, max: 512 },
@@ -64,7 +64,7 @@ const groups = [
   },
   {
     title: '并行与输出',
-    description: '控制平台总并发和单次程序的输出量。',
+    // description: '控制平台总并发和单次程序的输出量。',
     fields: [
       {
         key: 'executionConcurrency',
@@ -116,6 +116,7 @@ async function check() {
   for (const state of Object.values(states)) {
     state.status = 'checking'
     state.message = '正在检查服务连接…'
+    delete state.latencyMs
   }
   try {
     Object.assign(states, await probePlatform(AbortSignal.timeout(12000)))
@@ -169,15 +170,9 @@ useActionFeedback(saveError)
       <div>
         <div class="heading-meta">平台管理</div>
         <h1>平台配置</h1>
-        <p>检查服务连接，统一课堂的编译环境与运行资源。</p>
       </div>
     </div>
-    <ContentPanel
-      title="服务状态"
-      description="查看业务服务、数据库与评测节点的连接情况。"
-      :icon="Activity"
-      class="runtime-health-panel"
-    >
+    <ContentPanel title="服务状态" :icon="Activity" class="runtime-health-panel">
       <template #actions
         ><Button variant="outline" size="sm" :disabled="checking" @click="check"
           ><RefreshCw :class="{ 'probe-spinning': checking }" />{{
@@ -194,7 +189,8 @@ useActionFeedback(saveError)
             >
           </div>
           <h3>
-            {{ service.title }}<small>{{ service.subtitle }}</small>
+            {{ service.title }}
+            <!-- <small>{{ service.subtitle }}</small> -->
           </h3>
           <p>{{ states[service.key].message }}</p>
           <span v-if="states[service.key].latencyMs !== undefined" class="runtime-latency"
@@ -217,22 +213,18 @@ useActionFeedback(saveError)
       >
     </Alert>
     <div class="runtime-settings-layout">
-      <ContentPanel
-        title="运行环境与限额"
-        description="统一管理编译、运行和平台并发。"
-        class="runtime-form-panel"
-      >
+      <ContentPanel title="运行环境与限额" class="runtime-form-panel">
         <Form id="runtime-settings-form" class="runtime-settings-form" @submit.prevent="save">
           <fieldset :disabled="loading || saving || !!loadError" class="runtime-fields">
             <label class="runtime-profile"
               >C++ 标准<Select v-model="form.compilerProfile">
                 <SelectOption value="gcc13-cpp17">GCC 13.3 / C++17</SelectOption>
                 <SelectOption value="gcc13-cpp20">GCC 13.3 / C++20</SelectOption></Select
-              ><small>同一课堂使用统一的受控编译环境。</small></label
+              ></label
             >
             <fieldset v-for="group in groups" :key="group.title" class="runtime-settings-group">
               <legend>{{ group.title }}</legend>
-              <p>{{ group.description }}</p>
+              <br/>
               <div class="runtime-settings-grid">
                 <label v-for="field in group.fields" :key="field.key"
                   >{{ field.name
@@ -300,7 +292,7 @@ useActionFeedback(saveError)
                 <dd>60 秒</dd>
               </div>
             </dl>
-            <p>墙钟时间包含程序等待输入的时间，与 CPU 时间分别限制。</p>
+            <!-- <p>墙钟时间包含程序等待输入的时间，与 CPU 时间分别限制。</p> -->
           </div>
         </ContentPanel>
         <Alert type="info" :icon="ShieldCheck">

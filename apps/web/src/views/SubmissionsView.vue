@@ -205,7 +205,6 @@ useActionFeedback(exportError)
     <div>
       <div class="heading-meta">课堂作品</div>
       <h1>提交与导出</h1>
-      <p>按练习查看主动提交；当前草稿可独立导出，提交不代表正确或通过。</p>
     </div>
     <Button variant="outline" :disabled="loading" @click="load"
       ><RefreshCw :class="{ 'animate-spin': loading }" />{{
@@ -218,7 +217,7 @@ useActionFeedback(exportError)
       <FileCode2 :size="22" />
       <div>
         <h2>导出课堂作品</h2>
-        <p>适用于当前学生、练习筛选；搜索关键词仅筛选下方提交列表。ZIP 内含源文件与 CSV 清单。</p>
+        <!-- <p>适用于当前学生、练习筛选；搜索关键词仅筛选下方提交列表。ZIP 内含源文件与 CSV 清单。</p> -->
       </div>
     </div>
     <div class="export-controls">
@@ -246,18 +245,8 @@ useActionFeedback(exportError)
         }}</Button
       >
     </div>
-    <p class="form-hint">
-      {{
-        kind === 'drafts'
-          ? '每位学生每题的最新草稿，不受下方提交选择影响。'
-          : latest
-            ? '未选择记录时，每位学生每题只导出最新主动提交；草稿始终为最新版本。'
-            : '未选择记录时，导出当前范围内全部历史提交。'
-      }}
-      JSON 可包含运行上下文；超过一万条记录或 64 MiB 时请按学生、练习分批。
-    </p>
   </section>
-  <section class="panel">
+  <section class="panel panel-fill">
     <div class="panel-heading">
       <h2>
         主动提交 <span class="muted">{{ total }}</span>
@@ -369,7 +358,6 @@ useActionFeedback(exportError)
       <div v-if="!submissions.length && !error" class="empty-state">
         <PackageOpen :size="30" />
         <h3>{{ loading ? '正在加载提交…' : '没有符合条件的主动提交' }}</h3>
-        <p>学生尚未提交时，仍可在上方导出当前草稿。</p>
       </div>
     </div>
     <Pagination
@@ -383,18 +371,22 @@ useActionFeedback(exportError)
 </template>
 <style scoped>
 .export-panel {
-  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  padding: 18px 22px;
   margin-bottom: 24px;
 }
 .export-heading {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   color: var(--ui-action);
 }
 .export-heading > svg {
   flex-shrink: 0;
-  margin-top: 3px;
 }
 .export-heading h2 {
   font-size: 16px;
@@ -409,17 +401,18 @@ useActionFeedback(exportError)
 }
 .export-controls {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
   gap: 14px;
-  margin: 20px 0 12px;
 }
 .export-controls > label:not(.inline-items) {
-  display: grid;
-  gap: 7px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   color: var(--ui-secondary);
   min-width: 0;
+  white-space: nowrap;
 }
 .export-controls .ui-select-trigger {
   min-width: 180px;
@@ -461,10 +454,12 @@ useActionFeedback(exportError)
     padding: 18px 16px;
   }
   .export-controls {
+    flex-direction: column;
     align-items: stretch;
   }
   .export-controls > label:not(.inline-items),
   .export-controls > button {
+    justify-content: flex-start;
     width: 100%;
   }
   .export-controls .ui-select-trigger {

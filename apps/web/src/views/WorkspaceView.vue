@@ -25,7 +25,6 @@ import {
   ChevronDown,
   Settings2,
   WifiOff,
-  Monitor,
   HelpCircle,
 } from '@lucide/vue'
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'reka-ui'
@@ -757,7 +756,7 @@ useActionFeedback(actionError)
       >
     </Alert>
     <Alert v-else-if="isArchived" class="app-alert--banner" type="warning">
-      当前课堂或练习只读，作品与历史保留。
+      当前课堂或练习只读，请询问老师。
     </Alert>
     <SplitterGroup
       direction="horizontal"
@@ -816,17 +815,9 @@ useActionFeedback(actionError)
               <pre>{{ exercise.sampleOutput }}</pre>
             </div>
           </div>
-          <Alert type="info" class="app-alert--section">
-            <strong>想一想</strong>
-            <p>先检查样例的输入和预期输出，再逐步编写程序。</p>
-          </Alert>
-          <Alert type="info" :icon="Monitor">
-            <span>课堂内的教师可以查看你的代码和运行记录，及时提供辅导。</span>
-          </Alert>
         </div>
         <div v-else class="workspace-history">
           <div class="history-list">
-            <p class="form-hint">服务器固定快照，查看历史不会重新运行。</p>
             <Button
               v-for="r in history"
               :key="r.id"
@@ -939,8 +930,7 @@ useActionFeedback(actionError)
                     compilerLabel(
                       viewing ? viewing.compilerProfile : executionSettings.compilerProfile,
                     )
-                  }}<ChevronDown :size="11"
-                /></span>
+                  }}</span>
               </div>
             </div>
             <CodeEditor
@@ -1055,10 +1045,7 @@ useActionFeedback(actionError)
       >
     </footer>
   </div>
-  <Modal
-    v-model:open="help"
-    title="告诉老师，你遇到了什么？"
-    description="教师会结合你的代码和运行上下文提供帮助。"
+  <Modal v-model:open="help" title="告诉老师，你遇到了什么？"
     ><Form class="form-stack" @submit.prevent="sendHelp">
       <label
         >求助说明<Textarea

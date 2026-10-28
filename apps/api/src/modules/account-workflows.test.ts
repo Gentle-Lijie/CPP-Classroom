@@ -190,3 +190,114 @@ describe('teacher classroom write policy', () => {
     })
   })
 })
+
+describe('adding a single student with optional credentials', () => {
+  const body = { name: '刘亦安', number: '2026001' }
+  function memberQueries(overrides: {
+    user?: { rows: unknown[]; rowCount: number }
+    taken?: { rows: unknown[]; rowCount: number }
+    member?: { rows: unknown[]; rowCount: number }
+    insert?: { rows: unknown[]; rowCount: number }
+  }) {
+    return vi.fn(async (sql: string) => {
+      if (sql.startsWith('select settings')) return { rows: [{ settings: {} }], rowCount: 1 }
+      if (sql.startsWith('select count(*)')) return { rows: [{ count: 0 }], rowCount: 1 }
+      if (sql.includes('from users where number')) return overrides.user ?? { rows: [], rowCount: 0 }
+      if (sql.includes('from users where username')) return overrides.taken ?? { rows: [], rowCount: 0 }
+      if (sql.includes('from memberships where classroom_id=$1 and user_id=$2'))
+        return overrides.member ?? { rows: [], rowCount: 0 }
+      if (sql.startsWith('insert into users')) return overrides.insert ?? { rows: [], rowCount: 0 }
+      return { rows: [], rowCount: 0 }
+    })
+  }
+  it('creates the account with the requested username and password', async () => {
+    const query = memberQueries({
+      insert: {
+        rows: [
+          { id: studentId, username: 'liu2026', role: 'student', name: body.name, number: body.number },
+        ],
+        rowCount: 1,
+      },
+    })
+    const result = await new ClassroomController(service(query).value).addMember(
+      classId,
+      { ...body, username: 'liu2026', password: '班级共享密码' },
+      req(),
+    )
+    expect(result).toMatchObject({ username: 'liu2026', created: true, password: '班级共享密码' })
+    const insert = query.mock.calls.find(([sql]) => sql.startsWith('insert into users'))!
+    expect(insert[1][0]).toBe('liu2026')
+    expect(verifyPassword('班级共享密码', String(insert[1][3]))).toBe(true)
+  })
+  it('rejects a requested username that already belongs to another account', async () => {
+    const query = memberQueries({ taken: { rows: [1], rowCount: 1 } })
+    await expect(
+      new ClassroomController(service(query).value).addMember(
+        classId,
+        { ...body, username: 'taken' },
+        req(),
+      ),
+    ).rejects.toThrow('已被占用')
+    expect(query.mock.calls.some(([sql]) => sql.startsWith('insert into users'))).toBe(false)
+    expect(query.mock.calls.map(([sql]) => sql)).toContain('rollback')
+  })
+  it('reuses the existing account for the same student number and keeps its credentials', async () => {
+    const query = memberQueries({
+      user: {
+        rows: [
+          {
+            id: studentId,
+            username: 'student.existing',
+            role: 'student',
+            name: body.name,
+            number: body.number,
+            disabled: false,
+            created_by: teacherId,
+          },
+        ],
+        rowCount: 1,
+      },
+      member: { rows: [1], rowCount: 1 },
+    })
+    const result = await new ClassroomController(service(query).value).addMember(
+      classId,
+      { ...body, username: 'ignored', password: 'ignored' },
+      req(),
+    )
+    expect(result).toEqual({
+      id: studentId,
+      username: 'student.existing',
+      created: false,
+      name: body.name,
+      number: body.number,
+      canResetPassword: true,
+    })
+    expect(query.mock.calls.some(([sql]) => sql.startsWith('insert into users'))).toBe(false)
+  })
+  it('still derives the username and generates a password when none is requested', async () => {
+    const query = memberQueries({
+      insert: {
+        rows: [
+          {
+            id: studentId,
+            username: `student.${teacherId}.derived`,
+            role: 'student',
+            name: body.name,
+            number: body.number,
+          },
+        ],
+        rowCount: 1,
+      },
+    })
+    const result = await new ClassroomController(service(query).value).addMember(
+      classId,
+      { ...body },
+      req(),
+    )
+    expect(result.created).toBe(true)
+    const insert = query.mock.calls.find(([sql]) => sql.startsWith('insert into users'))!
+    expect(String(insert[1][0])).toMatch(/^student\.11111111-1111-4111-8111-111111111111\.[0-9a-f]{24}$/)
+    expect(result.password).toBeTruthy()
+    expect(verifyPassword(result.password!, String(insert[1][3]))).toBe(true)
+  })
+})

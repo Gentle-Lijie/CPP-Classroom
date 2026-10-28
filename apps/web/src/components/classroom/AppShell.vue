@@ -33,6 +33,7 @@ import {
   KeyRound,
   RefreshCw,
   Check,
+  Ellipsis,
 } from '@lucide/vue'
 import {
   activeClassroom,
@@ -273,7 +274,7 @@ async function signOut() {
               }}<small>{{
                 role === 'teacher' ? '教师账号' : role === 'student' ? '学生账号' : '运维账号'
               }}</small></span
-            ><ChevronDown :size="15" />
+            ><Ellipsis :size="15" />
           </Button>
         </div>
       </div>
@@ -323,9 +324,6 @@ async function signOut() {
         >
       </Alert>
       <main class="page-content"><slot /></main>
-      <footer class="app-footer">
-        <span>码上课堂 · C++ Classroom</span><span>C++ 编程与课堂协作</span>
-      </footer>
     </div>
   </div>
   <AccountDialog v-model:open="accountOpen" />

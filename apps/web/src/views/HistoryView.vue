@@ -64,7 +64,6 @@ void load()
     <div>
       <div class="heading-meta">我的编程记录</div>
       <h1>运行历史</h1>
-      <p>查看当次代码、输入与诊断，不会重新执行程序。</p>
     </div>
     <div class="heading-actions">
       <Button variant="outline" :disabled="loading" data-guide="history-refresh" @click="load"
@@ -126,13 +125,13 @@ void load()
       >前往我的课堂 →</RouterLink
     >
   </div>
-  <div v-else-if="records.length" class="history-page-layout" :aria-busy="loading">
-    <section class="panel">
+  <div v-else-if="records.length" class="history-page-layout fill-stack" :aria-busy="loading">
+    <section class="panel panel-fill">
       <div class="panel-heading">
         <h2>运行记录</h2>
         <History :size="17" class="muted" />
       </div>
-      <div class="history-list">
+      <div class="history-list fill-body">
         <Button
           v-for="r in records"
           :key="r.id"
@@ -156,7 +155,7 @@ void load()
         unit="条记录"
       />
     </section>
-    <section v-if="run" class="panel">
+    <section v-if="run" class="panel panel-fill">
       <div class="panel-heading">
         <div class="inline-items">
           <h2>运行 {{ run.id.slice(0, 8) }}</h2>
@@ -164,19 +163,21 @@ void load()
         </div>
         <span class="muted text-xs">只读代码快照</span>
       </div>
-      <div class="code-toolbar">
-        <CodeXml :size="14" />{{ run.filename
-        }}<span class="language-label ml-auto">{{ compilerLabel(run.compilerProfile) }}</span>
-      </div>
-      <div class="history-editor">
-        <CodeEditor :model-value="run.code" :filename="run.filename" readonly />
-      </div>
-      <div class="detail-io">
-        <section class="detail-input">
-          <div class="code-toolbar">当次输入</div>
-          <pre>{{ run.input || '（无预填输入）' }}</pre>
-        </section>
-        <RunOutput :key="run.id" :run="run" readonly-context />
+      <div class="fill-body">
+        <div class="code-toolbar">
+          <CodeXml :size="14" />{{ run.filename
+          }}<span class="language-label ml-auto">{{ compilerLabel(run.compilerProfile) }}</span>
+        </div>
+        <div class="history-editor">
+          <CodeEditor :model-value="run.code" :filename="run.filename" readonly />
+        </div>
+        <div class="detail-io">
+          <section class="detail-input">
+            <div class="code-toolbar">当次输入</div>
+            <pre>{{ run.input || '（无预填输入）' }}</pre>
+          </section>
+          <RunOutput :key="run.id" :run="run" readonly-context />
+        </div>
       </div>
     </section>
   </div>
@@ -201,15 +202,18 @@ void load()
 .history-filter .ui-select-trigger {
   max-width: min(340px, 70vw);
 }
+.history-page-layout {
+  align-items: stretch;
+  grid-template-rows: minmax(0, 1fr);
+}
 .history-page-layout > section {
   min-width: 0;
-  align-self: start;
+  min-height: 0;
 }
 .history-page-layout .panel-heading .inline-items {
   flex-wrap: wrap;
 }
 .history-list {
-  max-height: 560px;
   overflow: auto;
 }
 .detail-input pre {

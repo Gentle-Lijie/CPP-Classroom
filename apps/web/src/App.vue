@@ -7,6 +7,7 @@ import ConfirmationDialog from '@/components/classroom/ConfirmationDialog.vue'
 import { useFirstVisitGuide } from '@/composables/useFirstVisitGuide'
 import { studentGuideActive } from '@/lib/spotlight'
 import SpotlightGuide from '@/components/classroom/SpotlightGuide.vue'
+import ResolutionNotice from '@/components/classroom/ResolutionNotice.vue'
 import AppShell from '@/components/classroom/AppShell.vue'
 import { demo, currentUser, refresh, clearSession, notify, bootstrapError } from '@/data/demo'
 import { api, ApiError } from '@/lib/api'
@@ -62,5 +63,6 @@ async function retryBootstrap() {
   <AppShell v-else><RouterView :key="pageKey" /></AppShell>
   <ConfirmationDialog />
   <SpotlightGuide />
+  <ResolutionNotice />
   <Notification />
 </template>

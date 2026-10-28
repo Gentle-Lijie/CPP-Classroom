@@ -134,7 +134,7 @@
 - **PostgreSQL 17+**，包含 `initdb`、`pg_ctl`、`pg_dump` 等原生工具。
 - 用于编译运行的**原生 Linux go-judge 节点**。前端、API 和 worker 可在开发机运行，评测节点独立部署；macOS 执行支持属于实验性质，不作为生产沙箱验收依据。
 
-macOS 可通过 `brew install postgresql@17` 安装 PostgreSQL；Linux 使用原生服务端软件包。若脚本未自动找到工具，在 `.env` 中设置 `POSTGRES_BIN_DIR`。
+macOS 可通过 `brew install postgresql@17` 安装并启动 PostgreSQL（`brew services start postgresql@17`）；Linux 使用原生服务端软件包。项目直接使用本机已有的 PostgreSQL 实例，不自带独立数据库进程。
 
 ### 启动项目
 
@@ -145,7 +145,7 @@ pnpm install --frozen-lockfile
 pnpm setup:local
 ```
 
-`setup:local` 会生成带随机数据库密码的 `.env`，启动项目专用 PostgreSQL，构建共享包并应用版本化 Drizzle 迁移。重复执行会保留已有配置与数据，数据库文件位于忽略的 `.local/postgres/`。
+`setup:local` 会生成带随机数据库密码的 `.env`，构建共享包并应用版本化 Drizzle 迁移。重复执行会保留已有配置与数据。首次使用需在本机 PostgreSQL 中创建同名角色与数据库（见下方"使用已有 PostgreSQL 实例"），迁移不会重置数据库。
 
 在生成的 `.env` 中配置自己的 Linux 评测节点：
 
@@ -167,14 +167,14 @@ pnpm dev
 
 默认管理员用户名为 `admin`，可通过 `ADMIN_USERNAME` 指定其他名称。初始化脚本不会覆盖已有管理员的密码或权限。
 
-| 服务            | 默认本地地址                                 |
-| --------------- | -------------------------------------------- |
-| 前端登录页      | <http://127.0.0.1:5173/login>                |
-| API 健康检查    | <http://127.0.0.1:3000/api/health>           |
-| API 就绪检查    | <http://127.0.0.1:3000/api/health/readiness> |
-| 项目 PostgreSQL | `127.0.0.1:55432`                            |
+| 服务            | 默认本地地址                                        |
+| --------------- | --------------------------------------------------- |
+| 前端登录页      | <http://127.0.0.1:5173/login>                       |
+| API 健康检查    | <http://127.0.0.1:3000/api/health>                  |
+| API 就绪检查    | <http://127.0.0.1:3000/api/health/readiness>        |
+| 本地 PostgreSQL | `127.0.0.1:5432`（brew 服务，`brew services` 管理） |
 
-端口配置见 [.env.example](.env.example)，Vite 将 `/api` 请求代理到 `VITE_API_TARGET`。按 Ctrl+C 停止开发进程；使用 `pnpm pg:status`、`pnpm pg:stop`、`pnpm pg:start` 管理项目数据库。
+端口配置见 [.env.example](.env.example)，Vite 将 `/api` 请求代理到 `VITE_API_TARGET`。按 Ctrl+C 停止开发进程；PostgreSQL 由系统服务管理（macOS 用 `brew services start/stop postgresql@17`）。
 
 <details>
 <summary>使用已有 PostgreSQL 实例</summary>
@@ -188,7 +188,7 @@ pnpm build:packages
 pnpm db:migrate
 ```
 
-随后创建管理员并运行 `pnpm dev`。`pg:*` 脚本仅管理本项目专用的本地数据库，外部数据库需自行管理。迁移不会重置数据库。
+随后创建管理员并运行 `pnpm dev`。迁移不会重置数据库。
 
 </details>
 

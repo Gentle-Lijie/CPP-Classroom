@@ -97,9 +97,6 @@ useActionFeedback(error)
       <h1>
         我的课堂<span class="heading-count">{{ classrooms.length }}</span>
       </h1>
-      <p>
-        {{ student ? '查看已加入的课堂和当前练习。' : '管理课堂、学生名单与练习。' }}
-      </p>
     </div>
     <Button data-guide="class-add" @click="student ? router.push('/join') : openCreate()"
       ><KeyRound v-if="student" /><Plus v-else />{{ student ? '加入课堂' : '创建课堂' }}</Button
@@ -178,7 +175,6 @@ useActionFeedback(error)
     >
       <span><Plus :size="25" /></span>
       <h3>新建课堂</h3>
-      <p>创建课堂，邀请学生一起写代码</p>
       <strong>创建课堂 <ArrowRight :size="14" /></strong>
     </Button>
   </div>
@@ -205,23 +201,8 @@ useActionFeedback(error)
       >{{ student ? '申请加入课堂' : '创建第一个课堂' }}</Button
     >
   </div>
-  <Alert type="info" :icon="GraduationCap" class="app-alert--section">
-    <div>
-      <strong>{{ student ? '课堂访问说明' : '课堂工作区' }}</strong>
-      <p>
-        {{
-          student
-            ? '课堂内的教师可以查看你的代码和运行记录，以便及时提供帮助。'
-            : '每位学生拥有独立的代码工作区，教师可以巡视过程、查看求助并选择作品讲解。'
-        }}
-      </p>
-    </div>
-  </Alert>
-  <Modal
-    v-model:open="create"
-    title="创建新课堂"
-    description="填写课堂名称和说明，创建后可继续设置。"
-    :busy="busy"
+  
+  <Modal v-model:open="create" title="创建新课堂" :busy="busy"
     ><Form class="form-stack" @submit.prevent="add">
       <label
         >课堂名称<Input
@@ -237,7 +218,6 @@ useActionFeedback(error)
           placeholder="介绍课程目标、上课安排…"
         />
       </label>
-      <Alert type="info">创建后可添加学生、准备练习，再将课堂状态设为“进行中”。</Alert>
 
       <div class="modal-actions">
         <Button type="button" variant="outline" @click="create = false">取消</Button

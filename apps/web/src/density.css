@@ -52,11 +52,7 @@ body {
 .stat-card {
   padding: 16px;
 }
-.table-controls,
-.class-toolbar,
-.class-meta-bar {
-  margin-bottom: 12px;
-}
+
 th,
 td {
   padding-top: 10px;

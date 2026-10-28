@@ -453,7 +453,6 @@ function closeWindow() {
             </Button>
           </div>
           <div v-if="sidebarTab === '运行记录'" class="history-list">
-            <p class="form-hint">完整保留每次代码、输入与原始结果。</p>
             <Button
               v-for="r in records"
               :key="r.id"
@@ -490,7 +489,6 @@ function closeWindow() {
             <div v-if="!submissions.length" class="small-empty">
               <History :size="25" />
               <h3>尚未主动提交</h3>
-              <p>巡视不依赖学生提交。</p>
             </div>
           </div>
           <Pagination
@@ -509,9 +507,6 @@ function closeWindow() {
             unit="次提交"
           />
         </section>
-        <Alert type="info" :icon="LockKeyhole">
-          <p>首版教师巡视为只读。查看与投屏均不会修改学生代码或触发重新运行。</p>
-        </Alert>
       </aside>
     </div>
   </div>

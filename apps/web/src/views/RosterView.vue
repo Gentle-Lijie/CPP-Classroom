@@ -59,7 +59,9 @@ const search = ref(''),
   tab = ref('全部成员'),
   add = ref(false),
   name = ref(''),
-  number = ref('')
+  number = ref(''),
+  username = ref(''),
+  password = ref('')
 const remove = ref<Member>(),
   importing = ref(false),
   csv = ref(''),
@@ -221,11 +223,16 @@ function keepCredentials(items: Credential[], classId = demo.classroomId) {
     }
   }
 }
-async function addMember(n: string, no: string, classId: string) {
+async function addMember(
+  n: string,
+  no: string,
+  classId: string,
+  account: { username?: string; password?: string } = {},
+) {
   const result = await api<Credential & { created: boolean }>(
     `/classes/${classId}/members`,
     'POST',
-    { name: n, number: no },
+    { name: n, number: no, ...account },
   )
   keepCredentials([result], classId)
   return result
@@ -243,12 +250,24 @@ async function save() {
   if (busy.value) return
   const classId = demo.classroomId
   error.value = ''
+  const account: { username?: string; password?: string } = {},
+    customUsername = username.value.trim()
+  if (customUsername) {
+    if (!/^[a-zA-Z0-9._@-]+$/.test(customUsername)) {
+      error.value = '登录账号仅限字母、数字和 . _ @ -'
+      return
+    }
+    account.username = customUsername
+  }
+  if (password.value) account.password = password.value
   busy.value = true
   try {
-    const result = await addMember(name.value.trim(), number.value.trim(), classId)
+    const result = await addMember(name.value.trim(), number.value.trim(), classId, account)
     add.value = false
     name.value = ''
     number.value = ''
+    username.value = ''
+    password.value = ''
     if (result.password && demo.classroomId === classId) credentialsOpen.value = true
     notify(
       result.password ? '学生已添加，可复制或导出登录凭据' : '该学生已加入课堂，原账号密码保持不变',
@@ -458,14 +477,13 @@ useActionFeedback(error)
       <h1>
         学生名册 <span class="heading-count">{{ active.length }}</span>
       </h1>
-      <p>添加或导入学生，导出账号密码，处理入班申请。</p>
     </div>
     <div class="heading-actions">
       <Button variant="outline" @click="openImport"><Upload />导入名单</Button
       ><Button @click="openAdd"><UserPlus />添加学生</Button>
     </div>
   </div>
-  <Alert type="info" :icon="KeyRound">
+  <!-- <Alert type="info" :icon="KeyRound">
     <div>
       <strong>账号交付与找回</strong>
       <p>
@@ -482,7 +500,7 @@ useActionFeedback(error)
         >查看 / 导出凭据</Button
       ></template
     >
-  </Alert>
+  </Alert> -->
   <Alert v-if="loadError" role="alert" type="error">
     {{ loadError }}
 
@@ -491,7 +509,7 @@ useActionFeedback(error)
     >
   </Alert>
 
-  <section class="panel">
+  <section class="panel panel-fill">
     <div class="panel-heading">
       <div class="filter-tabs borderless">
         <Button
@@ -537,17 +555,17 @@ useActionFeedback(error)
       /></label>
       <div v-if="selected.length && tab !== '待审批' && tab !== '已移除'" class="inline-items">
         <span class="muted">已选 {{ selected.length }} 位</span
-        ><Button size="sm" variant="warning" @click="openReset(selected)"
+        ><Button variant="plain" class="text-button" @click="selected = []">取消选择</Button><Button size="sm" variant="warning" @click="openReset(selected)"
           ><KeyRound />重置并生成凭据</Button
-        ><Button variant="plain" class="text-button" @click="selected = []">取消选择</Button>
+        >
       </div>
-      <span v-else class="muted text-xs">{{
+      <!-- <span v-else class="muted text-xs">{{
         tab === '待审批'
           ? '批准后学生即可访问课堂'
           : tab === '已移除'
             ? '恢复成员可保留原账号与历史作品'
             : '仅账号创建教师可重置密码；其他账号请联系管理员'
-      }}</span>
+      }}</span> -->
     </div>
     <div class="table-scroll">
       <table class="roster-table">
@@ -677,7 +695,7 @@ useActionFeedback(error)
     v-model:open="add"
     :dismissible="!busy"
     title="添加学生"
-    description="学号对应唯一学生账号。已有账号加入课堂时保留原密码。"
+    description="学号对应唯一学生账号。已有账号加入课堂时保留原密码。登录账号与初始密码留空时自动生成。"
     ><Form class="form-stack" @submit.prevent="save">
       <label>学生姓名<Input v-model="name" required maxlength="50" placeholder="真实姓名" /></label
       ><label
@@ -686,6 +704,21 @@ useActionFeedback(error)
           required
           maxlength="50"
           placeholder="例如：2026001（保留前导零）"
+      /></label
+      ><label
+        >登录账号（可选）<Input
+          v-model="username"
+          maxlength="80"
+          autocomplete="off"
+          placeholder="留空自动生成；仅限字母、数字和 . _ @ -"
+      /></label
+      ><label
+        >初始密码（可选）<Input
+          v-model="password"
+          type="password"
+          maxlength="200"
+          autocomplete="new-password"
+          placeholder="留空自动生成"
       /></label>
 
       <div class="modal-actions">

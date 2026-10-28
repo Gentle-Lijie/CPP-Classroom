@@ -48,7 +48,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 36px;
+  height: 38px;
+  padding-block: 0;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -233,6 +234,7 @@
   cursor: not-allowed;
 }
 .compact-select .ui-select-trigger {
+  height: 30px;
   min-height: 30px;
   border: 0;
   padding: 2px 6px;
@@ -241,13 +243,15 @@
 .workspace-exercise .ui-select-trigger {
   width: 100%;
   max-width: 360px;
+  height: 30px;
+  min-height: 30px;
   border: 0;
   font-size: 16px;
   font-weight: 600;
   padding: 2px 0;
-  min-height: 30px;
 }
 .pagination .ui-select-trigger {
+  height: 32px;
   min-height: 32px;
   padding: 3px 8px;
   font-size: 16px;

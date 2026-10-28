@@ -45,9 +45,9 @@ function clear() {
         ><Download />导出账号密码 CSV</Button
       ><Button variant="outline" @click="emit('update:open', false)">稍后继续</Button>
     </div>
-    <Alert type="warning">
+    <!-- <Alert type="warning">
       这是生成时的密码副本，并非当前密码验证。学生改密或其他恢复操作后可能失效，请核对生成时间。
-    </Alert>
+    </Alert> -->
     <div class="table-scroll credential-table">
       <table>
         <thead>
@@ -80,9 +80,9 @@ function clear() {
       </table>
       <p v-if="!credentials.length" class="empty-state">没有保留的登录凭据</p>
     </div>
-    <p class="form-hint">
+    <!-- <p class="form-hint">
       账号可能用于多个课堂。已有账号的原密码不在此表；需要重新交付时请按名册权限重置，历史或其他教师创建的账号由管理员协助恢复。
-    </p>
+    </p> -->
     <div class="modal-actions">
       <Button variant="outline" :disabled="!credentials.length" @click="confirmClear = true"
         ><Trash2 />清除本页凭据</Button

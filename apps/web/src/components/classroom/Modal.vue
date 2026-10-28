@@ -40,9 +40,7 @@ defineEmits<{ 'update:open': [value: boolean] }>()
         <div class="modal-heading">
           <div>
             <DialogTitle class="modal-title">{{ title }}</DialogTitle
-            ><DialogDescription class="muted">{{
-              description || '请核对信息后继续。'
-            }}</DialogDescription>
+            >
           </div>
           <DialogClose class="icon-button" aria-label="关闭对话框" :disabled="busy || !dismissible"
             ><X :size="18"

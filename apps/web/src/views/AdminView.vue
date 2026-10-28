@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import {
   Server,
   Database,
-  ShieldCheck,
   ArrowUpRight,
   RefreshCw,
   Search,
@@ -399,7 +398,7 @@ useActionFeedback(error)
     <div>
       <div class="heading-meta">平台管理</div>
       <h1>{{ title }}</h1>
-      <p>真实服务数据。管理员不默认拥有课堂作品读取权限。</p>
+      <!-- <p>管理员不默认拥有课堂作品读取权限。</p> -->
     </div>
     <div class="inline-items">
       <Button variant="outline" :disabled="loading" @click="load"
@@ -432,9 +431,9 @@ useActionFeedback(error)
     </div>
     <ContentPanel
       title="服务与执行环境"
-      description="以下为平台配置目标；实际节点连接与服务健康请在平台配置中检查。"
       :icon="Server"
-    >
+      >
+      <!-- description="以下为平台配置目标；实际节点连接与服务健康请在平台配置中检查。" -->
       <template #actions
         ><Button variant="outline" size="sm" as-child
           ><RouterLink to="/admin/settings">管理配置<ArrowUpRight :size="14" /></RouterLink></Button
@@ -458,14 +457,9 @@ useActionFeedback(error)
           <dd>独立 Linux 节点</dd>
         </div>
       </dl>
-      <template #footer
-        ><Alert type="info" :icon="ShieldCheck">
-          <span>学生代码由独立评测节点运行，业务服务负责课堂数据与任务调度。</span>
-        </Alert></template
-      >
     </ContentPanel></template
   >
-  <section v-else-if="section === 'teachers'" class="panel">
+  <section v-else-if="section === 'teachers'" class="panel panel-fill">
     <div class="table-controls">
       <label class="search-field"
         ><Search :size="16" /><Input
@@ -578,14 +572,14 @@ useActionFeedback(error)
       />
     </div>
   </section>
-  <section v-else-if="section === 'tasks'" class="panel">
+  <section v-else-if="section === 'tasks'" class="panel panel-fill">
     <div class="table-controls">
       <label class="search-field"
         ><Search :size="16" /><Input
           v-model="search"
           aria-label="搜索失败任务"
-          placeholder="搜索课堂、任务编号或失败原因…" /></label
-      ><span class="muted text-xs">查看任务详情后，到平台配置检查节点与队列健康。</span>
+          placeholder="搜索课堂、任务编号或失败原因…"
+      /></label>
     </div>
     <div class="table-scroll">
       <table>
@@ -620,24 +614,14 @@ useActionFeedback(error)
     />
   </section>
   <template v-else
-    ><ContentPanel
-      title="数据库备份"
-      description="创建备份，并检查它是否可以完整恢复。"
-      :icon="Database"
-      class="admin-backup-panel"
-    >
+    ><ContentPanel title="数据库备份" :icon="Database" class="admin-backup-panel">
       <p>备份保存在服务器本地。验证会使用独立的临时数据库，保留当前课堂、账号和作品数据。</p>
 
       <Button :disabled="busy" @click="backup"
         ><Database :size="15" />{{ busy ? '备份与恢复验证中…' : '创建并验证备份' }}</Button
       >
-      <template #footer
-        ><Alert type="info" :icon="ShieldCheck">
-          <span>完成后可在下方管理记录查看备份结果与校验信息。</span>
-        </Alert></template
-      >
     </ContentPanel>
-    <section class="panel" data-guide="audit-records">
+    <section class="panel panel-fill" data-guide="audit-records">
       <div class="panel-heading"><h2>管理与备份记录</h2></div>
       <div class="table-controls">
         <label class="search-field"
@@ -647,16 +631,18 @@ useActionFeedback(error)
             placeholder="搜索操作者、事件或对象编号…"
         /></label>
       </div>
-      <div v-for="a in auditPages.paged.value" :key="a.id" class="audit-item">
-        <div>
-          <strong>{{ eventLabel(a.event) }}</strong>
-          <p>{{ a.actor_name ?? '系统' }} · {{ new Date(a.created_at).toLocaleString() }}</p>
-          <Disclosure title="查看操作对象与详情">
-            <pre>{{ JSON.stringify(a.details, null, 2) }}</pre>
-          </Disclosure>
+      <div class="table-scroll">
+        <div v-for="a in auditPages.paged.value" :key="a.id" class="audit-item">
+          <div>
+            <strong>{{ eventLabel(a.event) }}</strong>
+            <p>{{ a.actor_name ?? '系统' }} · {{ new Date(a.created_at).toLocaleString() }}</p>
+            <Disclosure title="查看操作对象与详情">
+              <pre>{{ JSON.stringify(a.details, null, 2) }}</pre>
+            </Disclosure>
+          </div>
         </div>
+        <p v-if="!audit.length && !loading && !loadError" class="empty-state">暂无管理记录</p>
       </div>
-      <p v-if="!audit.length && !loading && !loadError" class="empty-state">暂无管理记录</p>
       <Pagination
         v-model:page="auditPages.page.value"
         v-model:page-size="auditPages.pageSize.value"
@@ -800,7 +786,6 @@ useActionFeedback(error)
   <Modal
     :open="!!taskDetail"
     title="平台失败任务诊断"
-    description="这里展示当次任务记录，不会自动重新运行学生程序。"
     wide
     @update:open="!$event && (taskDetail = undefined)"
     ><div v-if="taskDetail" class="form-stack task-detail">

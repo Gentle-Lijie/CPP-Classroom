@@ -168,7 +168,6 @@ async function regenerateInvite() {
         ><span>课堂概览</span>
       </div>
       <h1>{{ activeClassroom.name }}</h1>
-      <p>查看学生在线状态、当前练习、运行结果与求助。</p>
     </div>
     <div class="heading-actions">
       <Button variant="outline" :disabled="!exercises.length" @click="router.push('/teacher/teach')"
@@ -186,29 +185,32 @@ async function regenerateInvite() {
       <div class="stat-number">
         {{ counts.online }}<span>/ {{ counts.total }}</span>
       </div>
-      <div class="stat-foot">
+      <!-- <div class="stat-foot">
         <span class="live-dot" />{{ counts.total - counts.online }} 位同学暂时离线
-      </div></Button
+      </div> -->
+      </Button
     ><Button variant="plain" class="stat-card" @click="filter = '已提交'">
       <div class="stat-top">
         当前练习已提交<span class="stat-icon blue"><CircleCheck :size="18" /></span>
       </div>
       <div class="stat-number">{{ counts.submitted }}<span>位同学</span></div>
-      <div class="stat-foot">按每位学生当前练习统计，不代表通过</div></Button
+      <!-- <div class="stat-foot">按每位学生当前练习统计，不代表通过</div> -->
+      </Button
     ><Button variant="plain" class="stat-card" @click="filter = '编译失败'">
       <div class="stat-top">
         最近编译失败<span class="stat-icon red"><CircleAlert :size="18" /></span>
       </div>
       <div class="stat-number">{{ counts.errors }}<span>位同学</span></div>
-      <div class="stat-foot">查看原始诊断，找到问题所在 <ArrowUpRight :size="13" /></div></Button
+      <!-- <div class="stat-foot">查看原始诊断，找到问题所在 <ArrowUpRight :size="13" /></div> -->
+      </Button
     ><Button variant="plain" class="stat-card" @click="filter = '请求帮助'">
       <div class="stat-top">
         待处理求助<span class="stat-icon amber"><Hand :size="18" /></span>
       </div>
       <div class="stat-number">{{ counts.help }}<span>条请求</span></div>
-      <div class="stat-foot amber-text">
-        {{ counts.help ? '有同学正在等你' : '暂时没有待处理的求助' }} <ArrowRight :size="13" />
-      </div>
+      <!-- <div class="stat-foot amber-text"> -->
+        <!-- {{ counts.help ? '有同学正在等你' : '暂时没有待处理的求助' }} <ArrowRight :size="13" /> -->
+      <!-- </div> -->
     </Button>
   </div>
   <div class="overview-columns">
@@ -245,8 +247,7 @@ async function regenerateInvite() {
             <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">
               {{ e.title }}
             </SelectOption></Select
-          ><ChevronDown :size="13"
-        /></label>
+          ></label>
       </div>
       <div class="table-scroll">
         <table class="student-table">

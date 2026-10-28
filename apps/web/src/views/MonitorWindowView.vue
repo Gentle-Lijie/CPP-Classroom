@@ -4,7 +4,7 @@ import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Input } from '@/components/ui/input'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Users, Search, ArrowUpRight, Hand, X, Monitor, Check, Radio } from '@lucide/vue'
+import { Users, Search, ArrowUpRight, Hand, X, Monitor, Check } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { activeClassroom, demo, exercises, students, tone, type Student } from '@/data/demo'
 import Pagination from '@/components/classroom/Pagination.vue'
@@ -66,17 +66,14 @@ function clearFilters() {
       </div>
       <div class="inline-items">
         <ThemeToggle />
+        <RouterLink to="/teacher/teach" target="_blank"
+          >授课页<ArrowUpRight :size="13"
+        /></RouterLink>
         <span class="demo-tag">课堂实时名册</span
         ><Button variant="outline" size="sm" @click="close"><X />关闭窗口</Button>
       </div>
     </header>
     <div class="monitor-window-body">
-      <Alert type="info" :icon="Radio">
-        <span>点击任意学生，在独立窗口查看代码与处理求助；可同时打开多位学生。</span
-        ><RouterLink to="/teacher/teach" target="_blank"
-          >授课页<ArrowUpRight :size="13"
-        /></RouterLink>
-      </Alert>
       <Alert v-if="blocked" type="warning">
         浏览器拦截了弹窗，请允许本站弹出窗口，或
         <a :href="blocked" target="_blank" rel="noopener">点此打开学生详情</a>。
@@ -149,7 +146,6 @@ function clearFilters() {
         >
       </div>
     </div>
-    <footer class="monitor-footer">每 2 秒刷新服务器状态；15 秒未收到学生心跳视为离线。</footer>
   </main>
 </template>
 

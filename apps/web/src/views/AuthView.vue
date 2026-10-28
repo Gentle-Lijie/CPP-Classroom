@@ -91,7 +91,6 @@ useActionFeedback(error)
       <div class="auth-story-copy">
         <span class="auth-story-label">C++ Classroom</span>
         <h1>C++ 编程教室</h1>
-        <p>课堂练习、在线编译与教师巡视。</p>
         <div class="auth-code-art">
           <div class="art-window-dots"><i /><i /><i /><span>hello_world.cpp</span></div>
           <pre class="art-code">
@@ -107,7 +106,6 @@ int main() {
           </div>
         </div>
       </div>
-      <footer>为 C++ 教学而设计<span>浏览器即教室</span></footer>
     </section>
     <section class="auth-main">
       <div class="auth-theme"><ThemeToggle /></div>
@@ -203,7 +201,6 @@ int main() {
           <span>课堂教师可查看学生代码和运行记录，用于教学辅导。</span>
         </Alert>
       </div>
-      <footer class="auth-footer">C++ Classroom · 原生 Linux 编译环境</footer>
     </section>
   </main>
 </template>

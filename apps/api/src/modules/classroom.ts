@@ -357,6 +357,9 @@ export class ClassroomController {
       z.object({
         name: text(50),
         number: text(50),
+        username: text(80)
+          .regex(/^[a-zA-Z0-9._@-]+$/, '登录账号仅限字母、数字和 . _ @ -')
+          .optional(),
         password: passwordInput.optional(),
       }),
       body,
@@ -380,17 +383,23 @@ export class ClassroomController {
       await client.query('select pg_advisory_xact_lock(hashtext($1))', [username])
       let user = (
         await client.query(
-          'select id,role,name,number,disabled,created_by from users where username=$1',
-          [username],
+          "select id,username,role,name,number,disabled,created_by from users where number=$1 and created_by=$2 and role='student'",
+          [data.number, teacher.id],
         )
       ).rows[0]
       if (user?.disabled) throw new ConflictException('该账号已停用，请联系管理员恢复后添加')
-      if (user && (user.created_by !== teacher.id || user.name !== data.name))
+      if (user && user.name !== data.name)
         throw new ConflictException(
           '此学号已关联另一姓名，请核对姓名或使用独立学号；跨教师共享账号请让学生通过邀请加入',
         )
       const password = randomBytes(12).toString('base64url')
       const created = !user
+      if (created && data.username) {
+        const taken = (
+          await client.query('select 1 from users where username=$1', [data.username])
+        ).rowCount
+        if (taken) throw new ConflictException('登录账号已被占用，请更换或留空自动生成')
+      }
       const existingMember =
         user &&
         (
@@ -404,8 +413,14 @@ export class ClassroomController {
       if (!user)
         user = (
           await client.query(
-            "insert into users(username,name,number,role,password_hash,created_by) values($1,$2,$3,'student',$4,$5) returning id,role,name,number",
-            [username, data.name, data.number, passwordHash(data.password ?? password), teacher.id],
+            "insert into users(username,name,number,role,password_hash,created_by) values($1,$2,$3,'student',$4,$5) returning id,username,role,name,number",
+            [
+              data.username ?? username,
+              data.name,
+              data.number,
+              passwordHash(data.password ?? password),
+              teacher.id,
+            ],
           )
         ).rows[0]
       if (user.role !== 'student') throw new ConflictException('账号类型不匹配')
@@ -421,7 +436,7 @@ export class ClassroomController {
       await client.query('commit')
       return {
         id: user.id,
-        username,
+        username: user.username,
         created,
         name: user.name,
         number: user.number,

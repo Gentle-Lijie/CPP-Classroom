@@ -59,16 +59,31 @@ function beforeUnload(event: BeforeUnloadEvent) {
     event.returnValue = ''
   }
 }
-onMounted(() => window.addEventListener('beforeunload', beforeUnload))
-onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
-const tab = ref('基本信息')
+onMounted(() => {
+  window.addEventListener('beforeunload', beforeUnload)
+  panelEl.value?.addEventListener('scroll', onScroll, { passive: true })
+  spy()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', beforeUnload)
+  panelEl.value?.removeEventListener('scroll', onScroll)
+  if (spyRaf) cancelAnimationFrame(spyRaf)
+})
+const sections = ['基本信息', '加入与邀请', '编程环境', '课堂策略', '归档课堂']
+const tab = ref(sections[0])
+function goTo(name: string) {
+  tab.value = name
+  document
+    .getElementById(`settings-section-${sections.indexOf(name)}`)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 useGuideSurfaces(
   Object.fromEntries(
-    ['基本信息', '加入与邀请', '编程环境', '课堂策略', '归档课堂'].map((name) => [
+    sections.map((name) => [
       `settings-${name}`,
       () => {
         const previous = tab.value
-        tab.value = name
+        goTo(name)
         return () => {
           tab.value = previous
         }
@@ -76,6 +91,25 @@ useGuideSurfaces(
     ]),
   ),
 )
+const panelEl = ref<HTMLElement | null>(null)
+let spyRaf = 0
+function spy() {
+  spyRaf = 0
+  const panel = panelEl.value
+  if (!panel) return
+  const panelTop = panel.getBoundingClientRect().top
+  let current = sections[0]
+  for (let i = 0; i < sections.length; i++) {
+    const el = document.getElementById(`settings-section-${i}`)
+    if (el && el.getBoundingClientRect().top - panelTop <= 24) current = sections[i]
+  }
+  if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4)
+    current = sections[sections.length - 1]
+  tab.value = current
+}
+function onScroll() {
+  if (!spyRaf) spyRaf = requestAnimationFrame(spy)
+}
 const archive = ref(false)
 const reopen = ref(false)
 const confirmState = ref('')
@@ -94,17 +128,17 @@ async function save(status = form.state, confirmed = false) {
   error.value = ''
   if (!form.name.trim()) {
     error.value = '请填写课堂名称'
-    tab.value = '基本信息'
+    goTo('基本信息')
     return false
   }
   if (!Number.isInteger(form.capacity) || form.capacity < 1 || form.capacity > 50) {
     error.value = '课堂人数上限必须为 1–50 的整数'
-    tab.value = '课堂策略'
+    goTo('课堂策略')
     return false
   }
   if (form.capacity < activeClassroom.value.students) {
     error.value = `当前已有 ${activeClassroom.value.students} 位学生，人数上限不能小于现有人数`
-    tab.value = '课堂策略'
+    goTo('课堂策略')
     return false
   }
   if (
@@ -175,159 +209,156 @@ async function archiveClass() {
 useActionFeedback(error)
 </script>
 <template>
-  <div class="page-heading">
-    <div>
-      <div class="heading-meta">课堂管理</div>
-      <h1>课堂设置</h1>
-      <p>设置加入规则、编程环境与课后访问方式。</p>
-    </div>
-    <Button :disabled="busy || !dirty" @click="save()"
-      ><Save />{{ busy ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}</Button
-    >
-  </div>
-
-  <Alert v-if="dirty" role="status" type="warning">
-    有尚未保存的课堂设置，开关调整需点击“保存设置”后生效。
-  </Alert>
-  <div class="settings-layout" :inert="busy">
-    <nav class="settings-nav">
-      <Button
-        v-for="t in ['基本信息', '加入与邀请', '编程环境', '课堂策略', '归档课堂']"
-        :key="t"
-        variant="plain"
-        :class="{ selected: tab === t }"
-        @click="tab = t"
+  <div class="settings-page">
+    <div class="page-heading">
+      <div>
+        <div class="heading-meta">课堂管理</div>
+        <h1>课堂设置</h1>
+      </div>
+      <Button :disabled="busy || !dirty" @click="save()"
+        ><Save />{{ busy ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}</Button
       >
-        {{ t }}<ChevronRight :size="14" />
-      </Button>
-    </nav>
-    <section class="panel settings-panel">
-      <Form v-if="tab === '基本信息'" class="form-stack" @submit.prevent="save()">
-        <div class="settings-title">
-          <Settings2 :size="19" />
-          <h2>基本信息</h2>
-        </div>
-        <label>课堂名称<Input v-model="form.name" required maxlength="50" /></label
-        ><label>课堂说明<Textarea v-model="form.description" rows="5" /></label>
-        <label
-          >课堂状态<Select
-            v-model="form.state"
-            :disabled="busy || activeClassroom.status === '已归档'"
-          >
-            <SelectOption>未开始</SelectOption>
-            <SelectOption>进行中</SelectOption>
-            <SelectOption>已关闭</SelectOption>
-            <SelectOption v-if="activeClassroom.status === '已归档'">已归档</SelectOption>
-          </Select></label
+    </div>
+
+    <Alert v-if="dirty" role="status" type="warning">
+      有尚未保存的课堂设置，开关调整需点击“保存设置”后生效。
+    </Alert>
+    <div class="settings-layout" :inert="busy">
+      <nav class="settings-nav">
+        <Button
+          v-for="t in sections"
+          :key="t"
+          variant="plain"
+          :class="{ selected: tab === t }"
+          @click="goTo(t)"
         >
-        <p class="form-hint">课堂名称与说明对已加入的学生可见。</p>
-        <Button class="self-start" type="submit" :disabled="busy || !dirty">{{
-          busy ? '正在保存…' : '保存更改'
-        }}</Button>
-      </Form>
-      <div v-else-if="tab === '加入与邀请'" class="form-stack">
-        <div class="settings-title">
-          <ShieldCheck :size="19" />
-          <h2>加入与邀请</h2>
-        </div>
-        <label class="toggle-row"
-          ><span><strong>允许新成员加入</strong><small>关闭后，已有成员仍可访问课堂。</small></span
-          ><Switch v-model="form.allowJoin" /></label
-        ><label
-          >入班方式<Select v-model="form.access">
-            <SelectOption value="approval">教师审批后加入</SelectOption>
-            <SelectOption value="roster">仅名单中的学生可加入</SelectOption>
-          </Select></label
-        ><label
-          >当前课堂码
-          <div class="copy-row">
-            <Input :value="demo.inviteCode" readonly /><Button variant="outline" @click="copy"
-              ><Copy />复制邀请</Button
+          {{ t }}<ChevronRight :size="14" />
+        </Button>
+      </nav>
+      <section ref="panelEl" class="panel settings-panel">
+        <Form id="settings-section-0" class="form-stack settings-section" @submit.prevent="save()">
+          <div class="settings-title">
+            <Settings2 :size="19" />
+            <h2>基本信息</h2>
+          </div>
+          <label>课堂名称<Input v-model="form.name" required maxlength="50" /></label
+          ><label>课堂说明<Textarea v-model="form.description" rows="5" /></label>
+          <label
+            >课堂状态<Select
+              v-model="form.state"
+              :disabled="busy || activeClassroom.status === '已归档'"
             >
-          </div></label
-        >
-        <p class="form-hint" :class="{ 'danger-text': inviteExpired }">
-          {{ inviteExpired ? '课堂码已过期' : '有效至' }}：{{
-            inviteExpires
-          }}。重新生成后原课堂码失效。
-        </p>
-        <Button variant="outline" class="self-start" :disabled="busy" @click="regenerate = true"
-          ><RefreshCw />重新生成</Button
-        >
-      </div>
-      <div v-else-if="tab === '编程环境'" class="form-stack">
-        <div class="settings-title">
-          <Settings2 :size="19" />
-          <h2>统一编程环境</h2>
+              <SelectOption>未开始</SelectOption>
+              <SelectOption>进行中</SelectOption>
+              <SelectOption>已关闭</SelectOption>
+              <SelectOption v-if="activeClassroom.status === '已归档'">已归档</SelectOption>
+            </Select></label
+          >
+        </Form>
+        <div id="settings-section-1" class="form-stack settings-section">
+          <div class="settings-title">
+            <ShieldCheck :size="19" />
+            <h2>加入与邀请</h2>
+          </div>
+          <label class="toggle-row"
+            ><span
+              ><strong>允许新成员加入</strong><small>关闭后，已有成员仍可访问课堂。</small></span
+            ><Switch v-model="form.allowJoin" /></label
+          ><label
+            >入班方式<Select v-model="form.access">
+              <SelectOption value="approval">教师审批后加入</SelectOption>
+              <SelectOption value="roster">仅名单中的学生可加入</SelectOption>
+            </Select></label
+          ><label
+            >当前课堂码
+            <div class="copy-row">
+              <Input :value="demo.inviteCode" readonly /><Button variant="outline" @click="copy"
+                ><Copy />复制邀请</Button
+              >
+            </div></label
+          >
+          <p class="form-hint" :class="{ 'danger-text': inviteExpired }">
+            {{ inviteExpired ? '课堂码已过期' : '有效至' }}：{{
+              inviteExpires
+            }}。重新生成后原课堂码失效。
+          </p>
+          <Button variant="outline" class="self-start" :disabled="busy" @click="regenerate = true"
+            ><RefreshCw />重新生成</Button
+          >
         </div>
-        <Alert type="info">编译标准与运行限制由平台管理员统一配置。</Alert>
-        <p>GCC · {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</p>
-        <div class="environment-grid">
-          <div><span>项目类型</span><strong>每题一个 C++ 源文件</strong></div>
-          <div>
-            <span>运行时间</span><strong>{{ executionSettings.runTimeMs }} ms</strong>
+        <div id="settings-section-2" class="form-stack settings-section">
+          <div class="settings-title">
+            <Settings2 :size="19" />
+            <h2>统一编程环境</h2>
           </div>
-          <div>
-            <span>内存上限</span><strong>{{ executionSettings.runMemoryMb }} MiB</strong>
-          </div>
-          <div>
-            <span>输出上限</span><strong>{{ executionSettings.outputLimitKb }} KiB</strong>
-          </div>
-          <div>
-            <span>编译时间</span><strong>{{ executionSettings.compileTimeMs }} ms</strong>
-          </div>
-          <div>
-            <span>编译内存</span><strong>{{ executionSettings.compileMemoryMb }} MiB</strong>
+          <Alert type="info">编译标准与运行限制由平台管理员统一配置。</Alert>
+          <p>GCC · {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</p>
+          <div class="environment-grid">
+            <div><span>项目类型</span><strong>每题一个 C++ 源文件</strong></div>
+            <div>
+              <span>运行时间</span><strong>{{ executionSettings.runTimeMs }} ms</strong>
+            </div>
+            <div>
+              <span>内存上限</span><strong>{{ executionSettings.runMemoryMb }} MiB</strong>
+            </div>
+            <div>
+              <span>输出上限</span><strong>{{ executionSettings.outputLimitKb }} KiB</strong>
+            </div>
+            <div>
+              <span>编译时间</span><strong>{{ executionSettings.compileTimeMs }} ms</strong>
+            </div>
+            <div>
+              <span>编译内存</span><strong>{{ executionSettings.compileMemoryMb }} MiB</strong>
+            </div>
           </div>
         </div>
-        <p class="form-hint">仅由平台提供受控环境，不接受学生自定义命令。</p>
-      </div>
-      <div v-else-if="tab === '课堂策略'" class="form-stack">
-        <h2>练习与课后访问</h2>
-        <label class="toggle-row"
-          ><span><strong>允许编译运行</strong><small>关闭后仍可编辑，并查看已有记录。</small></span
-          ><Switch v-model="form.allowRun" /></label
-        ><label class="toggle-row"
-          ><span><strong>允许重复提交</strong><small>每次主动提交保留独立版本。</small></span
-          ><Switch v-model="form.allowResubmit" /></label
-        ><label class="toggle-row"
-          ><span
-            ><strong>归档后保留只读访问</strong><small>学生仍可查看和下载自己的作品。</small></span
-          ><Switch v-model="form.readonly" /></label
-        ><label>课堂人数上限<NumberInput v-model.number="form.capacity" min="1" max="50" /></label>
-        <p class="form-hint">
-          当前已有 {{ activeClassroom.students }} 位学生。上限不可低于现有人数；最多 50 人。
-        </p>
-      </div>
-      <div v-else class="form-stack">
-        <div class="settings-title">
-          <Archive :size="20" />
-          <h2>归档课堂</h2>
+        <div id="settings-section-3" class="form-stack settings-section">
+          <h2>练习与课后访问</h2>
+          <label class="toggle-row"
+            ><span
+              ><strong>允许编译运行</strong><small>关闭后仍可编辑，并查看已有记录。</small></span
+            ><Switch v-model="form.allowRun" /></label
+          ><label class="toggle-row"
+            ><span><strong>允许重复提交</strong><small>每次主动提交保留独立版本。</small></span
+            ><Switch v-model="form.allowResubmit" /></label
+          ><label class="toggle-row"
+            ><span
+              ><strong>归档后保留只读访问</strong
+              ><small>学生仍可查看和下载自己的作品。</small></span
+            ><Switch v-model="form.readonly" /></label
+          ><label
+            >课堂人数上限<NumberInput v-model.number="form.capacity" min="1" max="50"
+          /></label>
+          <p class="form-hint">
+            当前已有 {{ activeClassroom.students }} 位学生。上限不可低于现有人数；最多 50 人。
+          </p>
         </div>
-        <p class="body-copy">
-          归档会关闭新成员加入、编辑与新运行，并停止正在执行的任务。历史作品按只读访问策略保留；需要继续教学时可恢复课堂。
-        </p>
-        <Alert type="warning">归档保留账号、作品和历史记录，不会永久删除数据。</Alert>
-        <Button
-          v-if="activeClassroom.status === '已归档'"
-          variant="success"
-          class="self-start"
-          @click="reopen = true"
-          >恢复课堂教学</Button
-        >
-        <Button
-          variant="destructive"
-          class="self-start"
-          :disabled="busy || activeClassroom.status === '已归档'"
-          @click="archive = true"
-          >{{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}</Button
-        >
-      </div>
-      <div v-if="['加入与邀请', '课堂策略'].includes(tab)" class="settings-save-row">
-        <span>{{ dirty ? '更改尚未保存' : '所有设置已保存' }}</span
-        ><Button :disabled="busy || !dirty" @click="save()"><Save />保存本页设置</Button>
-      </div>
-    </section>
+        <div id="settings-section-4" class="form-stack settings-section">
+          <div class="settings-title">
+            <Archive :size="20" />
+            <h2>归档课堂</h2>
+          </div>
+          <p class="body-copy">
+            归档会关闭新成员加入、编辑与新运行，并停止正在执行的任务。历史作品按只读访问策略保留；需要继续教学时可恢复课堂。
+          </p>
+          <Alert type="warning">归档保留账号、作品和历史记录，不会永久删除数据。</Alert>
+          <Button
+            v-if="activeClassroom.status === '已归档'"
+            variant="success"
+            class="self-start"
+            @click="reopen = true"
+            >恢复课堂教学</Button
+          >
+          <Button
+            variant="destructive"
+            class="self-start"
+            :disabled="busy || activeClassroom.status === '已归档'"
+            @click="archive = true"
+            >{{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}</Button
+          >
+        </div>
+      </section>
+    </div>
   </div>
   <Modal
     v-model:open="archive"
@@ -404,17 +435,32 @@ useActionFeedback(error)
 </template>
 
 <style scoped>
-.settings-save-row {
+.settings-page {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  /* topbar 66px + page-content 上下 padding 32/30 */
+  height: calc(100dvh - 128px);
+}
+.settings-page .page-heading {
+  margin-bottom: 20px;
+}
+.settings-layout {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+.settings-panel {
+  align-self: stretch;
+  min-height: 300px;
+  overflow-y: auto;
+}
+.settings-section {
+  scroll-margin-top: 20px;
+}
+.settings-panel > * + * {
   border-top: 1px solid var(--ui-line);
-  padding-top: 20px;
-  margin-top: 24px;
-  font-size: 14px;
-  color: var(--ui-secondary);
+  margin-top: 30px;
+  padding-top: 30px;
 }
 .settings-panel,
 .settings-panel .form-stack > label {
@@ -437,6 +483,7 @@ useActionFeedback(error)
   }
   .settings-nav {
     flex-wrap: nowrap;
+    position: static;
   }
 }
 </style>

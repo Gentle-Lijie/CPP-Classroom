@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Alert } from '@/components/ui/alert'
 import { computed } from 'vue'
-import { ArrowRight, ScanLine, BookOpen, Check, LockKeyhole } from '@lucide/vue'
+import { ArrowRight, ScanLine, BookOpen, LockKeyhole } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { currentUser, demo, exercises } from '@/data/demo'
 import {
@@ -32,7 +32,6 @@ function begin(chapter?: GuideChapter) {
       <div>
         <div class="heading-meta">{{ roleLabels[role] }}工作台 · 使用导览</div>
         <h1>几步熟悉课堂工作流</h1>
-        <p>跟随关键任务认识工作台，随时跳转或退出。</p>
       </div>
     </div>
     <section class="panel guide-intro">
@@ -48,12 +47,7 @@ function begin(chapter?: GuideChapter) {
                 : '从平台状态，到账号、执行配置与备份'
           }}
         </h2>
-        <p>共 {{ count }} 步，了解主要工作流程。也可以只看下面某个环节。</p>
-        <div class="guide-assurances">
-          <span><Check :size="14" />支持键盘切换</span
-          ><span><Check :size="14" />不会自动运行或提交</span
-          ><span><Check :size="14" />随时重新查看</span>
-        </div>
+        <p>共 {{ count }} 步</p>
       </div>
       <Button size="lg" @click="begin()"
         ><ScanLine :size="17" />开始导览<ArrowRight :size="16"
@@ -68,7 +62,6 @@ function begin(chapter?: GuideChapter) {
     </Alert>
     <div class="guide-section-title">
       <h2><BookOpen :size="18" />只看需要的环节</h2>
-      <span>每个环节 1–3 步</span>
     </div>
     <div class="guide-chapters">
       <section

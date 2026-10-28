@@ -224,7 +224,6 @@ async function imported(ids: string[]) {
       <div>
         <div class="heading-meta">课程内容</div>
         <h1>练习管理</h1>
-        <p>编排课堂练习，可直接导入 Markdown；所有题目字段均可留空。</p>
       </div>
       <div class="heading-actions">
         <ExerciseBatchImport @imported="imported" />
@@ -239,7 +238,6 @@ async function imported(ids: string[]) {
     <section v-if="!exercise" class="panel empty-state">
       <BookOpen :size="32" />
       <h2>课堂还没有练习</h2>
-      <p>创建第一道练习，准备题面、样例和初始代码。</p>
       <Button @click="router.push('/teacher/exercises/new')"><Plus />创建第一个练习</Button>
     </section>
     <div v-else class="exercise-layout">
@@ -280,6 +278,7 @@ async function imported(ids: string[]) {
           <Button
             variant="outline"
             size="sm"
+            style="margin-left: auto"
             :disabled="!checkedIds.length || busy || batchBusy"
             @click="openBatch"
             ><Pencil />批量编辑</Button
@@ -453,12 +452,7 @@ async function imported(ids: string[]) {
       }}</Button>
     </div>
   </Modal>
-  <Modal
-    v-if="exercise"
-    v-model:open="preview"
-    title="学生预览"
-    description="查看学生会看到的题面、样例和初始代码。此处只读，不运行代码。"
-    wide
+  <Modal v-if="exercise" v-model:open="preview" title="学生预览" wide
     ><h2>{{ exercise.title || '未命名题目' }}</h2>
     <MarkdownContent :source="exercise.description" />
     <h3>输入说明</h3>
@@ -578,6 +572,7 @@ async function imported(ids: string[]) {
   border-bottom: 1px solid var(--ui-line);
 }
 .exercise-list-filters .search-field {
+    max-width: none;
   width: 100%;
 }
 .exercise-list-filters .ui-select-trigger {

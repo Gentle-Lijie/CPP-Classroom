@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { environmentSchema } from './index.js'
 
-const baseline = { DATABASE_URL: 'postgresql://classroom:secret@127.0.0.1:55432/classroom' }
+const baseline = { DATABASE_URL: 'postgresql://classroom:secret@127.0.0.1:5432/classroom' }
 
 describe('environment validation', () => {
   it('allows API and database development without an execution node', () => {

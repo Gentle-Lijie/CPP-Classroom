@@ -477,9 +477,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-    <footer class="teaching-footer">
-      <span>码上课堂 · 教师授课</span><span>巡视窗口可移至另一块屏幕，授课画面保持独立。</span>
-    </footer>
   </main>
   <div v-else class="empty-state">
     <BookOpen :size="32" />

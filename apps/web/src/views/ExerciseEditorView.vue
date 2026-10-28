@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Save, Send, CodeXml, FileText, FileCode2, Monitor, Download } from '@lucide/vue'
+import { ArrowLeft, Save, Send, CodeXml, FileText, FileCode2, Download } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
 import MarkdownEditor from '@/components/classroom/MarkdownEditor.vue'
@@ -281,7 +281,6 @@ useActionFeedback(error)
         >
         <h1>{{ existing ? '编辑练习' : '创建练习' }}</h1>
         <p>
-          Markdown 题面与实时预览 ·
           {{ dirty ? '有尚未保存的修改' : draft.id ? '内容已保存' : '填写题目后保存草稿或发布' }}
         </p>
       </div>
@@ -347,7 +346,7 @@ useActionFeedback(error)
         <FileText :size="16" />题面与样例</Button
       ><Button variant="plain" :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
         <CodeXml :size="16" />初始代码</Button
-      ><span class="muted"><Monitor :size="14" />授课页与学生端共用题面</span>
+      >
     </div>
     <template v-if="tab === '题面与样例'"
       ><div :inert="busy"><MarkdownEditor v-model="draft.description" /></div>

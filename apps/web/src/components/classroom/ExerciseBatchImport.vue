@@ -17,6 +17,7 @@ import {
   exerciseImportBodySize,
   type ExerciseImportEntry,
 } from '@/lib/exercise-import'
+import { Upload } from '@lucide/vue'
 
 const emit = defineEmits<{ imported: [ids: string[]] }>()
 const open = ref(false)
@@ -99,7 +100,7 @@ onBeforeRouteLeave(() => !busy.value)
 </script>
 
 <template>
-  <Button variant="outline" @click="show">批量导入</Button>
+  <Button variant="outline" @click="show"><Upload />批量导入</Button>
   <Modal
     v-model:open="open"
     title="批量导入练习"
