@@ -395,9 +395,8 @@ export class ClassroomController {
       const password = randomBytes(12).toString('base64url')
       const created = !user
       if (created && data.username) {
-        const taken = (
-          await client.query('select 1 from users where username=$1', [data.username])
-        ).rowCount
+        const taken = (await client.query('select 1 from users where username=$1', [data.username]))
+          .rowCount
         if (taken) throw new ConflictException('登录账号已被占用，请更换或留空自动生成')
       }
       const existingMember =

@@ -302,15 +302,13 @@ onBeforeUnmount(() => {
       data-guide-overlay
       :role="mockStudent ? 'dialog' : undefined"
       :aria-modal="mockStudent ? true : undefined"
-      :aria-labelledby="mockStudent ? 'spotlight-title' : undefined"
-    >
+      :aria-labelledby="mockStudent ? 'spotlight-title' : undefined">
       <StudentGuideWorkspace v-if="mockStudent && current.scene" :scene="current.scene" />
       <svg
         class="spotlight-shade"
         :viewBox="`0 0 ${viewport.width} ${viewport.height}`"
         preserveAspectRatio="none"
-        aria-hidden="true"
-      >
+        aria-hidden="true">
         <defs>
           <mask id="classroom-spotlight-mask">
             <rect width="100%" height="100%" fill="white" />
@@ -321,16 +319,14 @@ onBeforeUnmount(() => {
               :width="bounds.width"
               :height="bounds.height"
               rx="8"
-              fill="black"
-            />
+              fill="black" />
           </mask>
         </defs>
         <rect
           width="100%"
           height="100%"
           fill="rgba(7, 12, 24, .68)"
-          mask="url(#classroom-spotlight-mask)"
-        />
+          mask="url(#classroom-spotlight-mask)" />
         <rect
           v-if="bounds"
           :x="bounds.x"
@@ -340,15 +336,13 @@ onBeforeUnmount(() => {
           rx="8"
           fill="none"
           stroke="var(--ui-action)"
-          stroke-width="2"
-        />
+          stroke-width="2" />
         <path
           v-if="mockStudent && current.interactive && !loading"
           :d="inputShield"
           fill="transparent"
           fill-rule="evenodd"
-          pointer-events="all"
-        />
+          pointer-events="all" />
         <rect v-else width="100%" height="100%" fill="transparent" pointer-events="all" />
       </svg>
       <section
@@ -360,15 +354,15 @@ onBeforeUnmount(() => {
         aria-labelledby="spotlight-title"
         aria-describedby="spotlight-description"
         :aria-busy="loading"
-        tabindex="-1"
-      >
+        tabindex="-1">
         <div class="spotlight-topline">
-          <span
-            ><ScanLine :size="16" />{{ roleLabels[spotlight.role] }}导览 ·
-            {{ current.chapter.title }}</span
-          ><Button variant="plain" size="icon-sm" aria-label="退出导览" @click="finish"
-            ><X :size="17"
-          /></Button>
+          <span>
+            <ScanLine :size="16" />
+            {{ roleLabels[spotlight.role] }}导览 · {{ current.chapter.title }}
+          </span>
+          <Button variant="plain" size="icon-sm" aria-label="退出导览" @click="finish">
+            <X :size="17" />
+          </Button>
         </div>
         <div
           class="spotlight-progress"
@@ -376,14 +370,13 @@ onBeforeUnmount(() => {
           :aria-valuenow="spotlight.index + 1"
           :aria-valuemin="1"
           :aria-valuemax="steps.length"
-          aria-label="导览进度"
-        >
+          aria-label="导览进度">
           <i :style="{ width: `${((spotlight.index + 1) / steps.length) * 100}%` }" />
         </div>
         <div class="spotlight-copy" aria-live="polite" aria-atomic="true">
-          <span class="spotlight-counter"
-            >{{ String(spotlight.index + 1).padStart(2, '0') }} / {{ steps.length }}</span
-          >
+          <span class="spotlight-counter">
+            {{ String(spotlight.index + 1).padStart(2, '0') }} / {{ steps.length }}
+          </span>
           <h2 id="spotlight-title">{{ loading ? '正在定位…' : current.title }}</h2>
           <p id="spotlight-description">{{ current.description }}</p>
           <Alert v-if="message" role="alert" type="warning">{{ message }}</Alert>
@@ -400,9 +393,10 @@ onBeforeUnmount(() => {
             variant="plain"
             :aria-current="chapter.id === current.chapter.id ? 'step' : undefined"
             :disabled="loading"
-            @click="jump(chapter.id)"
-            >{{ chapter.title }}<span>{{ chapter.steps.length }} 步</span></Button
-          >
+            @click="jump(chapter.id)">
+            {{ chapter.title }}
+            <span>{{ chapter.steps.length }} 步</span>
+          </Button>
         </div>
         <div class="spotlight-controls">
           <Button
@@ -410,19 +404,24 @@ onBeforeUnmount(() => {
             size="sm"
             :aria-expanded="contents"
             :disabled="loading"
-            @click="contents = !contents"
-            ><List :size="15" />目录</Button
-          ><span class="ml-auto" /><Button
+            @click="contents = !contents">
+            <List :size="15" />
+            目录
+          </Button>
+          <span class="ml-auto" />
+          <Button
             variant="outline"
             size="sm"
             :disabled="loading || spotlight.index === 0"
-            @click="move(-1)"
-            ><ArrowLeft :size="14" />上一步</Button
-          ><Button v-if="message" size="sm" :disabled="loading" @click="locate">重试定位</Button
-          ><Button v-else size="sm" :disabled="loading" @click="move(1)"
-            >{{ spotlight.index === steps.length - 1 ? '完成导览' : '下一步'
-            }}<ArrowRight :size="14"
-          /></Button>
+            @click="move(-1)">
+            <ArrowLeft :size="14" />
+            上一步
+          </Button>
+          <Button v-if="message" size="sm" :disabled="loading" @click="locate">重试定位</Button>
+          <Button v-else size="sm" :disabled="loading" @click="move(1)">
+            {{ spotlight.index === steps.length - 1 ? '完成导览' : '下一步' }}
+            <ArrowRight :size="14" />
+          </Button>
         </div>
         <p class="spotlight-keyboard">
           {{

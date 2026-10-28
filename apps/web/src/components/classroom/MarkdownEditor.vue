@@ -29,75 +29,76 @@ function insert(before: string, after = '', placeholder = '文字') {
           type="button"
           class="icon-button"
           aria-label="加粗"
-          @click="insert('**', '**')"
-        >
-          <Bold :size="15" /></Button
-        ><Button
+          @click="insert('**', '**')">
+          <Bold :size="15" />
+        </Button>
+        <Button
           variant="plain"
           type="button"
           class="icon-button"
           aria-label="斜体"
-          @click="insert('*', '*')"
-        >
-          <Italic :size="15" /></Button
-        ><Button
+          @click="insert('*', '*')">
+          <Italic :size="15" />
+        </Button>
+        <Button
           variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入二级标题"
-          @click="insert('\n## ', '\n', '标题')"
-        >
-          <Heading2 :size="17" /></Button
-        ><Button
+          @click="insert('\n## ', '\n', '标题')">
+          <Heading2 :size="17" />
+        </Button>
+        <Button
           variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入列表"
-          @click="insert('\n- ', '\n', '列表项')"
-        >
-          <List :size="16" /></Button
-        ><Button
+          @click="insert('\n- ', '\n', '列表项')">
+          <List :size="16" />
+        </Button>
+        <Button
           variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入代码块"
-          @click="insert('\n```cpp\n', '\n```\n', 'cout << result;')"
-        >
-          <CodeXml :size="16" /></Button
-        ><Button
+          @click="insert('\n```cpp\n', '\n```\n', 'cout << result;')">
+          <CodeXml :size="16" />
+        </Button>
+        <Button
           variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入引用"
-          @click="insert('\n> ', '\n')"
-        >
-          <Quote :size="15" /></Button
-        ><Button
+          @click="insert('\n> ', '\n')">
+          <Quote :size="15" />
+        </Button>
+        <Button
           variant="plain"
           type="button"
           class="icon-button"
           aria-label="插入链接"
-          @click="insert('[', '](https://example.com)', '链接文字')"
-        >
+          @click="insert('[', '](https://example.com)', '链接文字')">
           <Link :size="15" />
         </Button>
       </div>
-      <span class="markdown-live-label"><Columns2 :size="14" />实时预览</span>
+      <span class="markdown-live-label">
+        <Columns2 :size="14" />
+        实时预览
+      </span>
     </div>
     <div class="markdown-editor-body">
-      <label class="markdown-source"
-        ><span>题面源码</span
-        ><Textarea
+      <label class="markdown-source">
+        <span>题面源码</span>
+        <Textarea
           ref="textarea"
           v-model="model"
           aria-label="Markdown 题面源码"
           spellcheck="false"
-          placeholder="用 Markdown 描述题目，右侧会实时预览。"
-        />
+          placeholder="用 Markdown 描述题目，右侧会实时预览。" />
       </label>
       <section class="markdown-preview" aria-label="题面实时预览">
-        <span class="markdown-preview-label">学生看到的题面</span
-        ><MarkdownContent v-if="model.trim()" :source="model" />
+        <span class="markdown-preview-label">学生看到的题面</span>
+        <MarkdownContent v-if="model.trim()" :source="model" />
         <p v-else class="markdown-placeholder">写下一个问题，开启一段思考。</p>
       </section>
     </div>

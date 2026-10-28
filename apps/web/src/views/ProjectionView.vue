@@ -91,34 +91,46 @@ async function fullscreen() {
 <template>
   <main v-if="snapshot" class="projection-page">
     <header class="projection-header">
-      <Button variant="outline" :disabled="busy" @click="end"
-        ><ArrowLeft />{{ busy ? '正在撤销…' : '结束并撤销投屏' }}</Button
-      >
-      <div class="projection-mark"><Monitor /><strong>匿名作品 · 固定只读快照</strong></div>
+      <Button variant="outline" :disabled="busy" @click="end">
+        <ArrowLeft />
+        {{ busy ? '正在撤销…' : '结束并撤销投屏' }}
+      </Button>
+      <div class="projection-mark">
+        <Monitor />
+        <strong>匿名作品 · 固定只读快照</strong>
+      </div>
       <div class="inline-items">
         <ThemeToggle />
         <Button
           variant="outline"
           :disabled="size <= 16"
           aria-label="缩小投屏代码字号"
-          @click="size = Math.max(16, size - 2)"
-          ><Minus /></Button
-        ><span>{{ size }} px</span
-        ><Button
+          @click="size = Math.max(16, size - 2)">
+          <Minus />
+        </Button>
+        <span>{{ size }} px</span>
+        <Button
           variant="outline"
           :disabled="size >= 38"
           aria-label="放大投屏代码字号"
-          @click="size = Math.min(38, size + 2)"
-          ><Plus /></Button
-        ><Button @click="fullscreen"><Maximize />全屏</Button>
+          @click="size = Math.min(38, size + 2)">
+          <Plus />
+        </Button>
+        <Button @click="fullscreen">
+          <Maximize />
+          全屏
+        </Button>
       </div>
     </header>
     <Alert v-if="error" role="status" type="warning">
       {{ error }}
 
-      <template #actions
-        ><Button variant="outline" size="sm" @click="retry"><RefreshCw />重试连接</Button></template
-      >
+      <template #actions>
+        <Button variant="outline" size="sm" @click="retry">
+          <RefreshCw />
+          重试连接
+        </Button>
+      </template>
     </Alert>
     <div class="projection-title">
       <div>
@@ -130,26 +142,28 @@ async function fullscreen() {
               : snapshot.kind === 'submission'
                 ? '提交代码快照 · 不代表运行成功'
                 : '当前草稿快照 · 不包含运行结果'
-          }}<span v-if="snapshot.createdAt">
-            · {{ new Date(snapshot.createdAt).toLocaleString('zh-CN') }}</span
-          >
+          }}
+          <span v-if="snapshot.createdAt">
+            · {{ new Date(snapshot.createdAt).toLocaleString('zh-CN') }}
+          </span>
         </p>
       </div>
-      <Button v-if="snapshot.kind === 'run'" variant="outline" @click="showOutput = !showOutput">{{
-        showOutput ? '隐藏运行结果' : '显示运行结果'
-      }}</Button>
+      <Button v-if="snapshot.kind === 'run'" variant="outline" @click="showOutput = !showOutput">
+        {{ showOutput ? '隐藏运行结果' : '显示运行结果' }}
+      </Button>
     </div>
     <div class="projection-body" :class="{ 'code-only': !showOutput || snapshot.kind !== 'run' }">
       <section class="panel projection-code">
         <div class="code-toolbar">
-          <CodeXml />{{ snapshot.filename }}<span class="muted ml-auto">只读</span>
+          <CodeXml />
+          {{ snapshot.filename }}
+          <span class="muted ml-auto">只读</span>
         </div>
         <CodeEditor
           :model-value="snapshot.code"
           :filename="snapshot.filename"
           :font-size="size"
-          readonly
-        />
+          readonly />
       </section>
       <aside v-if="showOutput && snapshot.kind === 'run'" class="projection-results">
         <RunOutput :run="snapshot as RunRecord" readonly-context />
@@ -164,8 +178,8 @@ async function fullscreen() {
       }}
     </h2>
     <Alert v-if="error" role="alert" type="error">{{ error }}</Alert>
-    <Button v-if="!loading" variant="outline" @click="retry">重新读取</Button
-    ><RouterLink to="/teacher/overview">返回课堂</RouterLink>
+    <Button v-if="!loading" variant="outline" @click="retry">重新读取</Button>
+    <RouterLink to="/teacher/overview">返回课堂</RouterLink>
   </div>
 </template>
 <style scoped>

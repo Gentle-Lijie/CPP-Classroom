@@ -118,9 +118,11 @@ watch(
           variant="plain"
           class="mock-exercise-trigger"
           aria-label="切换示例题目"
-          :aria-expanded="scene === 'exercises'"
-          ><BookOpen :size="16" />{{ exercise.title }}<ChevronDown :size="14"
-        /></Button>
+          :aria-expanded="scene === 'exercises'">
+          <BookOpen :size="16" />
+          {{ exercise.title }}
+          <ChevronDown :size="14" />
+        </Button>
         <div v-if="scene === 'exercises'" class="mock-exercise-options" data-spotlight-extent>
           <span>选择课堂练习</span>
           <Button
@@ -128,37 +130,59 @@ watch(
             :key="item.id"
             variant="plain"
             :aria-pressed="session.exerciseId === item.id"
-            @click="selectExercise(item.id)"
-            ><span
-              >{{ item.title }}<small>{{ item.filename }}</small></span
-            ><Check v-if="session.exerciseId === item.id" :size="16"
-          /></Button>
+            @click="selectExercise(item.id)">
+            <span>
+              {{ item.title }}
+              <small>{{ item.filename }}</small>
+            </span>
+            <Check v-if="session.exerciseId === item.id" :size="16" />
+          </Button>
         </div>
       </div>
-      <span class="mock-saved"><CloudCheck :size="15" />已同步到服务器</span>
-      <Button variant="outline" size="sm"><FolderOpen />工作目录</Button>
+      <span class="mock-saved">
+        <CloudCheck :size="15" />
+        已同步到服务器
+      </span>
+      <Button variant="outline" size="sm">
+        <FolderOpen />
+        工作目录
+      </Button>
       <div class="mock-actions" data-student-guide="actions">
-        <Button variant="outline" size="sm" @click="session.helped = true"
-          ><Hand />{{ session.helped ? '模拟求助已发送' : '求助' }}</Button
-        >
-        <Button variant="outline" size="sm" @click="session.submitted = true"
-          ><Send />{{ session.submitted ? '模拟作品已提交' : '提交作品' }}</Button
-        >
+        <Button variant="outline" size="sm" @click="session.helped = true">
+          <Hand />
+          {{ session.helped ? '模拟求助已发送' : '求助' }}
+        </Button>
+        <Button variant="outline" size="sm" @click="session.submitted = true">
+          <Send />
+          {{ session.submitted ? '模拟作品已提交' : '提交作品' }}
+        </Button>
       </div>
-      <Button size="sm" @click="runMockBatch(session)"><Play />编译运行</Button>
+      <Button size="sm" @click="runMockBatch(session)">
+        <Play />
+        编译运行
+      </Button>
     </header>
     <div class="mock-layout">
       <aside class="mock-problem">
         <div class="mock-tabs">
-          <span :class="{ active: scene !== 'history' }"><BookOpen :size="14" />题目说明</span
-          ><span :class="{ active: scene === 'history' }"><History :size="14" />运行历史</span>
+          <span :class="{ active: scene !== 'history' }">
+            <BookOpen :size="14" />
+            题目说明
+          </span>
+          <span :class="{ active: scene === 'history' }">
+            <History :size="14" />
+            运行历史
+          </span>
         </div>
         <div v-if="scene !== 'history'" class="mock-problem-copy">
-          <span class="mock-eyebrow"
-            >① 题目区 · 练习 {{ session.exerciseId === 'sum' ? '1' : '2' }}</span
-          >
+          <span class="mock-eyebrow">
+            ① 题目区 · 练习 {{ session.exerciseId === 'sum' ? '1' : '2' }}
+          </span>
           <h1>{{ exercise.title }}</h1>
-          <div class="mock-limits">2000 ms <span>256 MiB</span></div>
+          <div class="mock-limits">
+            2000 ms
+            <span>256 MiB</span>
+          </div>
           <p>
             {{
               scene === 'interactive'
@@ -190,12 +214,14 @@ watch(
         <div v-else class="mock-history" data-student-guide="history">
           <span class="mock-eyebrow">本题运行快照 · 示例</span>
           <article class="selected">
-            <span class="status positive">运行完成</span><strong>补上分号后的版本</strong
-            ><small>示例记录 B · stdout: 5</small>
+            <span class="status positive">运行完成</span>
+            <strong>补上分号后的版本</strong>
+            <small>示例记录 B · stdout: 5</small>
           </article>
           <article>
-            <span class="status red">编译失败</span><strong>第 5 行缺少分号</strong
-            ><small>示例记录 A · 保留原始编译诊断</small>
+            <span class="status red">编译失败</span>
+            <strong>第 5 行缺少分号</strong>
+            <small>示例记录 A · 保留原始编译诊断</small>
           </article>
           <p>每条快照保留当次代码、输入与结果，和当前草稿分别保存。</p>
         </div>
@@ -203,8 +229,16 @@ watch(
       <div class="mock-main" data-student-guide="diagnostics">
         <section class="mock-editor" data-student-guide="editor">
           <div class="mock-section-heading">
-            <span><CodeXml :size="15" />{{ exercise.filename }}<i /></span
-            ><span class="mock-tools">16 px <Download :size="14" /> GCC 13.3 / C++17</span>
+            <span>
+              <CodeXml :size="15" />
+              {{ exercise.filename }}
+              <i />
+            </span>
+            <span class="mock-tools">
+              16 px
+              <Download :size="14" />
+              GCC 13.3 / C++17
+            </span>
           </div>
           <span class="mock-area-label">② 代码区</span>
           <div class="mock-code">
@@ -212,107 +246,112 @@ watch(
               v-for="(text, index) in code.split('\n')"
               :key="index"
               class="mock-code-line"
-              :class="{ 'mock-error-line': errorShown && index === 4 }"
-            >
-              <span class="mock-line-number">{{ index + 1 }}</span
-              ><code>{{ text || ' ' }}</code
-              ><span v-if="errorShown && index === 4" class="mock-code-error">缺少分号 ;</span>
+              :class="{ 'mock-error-line': errorShown && index === 4 }">
+              <span class="mock-line-number">{{ index + 1 }}</span>
+              <code>{{ text || ' ' }}</code>
+              <span v-if="errorShown && index === 4" class="mock-code-error">缺少分号 ;</span>
             </div>
           </div>
           <div class="mock-editor-footnote">
-            {{ errorShown ? '示例诊断：第 5 行语句未结束' : 'clangd · 可选的浏览器补全与诊断'
-            }}<span>草稿自动保存</span>
+            {{ errorShown ? '示例诊断：第 5 行语句未结束' : 'clangd · 可选的浏览器补全与诊断' }}
+            <span>草稿自动保存</span>
           </div>
         </section>
         <div class="mock-io" data-student-guide="io">
           <section class="mock-input">
             <div class="mock-section-heading">
-              <span>③ 输入 <small>stdin</small></span
-              ><Button
+              <span>
+                ③ 输入
+                <small>stdin</small>
+              </span>
+              <Button
                 variant="plain"
                 class="mock-text-button"
-                @click="session.batchInput = exercise.input"
-                >填入样例</Button
-              >
+                @click="session.batchInput = exercise.input">
+                填入样例
+              </Button>
             </div>
             <Textarea
               v-if="scene !== 'interactive'"
               v-model="session.batchInput"
               aria-label="模拟标准输入"
-              spellcheck="false"
-            />
+              spellcheck="false" />
             <div v-else class="mock-input-transcript">
               <span>已发送的输入</span>
               <pre>{{ session.interactiveInput }}</pre>
               <small>发送会在每一行末尾加上换行符。</small>
             </div>
-            <label class="mock-interactive-label"
-              ><Checkbox :model-value="scene === 'interactive'" disabled />运行时输入</label
-            >
+            <label class="mock-interactive-label">
+              <Checkbox :model-value="scene === 'interactive'" disabled />
+              运行时输入
+            </label>
             <Button
               v-if="scene === 'batch'"
               class="mock-batch-run"
               size="sm"
-              @click="runMockBatch(session)"
-              ><Play />模拟运行</Button
-            >
+              @click="runMockBatch(session)">
+              <Play />
+              模拟运行
+            </Button>
             <Alert v-if="session.batchError && scene === 'batch'" role="alert" type="error">
               {{ session.batchError }}
             </Alert>
           </section>
           <section class="mock-output">
             <div class="mock-section-heading">
-              <span
-                ><component :is="errorShown ? CircleAlert : Terminal" :size="14" />{{
-                  errorShown ? '编译诊断' : '④ 运行输出'
-                }}</span
-              ><span v-if="errorShown" class="status red">失败</span><small v-else>stdout</small>
+              <span>
+                <component :is="errorShown ? CircleAlert : Terminal" :size="14" />
+                {{ errorShown ? '编译诊断' : '④ 运行输出' }}
+              </span>
+              <span v-if="errorShown" class="status red">失败</span>
+              <small v-else>stdout</small>
             </div>
             <div class="mock-output-content">
-              <span class="status" :class="errorShown ? 'red' : 'positive'">{{
-                resultStatus
-              }}</span>
+              <span class="status" :class="errorShown ? 'red' : 'positive'">
+                {{ resultStatus }}
+              </span>
               <pre :class="{ 'mock-diagnostic-log': errorShown }">{{ result }}</pre>
               <Alert
                 v-if="scene === 'diagnostics'"
                 :type="session.errorFixed ? 'success' : 'warning'"
-                :title="session.errorFixed ? '修正后编译成功' : '修正提示'"
-              >
+                :title="session.errorFixed ? '修正后编译成功' : '修正提示'">
                 {{
                   session.errorFixed
                     ? '模拟程序已执行，输出 5。原来的失败快照会保留在历史中。'
                     : 'sum.cpp:5:36 表示文件名、第 5 行、第 36 列。该行末尾缺少 ;，编译器因此无法继续解析下一行。'
                 }}
                 <template v-if="!session.errorFixed" #actions>
-                  <Button size="sm" @click="session.errorFixed = true"
-                    >补上分号并重新编译（模拟）</Button
-                  >
+                  <Button size="sm" @click="session.errorFixed = true">
+                    补上分号并重新编译（模拟）
+                  </Button>
                 </template>
               </Alert>
             </div>
-            <Form v-if="scene === 'interactive'" class="mock-runtime" @submit.prevent="sendLine"
-              ><Input
+            <Form v-if="scene === 'interactive'" class="mock-runtime" @submit.prevent="sendLine">
+              <Input
                 v-model="line"
                 aria-label="模拟运行时输入"
                 placeholder="输入一个整数…"
-                :disabled="session.interactiveClosed"
-              /><Button type="submit" size="sm" :disabled="session.interactiveClosed">发送</Button
-              ><Button
+                :disabled="session.interactiveClosed" />
+              <Button type="submit" size="sm" :disabled="session.interactiveClosed">发送</Button>
+              <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 :disabled="session.interactiveClosed"
-                @click="closeMockInput(session)"
-                >EOF</Button
-              ><Button
+                @click="closeMockInput(session)">
+                EOF
+              </Button>
+              <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 :disabled="session.interactiveClosed"
-                @click="stopMockRunning"
-                ><Square :size="12" />停止</Button
-              ></Form
-            >
+                @click="stopMockRunning">
+                <Square :size="12" />
+                停止
+              </Button>
+            </Form>
             <Alert v-if="scene === 'interactive' && session.inputError" role="alert" type="error">
               {{ session.inputError }}
             </Alert>
@@ -326,8 +365,7 @@ watch(
     <section
       v-if="directoryOpen && scene === 'directory'"
       class="mock-floating-panel mock-directory"
-      data-student-guide="directory"
-    >
+      data-student-guide="directory">
       <div class="mock-panel-heading">
         <FolderOpen :size="20" />
         <div>
@@ -336,13 +374,13 @@ watch(
         </div>
       </div>
       <div class="mock-directory-path">
-        <span>C++练习 / {{ exercise.filename }}</span
-        ><Button
+        <span>C++练习 / {{ exercise.filename }}</span>
+        <Button
           size="sm"
           :variant="session.directoryConnected ? 'outline' : 'default'"
-          @click="session.directoryConnected = !session.directoryConnected"
-          >{{ session.directoryConnected ? '断开模拟目录' : '模拟选择工作目录' }}</Button
-        >
+          @click="session.directoryConnected = !session.directoryConnected">
+          {{ session.directoryConnected ? '断开模拟目录' : '模拟选择工作目录' }}
+        </Button>
       </div>
       <Alert role="status" type="info">
         {{
@@ -352,8 +390,11 @@ watch(
         }}
       </Alert>
       <div class="mock-sync-flow">
-        <span>网页编辑器</span><strong>↔</strong><span>{{ exercise.filename }}</span
-        ><strong>↔</strong><span>授权的目录</span>
+        <span>网页编辑器</span>
+        <strong>↔</strong>
+        <span>{{ exercise.filename }}</span>
+        <strong>↔</strong>
+        <span>授权的目录</span>
       </div>
       <dl>
         <div>
@@ -376,8 +417,7 @@ watch(
     <section
       v-if="scene === 'conflict'"
       class="mock-floating-panel mock-conflict"
-      data-student-guide="conflict"
-    >
+      data-student-guide="conflict">
       <div class="mock-panel-heading">
         <CircleAlert :size="20" />
         <div>
@@ -396,13 +436,15 @@ watch(
         </div>
       </div>
       <div class="mock-conflict-actions">
-        <Button variant="outline" size="sm" @click="session.backup = session.editorCode"
-          >保留模拟草稿备份</Button
-        ><Button variant="outline" size="sm" @click="resolveMockFileConflict(session, 'editor')"
-          >用草稿覆盖模拟磁盘</Button
-        ><Button size="sm" @click="resolveMockFileConflict(session, 'disk')"
-          >读取模拟磁盘文件</Button
-        >
+        <Button variant="outline" size="sm" @click="session.backup = session.editorCode">
+          保留模拟草稿备份
+        </Button>
+        <Button variant="outline" size="sm" @click="resolveMockFileConflict(session, 'editor')">
+          用草稿覆盖模拟磁盘
+        </Button>
+        <Button size="sm" @click="resolveMockFileConflict(session, 'disk')">
+          读取模拟磁盘文件
+        </Button>
       </div>
       <Alert role="status" type="info">
         {{
@@ -412,7 +454,11 @@ watch(
       </Alert>
     </section>
     <footer class="mock-statusbar">
-      <span><i />已同步 · 模拟草稿</span><span>UTF-8 · GCC 13.3 / C++17</span>
+      <span>
+        <i />
+        已同步 · 模拟草稿
+      </span>
+      <span>UTF-8 · GCC 13.3 / C++17</span>
     </footer>
   </div>
 </template>

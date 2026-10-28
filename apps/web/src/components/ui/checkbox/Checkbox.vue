@@ -41,10 +41,10 @@ function update(checked: boolean | 'indeterminate') {
     :value="value"
     class="ui-checkbox"
     data-ui="checkbox"
-    @update:model-value="update"
-  >
-    <CheckboxIndicator class="ui-checkbox-indicator"
-      ><Minus v-if="indeterminate" :size="13" /><Check v-else :size="13"
-    /></CheckboxIndicator>
+    @update:model-value="update">
+    <CheckboxIndicator class="ui-checkbox-indicator">
+      <Minus v-if="indeterminate" :size="13" />
+      <Check v-else :size="13" />
+    </CheckboxIndicator>
   </CheckboxRoot>
 </template>

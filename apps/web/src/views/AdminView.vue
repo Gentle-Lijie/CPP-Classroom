@@ -401,23 +401,23 @@ useActionFeedback(error)
       <!-- <p>管理员不默认拥有课堂作品读取权限。</p> -->
     </div>
     <div class="inline-items">
-      <Button variant="outline" :disabled="loading" @click="load"
-        ><RefreshCw :size="15" />刷新</Button
-      ><Button v-if="section === 'teachers'" @click="openCreate">创建账号</Button>
+      <Button variant="outline" :disabled="loading" @click="load">
+        <RefreshCw :size="15" />
+        刷新
+      </Button>
+      <Button v-if="section === 'teachers'" @click="openCreate">创建账号</Button>
     </div>
   </div>
   <Alert v-if="loadError" role="alert" type="error">
     <span>{{ loadError }}</span>
 
-    <template #actions
-      ><Button variant="plain" class="text-button" :disabled="loading" @click="load"
-        >重试</Button
-      ></template
-    >
+    <template #actions>
+      <Button variant="plain" class="text-button" :disabled="loading" @click="load">重试</Button>
+    </template>
   </Alert>
   <p v-if="loading" class="muted admin-loading" role="status">正在加载…</p>
-  <template v-if="section === 'health'"
-    ><div class="stat-grid">
+  <template v-if="section === 'health'">
+    <div class="stat-grid">
       <div v-for="(value, key) in metrics" :key="key" class="stat-card">
         <div class="stat-top">
           {{
@@ -429,59 +429,63 @@ useActionFeedback(error)
         <div class="stat-number">{{ value }}</div>
       </div>
     </div>
-    <ContentPanel
-      title="服务与执行环境"
-      :icon="Server"
-      >
+    <ContentPanel title="服务与执行环境" :icon="Server">
       <!-- description="以下为平台配置目标；实际节点连接与服务健康请在平台配置中检查。" -->
-      <template #actions
-        ><Button variant="outline" size="sm" as-child
-          ><RouterLink to="/admin/settings">管理配置<ArrowUpRight :size="14" /></RouterLink></Button
-      ></template>
+      <template #actions>
+        <Button variant="outline" size="sm" as-child>
+          <RouterLink to="/admin/settings">
+            管理配置
+            <ArrowUpRight :size="14" />
+          </RouterLink>
+        </Button>
+      </template>
       <dl class="admin-environment-summary">
         <div>
           <dt>编译环境</dt>
           <dd>
             GCC（配置目标）
-            <span
-              >/ {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</span
-            >
+            <span>
+              / {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+            </span>
           </dd>
         </div>
         <div>
           <dt>并行任务</dt>
-          <dd>{{ executionSettings.executionConcurrency }} <span>个执行槽</span></dd>
+          <dd>
+            {{ executionSettings.executionConcurrency }}
+            <span>个执行槽</span>
+          </dd>
         </div>
         <div>
           <dt>执行节点</dt>
           <dd>独立 Linux 节点</dd>
         </div>
       </dl>
-    </ContentPanel></template
-  >
+    </ContentPanel>
+  </template>
   <section v-else-if="section === 'teachers'" class="panel panel-fill">
     <div class="table-controls">
-      <label class="search-field"
-        ><Search :size="16" /><Input
-          v-model="search"
-          aria-label="搜索账号"
-          placeholder="搜索姓名或登录账号…"
-      /></label>
+      <label class="search-field">
+        <Search :size="16" />
+        <Input v-model="search" aria-label="搜索账号" placeholder="搜索姓名或登录账号…" />
+      </label>
       <div class="inline-items">
         <Select v-model="roleFilter" aria-label="筛选身份">
           <SelectOption value="all">全部身份</SelectOption>
           <SelectOption value="teacher">教师</SelectOption>
           <SelectOption value="student">学生</SelectOption>
-          <SelectOption value="admin">管理员</SelectOption></Select
-        ><Select v-model="statusFilter" aria-label="筛选状态">
+          <SelectOption value="admin">管理员</SelectOption>
+        </Select>
+        <Select v-model="statusFilter" aria-label="筛选状态">
           <SelectOption value="all">全部状态</SelectOption>
           <SelectOption value="active">正常</SelectOption>
           <SelectOption value="disabled">停用</SelectOption>
         </Select>
       </div>
-      <Button v-if="credentials.length" variant="outline" size="sm" @click="credentialsOpen = true"
-        ><Download />查看 / 导出凭据</Button
-      >
+      <Button v-if="credentials.length" variant="outline" size="sm" @click="credentialsOpen = true">
+        <Download />
+        查看 / 导出凭据
+      </Button>
     </div>
     <div class="table-scroll">
       <table>
@@ -500,9 +504,9 @@ useActionFeedback(error)
             <td class="admin-account">{{ u.username }}</td>
             <td>{{ { admin: '管理员', teacher: '教师', student: '学生' }[u.role] ?? u.role }}</td>
             <td>
-              <span class="status" :class="u.disabled ? 'red' : 'positive'">{{
-                u.disabled ? '停用' : '正常'
-              }}</span>
+              <span class="status" :class="u.disabled ? 'red' : 'positive'">
+                {{ u.disabled ? '停用' : '正常' }}
+              </span>
             </td>
             <td>
               <template v-if="u.id !== currentUser?.id">
@@ -514,12 +518,14 @@ useActionFeedback(error)
                       error = ''
                       toggleUser = u
                     }
-                  "
-                  >{{ u.disabled ? '启用' : '停用' }}</Button
-                ><Button class="ml-2" size="sm" variant="ghost" @click="openReset(u)"
-                  >重设密码</Button
-                > </template
-              ><span v-else class="muted">当前账号 · 在个人设置改密</span>
+                  ">
+                  {{ u.disabled ? '启用' : '停用' }}
+                </Button>
+                <Button class="ml-2" size="sm" variant="ghost" @click="openReset(u)">
+                  重设密码
+                </Button>
+              </template>
+              <span v-else class="muted">当前账号 · 在个人设置改密</span>
             </td>
           </tr>
         </tbody>
@@ -532,8 +538,7 @@ useActionFeedback(error)
       v-model:page="userPages.page.value"
       v-model:page-size="userPages.pageSize.value"
       :total="userTotal"
-      unit="个账号"
-    />
+      unit="个账号" />
     <div v-if="recoveryTotal" class="admin-recovery-content form-stack">
       <h3 data-guide="recovery-requests">待核实身份的恢复申请</h3>
       <div v-for="r in recoveries" :key="r.id" class="recovery-row">
@@ -547,9 +552,10 @@ useActionFeedback(error)
             size="sm"
             variant="outline"
             :disabled="busy"
-            @click="resetRecovery(r)"
-            >核实后重设密码</Button
-          ><Button
+            @click="resetRecovery(r)">
+            核实后重设密码
+          </Button>
+          <Button
             size="sm"
             variant="ghost"
             :disabled="busy"
@@ -559,27 +565,27 @@ useActionFeedback(error)
                 closeReason = ''
                 closeRecovery = r
               }
-            "
-            >关闭申请</Button
-          >
+            ">
+            关闭申请
+          </Button>
         </div>
       </div>
       <Pagination
         v-model:page="recoveryPage"
         v-model:page-size="recoveryPageSize"
         :total="recoveryTotal"
-        unit="条申请"
-      />
+        unit="条申请" />
     </div>
   </section>
   <section v-else-if="section === 'tasks'" class="panel panel-fill">
     <div class="table-controls">
-      <label class="search-field"
-        ><Search :size="16" /><Input
+      <label class="search-field">
+        <Search :size="16" />
+        <Input
           v-model="search"
           aria-label="搜索失败任务"
-          placeholder="搜索课堂、任务编号或失败原因…"
-      /></label>
+          placeholder="搜索课堂、任务编号或失败原因…" />
+      </label>
     </div>
     <div class="table-scroll">
       <table>
@@ -610,26 +616,27 @@ useActionFeedback(error)
       v-model:page="taskPages.page.value"
       v-model:page-size="taskPages.pageSize.value"
       :total="taskTotal"
-      unit="条任务"
-    />
+      unit="条任务" />
   </section>
-  <template v-else
-    ><ContentPanel title="数据库备份" :icon="Database" class="admin-backup-panel">
+  <template v-else>
+    <ContentPanel title="数据库备份" :icon="Database" class="admin-backup-panel">
       <p>备份保存在服务器本地。验证会使用独立的临时数据库，保留当前课堂、账号和作品数据。</p>
 
-      <Button :disabled="busy" @click="backup"
-        ><Database :size="15" />{{ busy ? '备份与恢复验证中…' : '创建并验证备份' }}</Button
-      >
+      <Button :disabled="busy" @click="backup">
+        <Database :size="15" />
+        {{ busy ? '备份与恢复验证中…' : '创建并验证备份' }}
+      </Button>
     </ContentPanel>
     <section class="panel panel-fill" data-guide="audit-records">
       <div class="panel-heading"><h2>管理与备份记录</h2></div>
       <div class="table-controls">
-        <label class="search-field"
-          ><Search :size="16" /><Input
+        <label class="search-field">
+          <Search :size="16" />
+          <Input
             v-model="search"
             aria-label="搜索管理记录"
-            placeholder="搜索操作者、事件或对象编号…"
-        /></label>
+            placeholder="搜索操作者、事件或对象编号…" />
+        </label>
       </div>
       <div class="table-scroll">
         <div v-for="a in auditPages.paged.value" :key="a.id" class="audit-item">
@@ -647,55 +654,63 @@ useActionFeedback(error)
         v-model:page="auditPages.page.value"
         v-model:page-size="auditPages.pageSize.value"
         :total="auditTotal"
-        unit="条记录"
-      /></section
-  ></template>
+        unit="条记录" />
+    </section>
+  </template>
   <Modal
     v-model:open="create"
     :dismissible="!busy"
     title="创建平台账号"
-    description="创建后可导出账号密码表，再通过可信渠道交付。"
-  >
+    description="创建后可导出账号密码表，再通过可信渠道交付。">
     <Form class="form-stack" @submit.prevent="addUser">
-      <label>姓名<Input v-model="name" required maxlength="50" /></label
-      ><label
-        >账号<Input
+      <label>
+        姓名
+        <Input v-model="name" required maxlength="50" />
+      </label>
+      <label>
+        账号
+        <Input
           v-model="account"
           required
           maxlength="80"
           pattern="[a-zA-Z0-9._@-]+"
-          placeholder="字母、数字、点、下划线或连字符" /></label
-      ><label
-        >身份<Select v-model="userRole">
+          placeholder="字母、数字、点、下划线或连字符" />
+      </label>
+      <label>
+        身份
+        <Select v-model="userRole">
           <SelectOption value="teacher">教师</SelectOption>
           <SelectOption value="student">学生</SelectOption>
-        </Select></label
-      ><label
-        >初始密码
+        </Select>
+      </label>
+      <label>
+        初始密码
         <div class="password-field">
           <Input
             v-model="password"
             :type="showPassword ? 'text' : 'password'"
             required
             maxlength="200"
-            autocomplete="new-password"
-          /><Button
+            autocomplete="new-password" />
+          <Button
             variant="plain"
             type="button"
             class="icon-button"
             :aria-label="showPassword ? '隐藏密码' : '显示密码'"
-            @click="showPassword = !showPassword"
-          >
-            <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
-          </Button></div
-      ></label>
+            @click="showPassword = !showPassword">
+            <EyeOff v-if="showPassword" :size="18" />
+            <Eye v-else :size="18" />
+          </Button>
+        </div>
+      </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="create = false"
-          >取消</Button
-        ><Button type="submit" :disabled="busy">{{
-          busy ? '正在创建…' : '创建账号并生成凭据'
-        }}</Button>
+        <Button type="button" variant="outline" :disabled="busy" @click="create = false">
+          取消
+        </Button>
+        <Button type="submit" :disabled="busy">
+          {{ busy ? '正在创建…' : '创建账号并生成凭据' }}
+        </Button>
       </div>
     </Form>
   </Modal>
@@ -704,37 +719,40 @@ useActionFeedback(error)
     :dismissible="!busy"
     title="重设账号密码"
     description="旧登录会话将失效，正在执行的程序会停止。请核实申请人身份后操作。"
-    @update:open="!$event && (resetUser = '')"
-    ><Form class="form-stack" @submit.prevent="reset">
-      <label
-        >新密码
+    @update:open="!$event && (resetUser = '')">
+    <Form class="form-stack" @submit.prevent="reset">
+      <label>
+        新密码
         <div class="password-field">
           <Input
             v-model="resetPassword"
             required
             maxlength="200"
             :type="showPassword ? 'text' : 'password'"
-            autocomplete="new-password"
-          /><Button
+            autocomplete="new-password" />
+          <Button
             variant="plain"
             type="button"
             class="icon-button"
             :aria-label="showPassword ? '隐藏密码' : '显示密码'"
-            @click="showPassword = !showPassword"
-          >
-            <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
-          </Button></div
-      ></label>
+            @click="showPassword = !showPassword">
+            <EyeOff v-if="showPassword" :size="18" />
+            <Eye v-else :size="18" />
+          </Button>
+        </div>
+      </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="resetUser = ''"
-          >取消</Button
-        ><Button type="submit" variant="warning" :disabled="busy"
-          ><KeyRound />{{ busy ? '正在重设…' : '保存并生成新凭据' }}</Button
-        >
+        <Button type="button" variant="outline" :disabled="busy" @click="resetUser = ''">
+          取消
+        </Button>
+        <Button type="submit" variant="warning" :disabled="busy">
+          <KeyRound />
+          {{ busy ? '正在重设…' : '保存并生成新凭据' }}
+        </Button>
       </div>
-    </Form></Modal
-  >
+    </Form>
+  </Modal>
   <Modal
     :open="!!toggleUser"
     :dismissible="!busy"
@@ -744,53 +762,57 @@ useActionFeedback(error)
         ? '账号可重新登录，原有课堂和作品保留。'
         : '此账号将无法登录，旧会话失效，运行中的程序停止。课堂和作品保留。'
     "
-    @update:open="!$event && (toggleUser = undefined)"
-    ><p class="body-copy">{{ toggleUser?.name }} · {{ toggleUser?.username }}</p>
+    @update:open="!$event && (toggleUser = undefined)">
+    <p class="body-copy">{{ toggleUser?.name }} · {{ toggleUser?.username }}</p>
 
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="toggleUser = undefined">取消</Button
-      ><Button
+      <Button variant="outline" :disabled="busy" @click="toggleUser = undefined">取消</Button>
+      <Button
         :variant="toggleUser?.disabled ? 'success' : 'destructive'"
         :disabled="busy"
-        @click="toggle"
-        >{{ busy ? '处理中…' : toggleUser?.disabled ? '确认启用' : '确认停用' }}</Button
-      >
-    </div></Modal
-  >
+        @click="toggle">
+        {{ busy ? '处理中…' : toggleUser?.disabled ? '确认启用' : '确认停用' }}
+      </Button>
+    </div>
+  </Modal>
   <CredentialDialog
     v-model:open="credentialsOpen"
     :credentials="credentials"
     @export="exportCredentials"
-    @clear="credentials = []"
-  />
+    @clear="credentials = []" />
 
   <Modal
     :open="!!closeRecovery"
     :dismissible="!busy"
     title="关闭这条恢复申请？"
     description="仅关闭待办，不修改账号密码。核实无效或已通过其他方式解决时，请说明原因。"
-    @update:open="!$event && (closeRecovery = undefined)"
-    ><Form class="form-stack" @submit.prevent="resolveRecovery">
+    @update:open="!$event && (closeRecovery = undefined)">
+    <Form class="form-stack" @submit.prevent="resolveRecovery">
       <p>{{ closeRecovery?.username }}</p>
-      <label>处理原因<Textarea v-model="closeReason" required maxlength="500" rows="3" /></label>
+      <label>
+        处理原因
+        <Textarea v-model="closeReason" required maxlength="500" rows="3" />
+      </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="closeRecovery = undefined"
-          >取消</Button
-        ><Button type="submit" :disabled="busy || !closeReason.trim()">{{
-          busy ? '处理中…' : '确认关闭申请'
-        }}</Button>
+        <Button type="button" variant="outline" :disabled="busy" @click="closeRecovery = undefined">
+          取消
+        </Button>
+        <Button type="submit" :disabled="busy || !closeReason.trim()">
+          {{ busy ? '处理中…' : '确认关闭申请' }}
+        </Button>
       </div>
-    </Form></Modal
-  >
+    </Form>
+  </Modal>
   <Modal
     :open="!!taskDetail"
     title="平台失败任务诊断"
     wide
-    @update:open="!$event && (taskDetail = undefined)"
-    ><div v-if="taskDetail" class="form-stack task-detail">
+    @update:open="!$event && (taskDetail = undefined)">
+    <div v-if="taskDetail" class="form-stack task-detail">
       <p>
-        <strong>{{ taskDetail.classroom }}</strong> ·
+        <strong>{{ taskDetail.classroom }}</strong>
+        ·
         {{ new Date(taskDetail.created_at).toLocaleString() }}
       </p>
       <code>{{ taskDetail.id }}</code>
@@ -801,11 +823,11 @@ useActionFeedback(error)
       <Disclosure title="任务指标">
         <pre>{{ JSON.stringify(taskDetail.metrics ?? {}, null, 2) }}</pre>
       </Disclosure>
-      <Button as-child variant="outline"
-        ><RouterLink to="/admin/settings">检查平台服务与执行节点</RouterLink></Button
-      >
-    </div></Modal
-  >
+      <Button as-child variant="outline">
+        <RouterLink to="/admin/settings">检查平台服务与执行节点</RouterLink>
+      </Button>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>

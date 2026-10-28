@@ -151,23 +151,28 @@ async function signOut() {
       variant="plain"
       class="sidebar-scrim"
       aria-label="关闭导航"
-      @click="mobileOpen = false"
-    />
+      @click="mobileOpen = false" />
     <aside class="sidebar" :class="{ 'mobile-open': mobileOpen }">
-      <RouterLink to="/" class="brand"
-        ><span class="brand-symbol"><CodeXml :size="23" /></span
-        ><span>码上课堂<span class="brand-sub">C++ Classroom</span></span> </RouterLink
-      ><Button
+      <RouterLink to="/" class="brand">
+        <span class="brand-symbol"><CodeXml :size="23" /></span>
+        <span>
+          码上课堂
+          <span class="brand-sub">C++ Classroom</span>
+        </span>
+      </RouterLink>
+      <Button
         variant="plain"
         class="icon-button mobile-close"
         aria-label="关闭菜单"
-        @click="mobileOpen = false"
-      >
+        @click="mobileOpen = false">
         <X :size="18" />
       </Button>
       <div v-if="role === 'admin'" class="class-switch class-switch-static">
-        <span class="class-icon"><ShieldCheck :size="19" /></span
-        ><span>平台管理工作台<small>管理员</small></span>
+        <span class="class-icon"><ShieldCheck :size="19" /></span>
+        <span>
+          平台管理工作台
+          <small>管理员</small>
+        </span>
       </div>
       <DropdownMenuRoot v-else>
         <DropdownMenuTrigger as-child>
@@ -177,44 +182,47 @@ async function signOut() {
             class="class-switch"
             aria-label="切换课堂"
             :disabled="switchingClass"
-            :aria-busy="switchingClass"
-            ><span class="class-icon"><GraduationCap :size="19" /></span
-            ><span
-              >{{ activeClassroom.name
-              }}<small>{{
-                switchingClass
-                  ? '正在切换…'
-                  : activeClassroom.id
-                    ? activeClassroom.status
-                    : '创建或加入课堂'
-              }}</small></span
-            ><ChevronDown :size="14"
-          /></Button>
+            :aria-busy="switchingClass">
+            <span class="class-icon"><GraduationCap :size="19" /></span>
+            <span>
+              {{ activeClassroom.name }}
+              <small>
+                {{
+                  switchingClass
+                    ? '正在切换…'
+                    : activeClassroom.id
+                      ? activeClassroom.status
+                      : '创建或加入课堂'
+                }}
+              </small>
+            </span>
+            <ChevronDown :size="14" />
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuPortal>
           <DropdownMenuContent
             class="ui-menu-content class-switch-menu"
             align="start"
             :side-offset="6"
-            :collision-padding="12"
-          >
+            :collision-padding="12">
             <DropdownMenuLabel class="class-switch-caption">切换课堂</DropdownMenuLabel>
             <DropdownMenuItem
               v-for="classroom in availableClassrooms"
               :key="classroom.id"
               class="ui-menu-item class-switch-option"
               :aria-current="classroom.id === activeClassroom.id ? 'true' : undefined"
-              @select="switchClass(classroom.id)"
-            >
-              <span
-                >{{ classroom.name }}<small>{{ classroom.status }}</small></span
-              >
+              @select="switchClass(classroom.id)">
+              <span>
+                {{ classroom.name }}
+                <small>{{ classroom.status }}</small>
+              </span>
               <Check v-if="classroom.id === activeClassroom.id" :size="16" aria-label="当前课堂" />
             </DropdownMenuItem>
             <p v-if="!availableClassrooms.length" class="class-switch-caption">暂无可切换的课堂</p>
             <DropdownMenuSeparator class="class-switch-separator" />
             <DropdownMenuItem class="ui-menu-item" @select="router.push(classesPath)">
-              <LayoutDashboard :size="16" />查看全部课堂
+              <LayoutDashboard :size="16" />
+              查看全部课堂
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenuPortal>
@@ -233,15 +241,17 @@ async function signOut() {
               route.path.startsWith(link.to) ||
               (link.to === '/teacher/overview' && route.path.includes('/students/')),
           }"
-          @click="mobileOpen = false"
-          ><component :is="link.icon" :size="18" /><span>{{ link.title }}</span
-          ><span v-if="link.title === '课堂总览' && counts.help" class="nav-count">{{
-            counts.help
-          }}</span></RouterLink
-        >
+          @click="mobileOpen = false">
+          <component :is="link.icon" :size="18" />
+          <span>{{ link.title }}</span>
+          <span v-if="link.title === '课堂总览' && counts.help" class="nav-count">
+            {{ counts.help }}
+          </span>
+        </RouterLink>
       </nav>
       <div v-if="role === 'teacher'" class="sidebar-session">
-        <span class="live-dot" :class="{ inactive: activeClassroom.status !== '进行中' }" />{{
+        <span class="live-dot" :class="{ inactive: activeClassroom.status !== '进行中' }" />
+        {{
           activeClassroom.status === '进行中'
             ? '课堂进行中'
             : activeClassroom.status === '已归档'
@@ -251,77 +261,87 @@ async function signOut() {
                 : '课堂尚未开始'
         }}
         <p>{{ counts.online }} 位同学在线</p>
-        <RouterLink to="/teacher/overview">开始课堂巡视 <ArrowUpRight :size="14" /></RouterLink>
+        <RouterLink to="/teacher/overview">
+          开始课堂巡视
+          <ArrowUpRight :size="14" />
+        </RouterLink>
       </div>
       <div class="sidebar-bottom">
-        <Button variant="plain" class="nav-item w-full" @click="startUserGuide"
-          ><HelpCircle :size="18" />使用导览</Button
-        >
+        <Button variant="plain" class="nav-item w-full" @click="startUserGuide">
+          <HelpCircle :size="18" />
+          使用导览
+        </Button>
         <div class="profile-wrap">
           <div v-if="roleMenu" class="role-menu">
             <p>{{ currentUser?.username }}</p>
-            <Button variant="plain" data-guide="account-open" @click="openAccount"
-              ><KeyRound :size="14" />账号与密码</Button
-            >
+            <Button variant="plain" data-guide="account-open" @click="openAccount">
+              <KeyRound :size="14" />
+              账号与密码
+            </Button>
             <Button variant="plain" data-guide="sign-out" :disabled="signingOut" @click="signOut">
-              <LogOut :size="14" />{{ signingOut ? '退出中…' : '退出登录' }}
+              <LogOut :size="14" />
+              {{ signingOut ? '退出中…' : '退出登录' }}
             </Button>
           </div>
           <Button variant="plain" class="profile" @click="roleMenu = !roleMenu">
-            <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span
-            ><span
-              >{{ currentUser?.name ?? ''
-              }}<small>{{
-                role === 'teacher' ? '教师账号' : role === 'student' ? '学生账号' : '运维账号'
-              }}</small></span
-            ><Ellipsis :size="15" />
+            <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
+            <span>
+              {{ currentUser?.name ?? '' }}
+              <small>
+                {{ role === 'teacher' ? '教师账号' : role === 'student' ? '学生账号' : '运维账号' }}
+              </small>
+            </span>
+            <Ellipsis :size="15" />
           </Button>
         </div>
       </div>
     </aside>
     <div
       class="shell-main"
-      :class="{ 'exercise-management-shell': route.path === '/teacher/exercises' }"
-    >
+      :class="{ 'exercise-management-shell': route.path === '/teacher/exercises' }">
       <header class="topbar">
         <div class="breadcrumbs">
           <Button
             variant="plain"
             class="icon-button menu-button"
             aria-label="打开导航"
-            @click="mobileOpen = true"
-          >
-            <Menu :size="19" /></Button
-          ><PanelLeftClose :size="17" class="desktop-only muted" /><span>{{
-            role === 'admin' ? '平台管理' : role === 'student' ? '学习空间' : '我的课堂'
-          }}</span
-          ><ChevronRight :size="13" /><strong>{{ sectionTitle }}</strong>
+            @click="mobileOpen = true">
+            <Menu :size="19" />
+          </Button>
+          <PanelLeftClose :size="17" class="desktop-only muted" />
+          <span>
+            {{ role === 'admin' ? '平台管理' : role === 'student' ? '学习空间' : '我的课堂' }}
+          </span>
+          <ChevronRight :size="13" />
+          <strong>{{ sectionTitle }}</strong>
         </div>
         <div class="topbar-right">
           <ThemeToggle />
-          <span class="demo-tag" :class="{ disconnected: connectionState !== 'connected' }">{{
-            connectionState === 'connected'
-              ? '服务器已连接'
-              : connectionState === 'expired'
-                ? '登录已失效'
-                : '连接中断'
-          }}</span
-          ><span class="desktop-only muted">{{ role === 'admin' ? '平台管理' : '课堂数据' }}</span>
+          <span class="demo-tag" :class="{ disconnected: connectionState !== 'connected' }">
+            {{
+              connectionState === 'connected'
+                ? '服务器已连接'
+                : connectionState === 'expired'
+                  ? '登录已失效'
+                  : '连接中断'
+            }}
+          </span>
+          <span class="desktop-only muted">{{ role === 'admin' ? '平台管理' : '课堂数据' }}</span>
         </div>
       </header>
       <Alert
         v-if="connectionState === 'disconnected'"
         class="app-alert--banner"
         role="alert"
-        type="warning"
-      >
+        type="warning">
         <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span>
 
-        <template #actions
-          ><Button variant="plain" class="text-button" @click="refresh().catch(reportError)">
-            <RefreshCw :size="14" />重试连接
-          </Button></template
-        >
+        <template #actions>
+          <Button variant="plain" class="text-button" @click="refresh().catch(reportError)">
+            <RefreshCw :size="14" />
+            重试连接
+          </Button>
+        </template>
       </Alert>
       <main class="page-content"><slot /></main>
     </div>

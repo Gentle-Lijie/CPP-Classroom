@@ -251,15 +251,15 @@ onBeforeUnmount(() => {
 
       <p>草稿内容仍保留在页面，重试不会清空。</p>
 
-      <template #actions
-        ><Button
+      <template #actions>
+        <Button
           variant="plain"
           class="text-button"
           data-guide="editor-reload"
-          @click="initializeEditor"
-          >重新加载编辑器</Button
-        ></template
-      >
+          @click="initializeEditor">
+          重新加载编辑器
+        </Button>
+      </template>
     </Alert>
     <Alert v-else-if="editorLoading" class="editor-resource-alert" role="status" type="info">
       正在加载代码编辑器…
@@ -267,49 +267,48 @@ onBeforeUnmount(() => {
     <div
       ref="container"
       class="code-editor"
-      :aria-label="readonly ? 'C++ 代码，只读' : 'C++ 代码编辑器'"
-    />
+      :aria-label="readonly ? 'C++ 代码，只读' : 'C++ 代码编辑器'" />
     <div v-if="!readonly" class="editor-language-bar">
       <label
         class="editor-language-toggle"
-        title="仅为当前编辑器启用补全和诊断。首次开启需下载语言服务资源，分析在浏览器内完成。"
-      >
+        title="仅为当前编辑器启用补全和诊断。首次开启需下载语言服务资源，分析在浏览器内完成。">
         <Switch
           :model-value="languageEnabled"
           :disabled="editorLoading || !!editorError || languagePending"
           :aria-busy="languagePending"
           aria-label="clangd 语言服务"
           :aria-describedby="languageStatusId"
-          @update:model-value="toggleLanguageService"
-        /><span>clangd</span>
+          @update:model-value="toggleLanguageService" />
+        <span>clangd</span>
       </label>
       <RefreshCw
         v-if="languageStatus?.state === 'loading' || languageStatus?.state === 'analyzing'"
         :size="12"
-        class="probe-spinning"
-      /><span
+        class="probe-spinning" />
+      <span
         :id="languageStatusId"
         class="editor-language-message"
         :class="languageStatus?.state"
         role="status"
-        :title="languageStatus?.message"
-        >{{
+        :title="languageStatus?.message">
+        {{
           languagePending
             ? '正在启动 · ' + languageStatus?.message
             : languageStatus?.state === 'ready'
               ? `浏览器分析 · ${languageStatus.errors} 个错误 / ${languageStatus.warnings} 个警告`
               : (languageStatus?.message ?? '补全与诊断已关闭')
-        }}</span
-      ><Button
+        }}
+      </span>
+      <Button
         v-if="languageStatus?.state === 'error'"
         variant="plain"
         type="button"
         class="text-button"
         data-guide="language-retry"
-        @click="startLanguageService"
-      >
-        重试</Button
-      ><span v-if="languageEnabled" class="editor-local-indicator">浏览器内分析</span>
+        @click="startLanguageService">
+        重试
+      </Button>
+      <span v-if="languageEnabled" class="editor-local-indicator">浏览器内分析</span>
     </div>
   </div>
 </template>

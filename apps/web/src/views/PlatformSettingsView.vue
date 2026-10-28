@@ -173,82 +173,86 @@ useActionFeedback(saveError)
       </div>
     </div>
     <ContentPanel title="服务状态" :icon="Activity" class="runtime-health-panel">
-      <template #actions
-        ><Button variant="outline" size="sm" :disabled="checking" @click="check"
-          ><RefreshCw :class="{ 'probe-spinning': checking }" />{{
-            checking ? '检查中…' : '刷新状态'
-          }}</Button
-        ></template
-      >
+      <template #actions>
+        <Button variant="outline" size="sm" :disabled="checking" @click="check">
+          <RefreshCw :class="{ 'probe-spinning': checking }" />
+          {{ checking ? '检查中…' : '刷新状态' }}
+        </Button>
+      </template>
       <div class="runtime-service-grid" aria-live="polite">
         <article v-for="service in services" :key="service.key" class="runtime-service">
           <div class="runtime-service-top">
-            <span class="runtime-service-icon"><component :is="service.icon" :size="19" /></span
-            ><span class="runtime-service-state" :class="'is-' + states[service.key].status"
-              ><i />{{ labels[states[service.key].status] }}</span
-            >
+            <span class="runtime-service-icon"><component :is="service.icon" :size="19" /></span>
+            <span class="runtime-service-state" :class="'is-' + states[service.key].status">
+              <i />
+              {{ labels[states[service.key].status] }}
+            </span>
           </div>
           <h3>
             {{ service.title }}
             <!-- <small>{{ service.subtitle }}</small> -->
           </h3>
           <p>{{ states[service.key].message }}</p>
-          <span v-if="states[service.key].latencyMs !== undefined" class="runtime-latency"
-            >响应 {{ states[service.key].latencyMs }} ms</span
-          >
+          <span v-if="states[service.key].latencyMs !== undefined" class="runtime-latency">
+            响应 {{ states[service.key].latencyMs }} ms
+          </span>
         </article>
       </div>
-      <template #footer
-        ><span class="runtime-check-time">{{
-          checkedAt ? '最近检查 ' + checkedAt : '正在获取连接状态…'
-        }}</span
-        ><span class="runtime-check-time">连接正常仅代表服务可达</span></template
-      >
+      <template #footer>
+        <span class="runtime-check-time">
+          {{ checkedAt ? '最近检查 ' + checkedAt : '正在获取连接状态…' }}
+        </span>
+        <span class="runtime-check-time">连接正常仅代表服务可达</span>
+      </template>
     </ContentPanel>
     <Alert v-if="loadError" role="alert" type="error" :icon="CircleAlert">
       <span>{{ loadError }}</span>
 
-      <template #actions
-        ><Button variant="outline" size="sm" @click="load">重试读取</Button></template
-      >
+      <template #actions>
+        <Button variant="outline" size="sm" @click="load">重试读取</Button>
+      </template>
     </Alert>
     <div class="runtime-settings-layout">
       <ContentPanel title="运行环境与限额" class="runtime-form-panel">
         <Form id="runtime-settings-form" class="runtime-settings-form" @submit.prevent="save">
           <fieldset :disabled="loading || saving || !!loadError" class="runtime-fields">
-            <label class="runtime-profile"
-              >C++ 标准<Select v-model="form.compilerProfile">
+            <label class="runtime-profile">
+              C++ 标准
+              <Select v-model="form.compilerProfile">
                 <SelectOption value="gcc13-cpp17">GCC 13.3 / C++17</SelectOption>
-                <SelectOption value="gcc13-cpp20">GCC 13.3 / C++20</SelectOption></Select
-              ></label
-            >
+                <SelectOption value="gcc13-cpp20">GCC 13.3 / C++20</SelectOption>
+              </Select>
+            </label>
             <fieldset v-for="group in groups" :key="group.title" class="runtime-settings-group">
               <legend>{{ group.title }}</legend>
-              <br/>
+              <br />
               <div class="runtime-settings-grid">
-                <label v-for="field in group.fields" :key="field.key"
-                  >{{ field.name
-                  }}<span class="runtime-number-control"
-                    ><NumberInput
+                <label v-for="field in group.fields" :key="field.key">
+                  {{ field.name }}
+                  <span class="runtime-number-control">
+                    <NumberInput
                       v-model.number="form[field.key]"
                       required
                       :min="field.min"
                       :max="field.max"
                       step="1"
-                      :aria-describedby="'range-' + field.key"
-                    /><span>{{ field.unit }}</span></span
-                  ><small :id="'range-' + field.key"
-                    >{{ field.min.toLocaleString() }}–{{ field.max.toLocaleString() }}
-                    {{ field.unit }}</small
-                  ></label
-                >
+                      :aria-describedby="'range-' + field.key" />
+                    <span>{{ field.unit }}</span>
+                  </span>
+                  <small :id="'range-' + field.key">
+                    {{ field.min.toLocaleString() }}–{{ field.max.toLocaleString() }}
+                    {{ field.unit }}
+                  </small>
+                </label>
               </div>
             </fieldset>
           </fieldset>
         </Form>
-        <template #footer
-          ><span class="runtime-save-status" :class="{ pending: dirty }"
-            ><i v-if="dirty" /><Check v-else-if="savedAt" :size="14" />{{
+        <template #footer>
+          <span class="runtime-save-status" :class="{ pending: dirty }">
+            <i v-if="dirty" />
+            <Check v-else-if="savedAt" :size="14" />
+            {{
               loading
                 ? '正在读取配置…'
                 : loadError
@@ -258,24 +262,32 @@ useActionFeedback(saveError)
                     : savedAt
                       ? '已保存于 ' + savedAt
                       : '配置已与服务器同步'
-            }}</span
-          ><Button
+            }}
+          </span>
+          <Button
             type="submit"
             form="runtime-settings-form"
-            :disabled="loading || saving || !!loadError || !dirty"
-            ><Save :size="15" />{{ saving ? '保存中…' : '保存更改' }}</Button
-          ></template
-        >
+            :disabled="loading || saving || !!loadError || !dirty">
+            <Save :size="15" />
+            {{ saving ? '保存中…' : '保存更改' }}
+          </Button>
+        </template>
       </ContentPanel>
       <aside class="runtime-settings-aside">
         <ContentPanel title="评测节点" description="原生 Linux 执行服务" :icon="Server">
-          <label class="runtime-node-address"
-            >连接地址<span><LockKeyhole :size="13" />由服务端管理</span
-            ><Input
+          <label class="runtime-node-address">
+            连接地址
+            <span>
+              <LockKeyhole :size="13" />
+              由服务端管理
+            </span>
+            <Input
               :value="form.goJudgeUrl"
               readonly
-              :placeholder="loading ? '读取中…' : loadError ? '无法读取节点地址' : '尚未配置节点'"
-          /></label>
+              :placeholder="
+                loading ? '读取中…' : loadError ? '无法读取节点地址' : '尚未配置节点'
+              " />
+          </label>
           <div class="runtime-fixed-limits">
             <h3>墙钟时间上限</h3>
             <dl>

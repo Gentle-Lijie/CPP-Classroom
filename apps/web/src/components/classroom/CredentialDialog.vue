@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Alert } from '@/components/ui/alert'
 import { ref } from 'vue'
 import { Copy, Download, Trash2 } from '@lucide/vue'
 import Modal from './Modal.vue'
@@ -38,12 +37,13 @@ function clear() {
     :title="title ?? '账号登录凭据'"
     description="本标签页临时保留，刷新后可重新导出，退出登录后清除。服务器不保存可查看的明文密码。"
     wide
-    @update:open="emit('update:open', $event)"
-  >
+    @update:open="emit('update:open', $event)">
     <div class="credential-actions">
-      <Button :disabled="!credentials.length" @click="emit('export')"
-        ><Download />导出账号密码 CSV</Button
-      ><Button variant="outline" @click="emit('update:open', false)">稍后继续</Button>
+      <Button :disabled="!credentials.length" @click="emit('export')">
+        <Download />
+        导出账号密码 CSV
+      </Button>
+      <Button variant="outline" @click="emit('update:open', false)">稍后继续</Button>
     </div>
     <!-- <Alert type="warning">
       这是生成时的密码副本，并非当前密码验证。学生改密或其他恢复操作后可能失效，请核对生成时间。
@@ -61,19 +61,23 @@ function clear() {
         <tbody>
           <tr v-for="c in credentials" :key="c.username">
             <td>
-              {{ c.name }}<small v-if="c.number" class="cell-secondary">{{ c.number }}</small>
+              {{ c.name }}
+              <small v-if="c.number" class="cell-secondary">{{ c.number }}</small>
             </td>
             <td class="credential-account">
               <code>{{ c.username }}</code>
             </td>
             <td class="credential-secret">
-              <code>{{ c.password }}</code
-              ><small class="cell-secondary">{{
-                c.generatedAt ? new Date(c.generatedAt).toLocaleString() : '生成时间未知'
-              }}</small>
+              <code>{{ c.password }}</code>
+              <small class="cell-secondary">
+                {{ c.generatedAt ? new Date(c.generatedAt).toLocaleString() : '生成时间未知' }}
+              </small>
             </td>
             <td>
-              <Button size="sm" variant="ghost" @click="copy(c)"><Copy />复制</Button>
+              <Button size="sm" variant="ghost" @click="copy(c)">
+                <Copy />
+                复制
+              </Button>
             </td>
           </tr>
         </tbody>
@@ -84,20 +88,22 @@ function clear() {
       账号可能用于多个课堂。已有账号的原密码不在此表；需要重新交付时请按名册权限重置，历史或其他教师创建的账号由管理员协助恢复。
     </p> -->
     <div class="modal-actions">
-      <Button variant="outline" :disabled="!credentials.length" @click="confirmClear = true"
-        ><Trash2 />清除本页凭据</Button
-      ><Button @click="emit('update:open', false)">完成</Button>
+      <Button variant="outline" :disabled="!credentials.length" @click="confirmClear = true">
+        <Trash2 />
+        清除本页凭据
+      </Button>
+      <Button @click="emit('update:open', false)">完成</Button>
     </div>
   </Modal>
   <Modal
     v-model:open="confirmClear"
     title="清除本标签页的凭据？"
-    description="此操作不会修改账号密码。请先确认已下载并保存交付文件；清除后无法找回原副本。"
-    ><div class="modal-actions">
-      <Button variant="outline" @click="confirmClear = false">取消</Button
-      ><Button variant="destructive" @click="clear">确认已保存，清除凭据</Button>
-    </div></Modal
-  >
+    description="此操作不会修改账号密码。请先确认已下载并保存交付文件；清除后无法找回原副本。">
+    <div class="modal-actions">
+      <Button variant="outline" @click="confirmClear = false">取消</Button>
+      <Button variant="destructive" @click="clear">确认已保存，清除凭据</Button>
+    </div>
+  </Modal>
 </template>
 <style scoped>
 .credential-actions {

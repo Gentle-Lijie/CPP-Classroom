@@ -28,20 +28,18 @@ const error = ref('')
       :step="Number(step ?? 1)"
       :disabled="disabled"
       :name="name"
-      class="ui-number-root"
-    >
+      class="ui-number-root">
       <NumberFieldInput
         v-bind="$attrs"
         :required="required"
         class="ui-number-input"
         :aria-invalid="error ? true : undefined"
         @invalid.prevent="error = '请填写有效数值'"
-        @input="error = ''"
-      />
-      <span class="ui-number-actions"
-        ><NumberFieldIncrement aria-label="增加数值"><Plus :size="12" /></NumberFieldIncrement
-        ><NumberFieldDecrement aria-label="减少数值"><Minus :size="12" /></NumberFieldDecrement
-      ></span>
+        @input="error = ''" />
+      <span class="ui-number-actions">
+        <NumberFieldIncrement aria-label="增加数值"><Plus :size="12" /></NumberFieldIncrement>
+        <NumberFieldDecrement aria-label="减少数值"><Minus :size="12" /></NumberFieldDecrement>
+      </span>
     </NumberFieldRoot>
     <small v-if="error" class="ui-field-error">{{ error }}</small>
   </div>

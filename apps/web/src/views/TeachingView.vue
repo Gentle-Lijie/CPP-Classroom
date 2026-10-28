@@ -283,81 +283,84 @@ onBeforeUnmount(() => {
   <main v-if="exercise" class="teaching-page">
     <header class="teaching-toolbar">
       <div class="inline-items">
-        <RouterLink to="/teacher/exercises" class="icon-button" aria-label="结束授课"
-          ><ArrowLeft :size="19" /></RouterLink
-        ><span class="teaching-mark"><Monitor :size="19" />授课模式</span
-        ><span class="teaching-class-name">{{ activeClassroom.name }}</span
-        ><span class="demo-tag">教师授课</span>
+        <RouterLink to="/teacher/exercises" class="icon-button" aria-label="结束授课">
+          <ArrowLeft :size="19" />
+        </RouterLink>
+        <span class="teaching-mark">
+          <Monitor :size="19" />
+          授课模式
+        </span>
+        <span class="teaching-class-name">{{ activeClassroom.name }}</span>
+        <span class="demo-tag">教师授课</span>
       </div>
       <div class="inline-items">
         <ThemeToggle />
-        <Button variant="outline" @click="openMonitor"
-          ><Users />巡视窗口<span class="online-count">{{ counts.online }}</span></Button
-        ><Button
+        <Button variant="outline" @click="openMonitor">
+          <Users />
+          巡视窗口
+          <span class="online-count">{{ counts.online }}</span>
+        </Button>
+        <Button
           variant="plain"
           class="icon-button"
           :aria-label="fullscreen ? '退出授课全屏' : '授课全屏'"
-          @click="toggleFullscreen"
-        >
-          <Minimize v-if="fullscreen" :size="19" /><Maximize v-else :size="19" />
+          @click="toggleFullscreen">
+          <Minimize v-if="fullscreen" :size="19" />
+          <Maximize v-else :size="19" />
         </Button>
       </div>
     </header>
     <div class="teaching-stage">
       <Alert v-if="monitorBlocked" type="warning">
-        独立窗口被拦截。<a
-          href="/teacher/monitor"
-          target="_blank"
-          rel="noopener"
-          class="text-button"
-          >点此打开巡视窗口</a
-        >
+        独立窗口被拦截。
+        <a href="/teacher/monitor" target="_blank" rel="noopener" class="text-button">
+          点此打开巡视窗口
+        </a>
       </Alert>
       <Alert v-if="error" role="alert" type="error">
         {{ error }}
 
-        <template #actions
-          ><Button variant="outline" size="sm" @click="load">重试读取</Button></template
-        >
+        <template #actions>
+          <Button variant="outline" size="sm" @click="load">重试读取</Button>
+        </template>
       </Alert>
       <Alert v-if="conflict" role="alert" type="warning">
         其他窗口已修改示范代码。先下载本机修改，再读取服务器版本。
 
-        <template #actions
-          ><Button variant="outline" size="sm" @click="useServer"
-            >下载本机修改并读取服务器版本</Button
-          ></template
-        >
+        <template #actions>
+          <Button variant="outline" size="sm" @click="useServer">
+            下载本机修改并读取服务器版本
+          </Button>
+        </template>
       </Alert>
       <div class="teaching-slide-meta">
-        <span class="inline-items"
-          ><span class="lesson-number">{{ String(index + 1).padStart(2, '0') }}</span
-          >{{ exercise.topic
-          }}<span class="status" :class="exercise.status === '已发布' ? 'positive' : 'amber'">{{
-            exercise.status
-          }}</span></span
-        >
+        <span class="inline-items">
+          <span class="lesson-number">{{ String(index + 1).padStart(2, '0') }}</span>
+          {{ exercise.topic }}
+          <span class="status" :class="exercise.status === '已发布' ? 'positive' : 'amber'">
+            {{ exercise.status }}
+          </span>
+        </span>
         <div class="inline-items">
-          <span>{{ exercise.filename }}</span
-          ><Button
+          <span>{{ exercise.filename }}</span>
+          <Button
             variant="plain"
             class="text-button"
-            @click="router.push('/teacher/exercises/' + exercise.id + '/edit')"
-          >
-            <Pencil :size="13" />编辑题目
+            @click="router.push('/teacher/exercises/' + exercise.id + '/edit')">
+            <Pencil :size="13" />
+            编辑题目
           </Button>
         </div>
       </div>
       <article
         class="teaching-slide"
-        :class="{ 'with-code': mode !== '题面', 'teaching-split': mode === '对照' }"
-      >
+        :class="{ 'with-code': mode !== '题面', 'teaching-split': mode === '对照' }">
         <section v-if="mode !== '代码'" class="teaching-problem">
           <div class="slide-title-row">
             <h1>{{ exercise.title }}</h1>
-            <span>{{
-              executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17'
-            }}</span>
+            <span>
+              {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+            </span>
           </div>
           <div class="slide-description"><MarkdownContent :source="exercise.description" /></div>
           <div class="slide-io-notes">
@@ -372,43 +375,49 @@ onBeforeUnmount(() => {
           </div>
           <div class="slide-samples">
             <div>
-              <span>样例输入 <small>stdin</small></span>
+              <span>
+                样例输入
+                <small>stdin</small>
+              </span>
               <pre>{{ exercise.sampleInput || '—' }}</pre>
             </div>
             <div>
-              <span>样例输出 <small>stdout</small></span>
+              <span>
+                样例输出
+                <small>stdout</small>
+              </span>
               <pre>{{ exercise.sampleOutput || '—' }}</pre>
             </div>
           </div>
         </section>
         <section v-if="mode !== '题面'" class="teaching-code">
           <div class="code-toolbar">
-            <CodeXml :size="16" /><strong>{{ exercise.filename }}</strong
-            ><span class="muted">教师示范草稿</span>
+            <CodeXml :size="16" />
+            <strong>{{ exercise.filename }}</strong>
+            <span class="muted">教师示范草稿</span>
             <div class="inline-items ml-auto">
               <Button
                 variant="plain"
                 class="icon-button"
                 aria-label="缩小示范代码字号"
                 :disabled="fontSize <= 14"
-                @click="fontSize -= 2"
-              >
-                <Minus :size="15" /></Button
-              ><span>{{ fontSize }} px</span
-              ><Button
+                @click="fontSize -= 2">
+                <Minus :size="15" />
+              </Button>
+              <span>{{ fontSize }} px</span>
+              <Button
                 variant="plain"
                 class="icon-button"
                 aria-label="放大示范代码字号"
                 :disabled="fontSize >= 34"
-                @click="fontSize += 2"
-              >
-                <Plus :size="15" /></Button
-              ><Button
+                @click="fontSize += 2">
+                <Plus :size="15" />
+              </Button>
+              <Button
                 variant="plain"
                 class="icon-button"
                 aria-label="下载教师示范代码"
-                @click="download(exercise.filename, teacherCode)"
-              >
+                @click="download(exercise.filename, teacherCode)">
                 <Download :size="15" />
               </Button>
             </div>
@@ -417,16 +426,15 @@ onBeforeUnmount(() => {
             v-model="teacherCode"
             :readonly="readonly"
             :font-size="fontSize"
-            :filename="exercise.filename"
-          />
+            :filename="exercise.filename" />
           <div class="teaching-code-note">
-            <span
-              role="status"
-              :class="{ 'danger-text': conflict || error, 'amber-text': dirty }"
-              >{{ loading ? '读取中…' : saveStatus }}</span
-            ><Button v-if="dirty && !conflict" variant="plain" class="text-button" @click="persist"
-              >重试保存</Button
-            ><span>教师示范代码独立保存，不修改学生作品。此处不执行程序。</span>
+            <span role="status" :class="{ 'danger-text': conflict || error, 'amber-text': dirty }">
+              {{ loading ? '读取中…' : saveStatus }}
+            </span>
+            <Button v-if="dirty && !conflict" variant="plain" class="text-button" @click="persist">
+              重试保存
+            </Button>
+            <span>教师示范代码独立保存，不修改学生作品。此处不执行程序。</span>
           </div>
         </section>
       </article>
@@ -441,9 +449,9 @@ onBeforeUnmount(() => {
             :key="m.label"
             variant="plain"
             :class="{ selected: mode === m.label }"
-            @click="mode = m.label"
-          >
-            <component :is="m.icon" :size="16" />{{ m.label }}
+            @click="mode = m.label">
+            <component :is="m.icon" :size="16" />
+            {{ m.label }}
           </Button>
         </div>
         <span class="teaching-keyboard-hint">← → 切换练习</span>
@@ -453,25 +461,24 @@ onBeforeUnmount(() => {
             class="icon-button"
             :disabled="index <= 0 || loading || switching"
             aria-label="上一道授课练习"
-            @click="next(-1)"
-          >
-            <ChevronLeft :size="20" /></Button
-          ><Select
+            @click="next(-1)">
+            <ChevronLeft :size="20" />
+          </Button>
+          <Select
             :model-value="selected"
             :disabled="loading || switching"
             aria-label="授课练习"
-            @update:model-value="changeExercise"
-          >
+            @update:model-value="changeExercise">
             <SelectOption v-for="(e, i) in exercises" :key="e.id" :value="e.id">
               {{ i + 1 }} / {{ exercises.length }} · {{ e.title || '未命名题目' }}
-            </SelectOption></Select
-          ><Button
+            </SelectOption>
+          </Select>
+          <Button
             variant="plain"
             class="icon-button"
             :disabled="index === exercises.length - 1 || loading || switching"
             aria-label="下一道授课练习"
-            @click="next(1)"
-          >
+            @click="next(1)">
             <ChevronRight :size="20" />
           </Button>
         </div>

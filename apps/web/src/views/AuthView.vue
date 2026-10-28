@@ -84,15 +84,23 @@ useActionFeedback(error)
 <template>
   <main class="auth-page">
     <section class="auth-story">
-      <RouterLink to="/" class="brand"
-        ><span class="brand-symbol"><CodeXml :size="25" /></span
-        ><span>码上课堂<span class="brand-sub">C++ Classroom</span></span></RouterLink
-      >
+      <RouterLink to="/" class="brand">
+        <span class="brand-symbol"><CodeXml :size="25" /></span>
+        <span>
+          码上课堂
+          <span class="brand-sub">C++ Classroom</span>
+        </span>
+      </RouterLink>
       <div class="auth-story-copy">
         <span class="auth-story-label">C++ Classroom</span>
         <h1>C++ 编程教室</h1>
         <div class="auth-code-art">
-          <div class="art-window-dots"><i /><i /><i /><span>hello_world.cpp</span></div>
+          <div class="art-window-dots">
+            <i />
+            <i />
+            <i />
+            <span>hello_world.cpp</span>
+          </div>
           <pre class="art-code">
 #include &lt;iostream&gt;
 
@@ -132,28 +140,28 @@ int main() {
                     ? '/student/classes'
                     : '/login',
               )
-            "
-            >{{
+            ">
+            {{
               mode === 'join'
                 ? joinStatus === 'active'
                   ? '进入课堂列表'
                   : '查看申请状态'
                 : '返回登录'
-            }}</Button
-          >
+            }}
+          </Button>
         </div>
         <Form v-else class="form-stack" @submit.prevent="submit">
-          <label v-if="mode === 'join'"
-            >课堂码<Input v-model="code" required maxlength="30" /></label
-          ><template v-else
-            ><label
-              >账号<Input
-                v-model="username"
-                required
-                autocomplete="username"
-                maxlength="80" /></label
-            ><label v-if="mode === 'login'"
-              >密码
+          <label v-if="mode === 'join'">
+            课堂码
+            <Input v-model="code" required maxlength="30" />
+          </label>
+          <template v-else>
+            <label>
+              账号
+              <Input v-model="username" required autocomplete="username" maxlength="80" />
+            </label>
+            <label v-if="mode === 'login'">
+              密码
               <div class="password-field">
                 <Input
                   v-model="password"
@@ -161,23 +169,25 @@ int main() {
                   required
                   autocomplete="current-password"
                   maxlength="200"
-                  @keyup="capsLock = $event.getModifierState('CapsLock')"
-                /><Button
+                  @keyup="capsLock = $event.getModifierState('CapsLock')" />
+                <Button
                   variant="plain"
                   type="button"
                   class="icon-button"
                   :aria-label="showPassword ? '隐藏密码' : '显示密码'"
-                  @click="showPassword = !showPassword"
-                >
-                  <EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" />
-                </Button></div></label
-          ></template>
+                  @click="showPassword = !showPassword">
+                  <EyeOff v-if="showPassword" :size="18" />
+                  <Eye v-else :size="18" />
+                </Button>
+              </div>
+            </label>
+          </template>
           <Alert v-if="capsLock && mode === 'login'" role="status" type="warning">
             大写锁定已开启，请核对密码大小写。
           </Alert>
 
-          <Button type="submit" :disabled="busy"
-            >{{
+          <Button type="submit" :disabled="busy">
+            {{
               busy
                 ? '处理中…'
                 : mode === 'join'
@@ -185,17 +195,18 @@ int main() {
                   : mode === 'recover'
                     ? '记录恢复申请'
                     : '登录工作台'
-            }}<ArrowRight
-          /></Button>
+            }}
+            <ArrowRight />
+          </Button>
         </Form>
         <div class="auth-bottom-link">
-          <RouterLink v-if="mode === 'login'" to="/recover">忘记密码</RouterLink
-          ><RouterLink
+          <RouterLink v-if="mode === 'login'" to="/recover">忘记密码</RouterLink>
+          <RouterLink
             v-else
             :to="mode === 'join' ? '/student/classes' : '/login'"
-            data-guide="join-back"
-            >{{ mode === 'join' ? '返回我的课堂' : '返回登录' }}</RouterLink
-          >
+            data-guide="join-back">
+            {{ mode === 'join' ? '返回我的课堂' : '返回登录' }}
+          </RouterLink>
         </div>
         <Alert type="info" :icon="ShieldCheck">
           <span>课堂教师可查看学生代码和运行记录，用于教学辅导。</span>

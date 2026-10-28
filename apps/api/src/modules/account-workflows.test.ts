@@ -202,8 +202,10 @@ describe('adding a single student with optional credentials', () => {
     return vi.fn(async (sql: string) => {
       if (sql.startsWith('select settings')) return { rows: [{ settings: {} }], rowCount: 1 }
       if (sql.startsWith('select count(*)')) return { rows: [{ count: 0 }], rowCount: 1 }
-      if (sql.includes('from users where number')) return overrides.user ?? { rows: [], rowCount: 0 }
-      if (sql.includes('from users where username')) return overrides.taken ?? { rows: [], rowCount: 0 }
+      if (sql.includes('from users where number'))
+        return overrides.user ?? { rows: [], rowCount: 0 }
+      if (sql.includes('from users where username'))
+        return overrides.taken ?? { rows: [], rowCount: 0 }
       if (sql.includes('from memberships where classroom_id=$1 and user_id=$2'))
         return overrides.member ?? { rows: [], rowCount: 0 }
       if (sql.startsWith('insert into users')) return overrides.insert ?? { rows: [], rowCount: 0 }
@@ -214,7 +216,13 @@ describe('adding a single student with optional credentials', () => {
     const query = memberQueries({
       insert: {
         rows: [
-          { id: studentId, username: 'liu2026', role: 'student', name: body.name, number: body.number },
+          {
+            id: studentId,
+            username: 'liu2026',
+            role: 'student',
+            name: body.name,
+            number: body.number,
+          },
         ],
         rowCount: 1,
       },
@@ -296,7 +304,9 @@ describe('adding a single student with optional credentials', () => {
     )
     expect(result.created).toBe(true)
     const insert = query.mock.calls.find(([sql]) => sql.startsWith('insert into users'))!
-    expect(String(insert[1][0])).toMatch(/^student\.11111111-1111-4111-8111-111111111111\.[0-9a-f]{24}$/)
+    expect(String(insert[1][0])).toMatch(
+      /^student\.11111111-1111-4111-8111-111111111111\.[0-9a-f]{24}$/,
+    )
     expect(result.password).toBeTruthy()
     expect(verifyPassword(result.password!, String(insert[1][3]))).toBe(true)
   })

@@ -27,8 +27,7 @@ const props = withDefaults(defineProps<Props>(), {
     :as-child="asChild"
     :class="
       cn(variant === 'plain' ? 'ui-button-plain' : buttonVariants({ variant, size }), props.class)
-    "
-  >
+    ">
     <slot />
   </Primitive>
 </template>

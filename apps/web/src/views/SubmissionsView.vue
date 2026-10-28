@@ -206,11 +206,10 @@ useActionFeedback(exportError)
       <div class="heading-meta">课堂作品</div>
       <h1>提交与导出</h1>
     </div>
-    <Button variant="outline" :disabled="loading" @click="load"
-      ><RefreshCw :class="{ 'animate-spin': loading }" />{{
-        loading ? '正在刷新…' : '刷新提交'
-      }}</Button
-    >
+    <Button variant="outline" :disabled="loading" @click="load">
+      <RefreshCw :class="{ 'animate-spin': loading }" />
+      {{ loading ? '正在刷新…' : '刷新提交' }}
+    </Button>
   </div>
   <section class="panel export-panel">
     <div class="export-heading">
@@ -221,71 +220,83 @@ useActionFeedback(exportError)
       </div>
     </div>
     <div class="export-controls">
-      <label
-        >作品范围<Select v-model="kind" :disabled="exporting">
+      <label>
+        作品范围
+        <Select v-model="kind" :disabled="exporting">
           <SelectOption value="all">当前草稿 + 主动提交</SelectOption>
           <SelectOption value="drafts">仅当前草稿</SelectOption>
           <SelectOption value="submissions">仅主动提交</SelectOption>
-        </Select></label
-      ><label
-        >文件格式<Select v-model="format" :disabled="exporting">
+        </Select>
+      </label>
+      <label>
+        文件格式
+        <Select v-model="format" :disabled="exporting">
           <SelectOption value="zip">ZIP 源文件包</SelectOption>
           <SelectOption value="csv">CSV 作品清单</SelectOption>
           <SelectOption value="json">JSON 完整备份</SelectOption>
-        </Select></label
-      ><label v-if="format === 'json'" class="inline-items"
-        ><Checkbox v-model="includeRuns" :disabled="exporting" />包含运行上下文</label
-      ><Button :disabled="exporting" @click="exportWorks"
-        ><Download />{{
+        </Select>
+      </label>
+      <label v-if="format === 'json'" class="inline-items">
+        <Checkbox v-model="includeRuns" :disabled="exporting" />
+        包含运行上下文
+      </label>
+      <Button :disabled="exporting" @click="exportWorks">
+        <Download />
+        {{
           exporting
             ? '正在准备导出…'
             : selected.length && kind !== 'drafts'
               ? `导出已选 ${selected.length} 份及关联草稿`
               : '导出作品'
-        }}</Button
-      >
+        }}
+      </Button>
     </div>
   </section>
   <section class="panel panel-fill">
     <div class="panel-heading">
       <h2>
-        主动提交 <span class="muted">{{ total }}</span>
+        主动提交
+        <span class="muted">{{ total }}</span>
       </h2>
       <span class="muted text-xs">{{ updatedAt ? `更新于 ${updatedAt}` : '尚未加载' }}</span>
     </div>
     <div class="table-controls">
-      <label class="search-field"
-        ><Search :size="16" /><Input
-          v-model="search"
-          aria-label="搜索提交"
-          placeholder="搜索姓名、学号或题目…"
-      /></label>
+      <label class="search-field">
+        <Search :size="16" />
+        <Input v-model="search" aria-label="搜索提交" placeholder="搜索姓名、学号或题目…" />
+      </label>
       <div class="submission-filters">
         <Select v-model="exercise" aria-label="按练习筛选">
           <SelectOption value="">全部练习</SelectOption>
-          <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">{{
-            e.title
-          }}</SelectOption></Select
-        ><Select v-model="student" aria-label="按学生筛选">
+          <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">
+            {{ e.title }}
+          </SelectOption>
+        </Select>
+        <Select v-model="student" aria-label="按学生筛选">
           <SelectOption value="">全部学生</SelectOption>
           <SelectOption v-for="s in students" :key="s.id" :value="s.id">
             {{ s.number }} · {{ s.name }}
-          </SelectOption></Select
-        ><label class="inline-items"><Checkbox v-model="latest" />每人每题最新提交</label>
+          </SelectOption>
+        </Select>
+        <label class="inline-items">
+          <Checkbox v-model="latest" />
+          每人每题最新提交
+        </label>
       </div>
     </div>
     <div v-if="selected.length" class="selection-bar">
-      <span>已选择 {{ selected.length }} 份提交（跨页保留）</span
-      ><Button variant="plain" class="text-button" @click="selected = []"
-        ><X :size="14" />清除选择</Button
-      >
+      <span>已选择 {{ selected.length }} 份提交（跨页保留）</span>
+      <Button variant="plain" class="text-button" @click="selected = []">
+        <X :size="14" />
+        清除选择
+      </Button>
     </div>
     <Alert v-if="error" role="alert" type="error" class="app-alert--inset">
       {{ error }}
 
-      <template #actions
-        ><Button variant="outline" size="sm" @click="load">重新加载</Button></template
-      >
+      <template #actions>
+        <Button variant="outline" size="sm" @click="load">重新加载</Button>
+      </template>
     </Alert>
     <div class="table-scroll" :aria-busy="loading">
       <table>
@@ -297,8 +308,7 @@ useActionFeedback(exportError)
                 :checked="pageSelected"
                 :indeterminate="somePageSelected && !pageSelected"
                 :disabled="loading || !submissions.length"
-                @change="togglePage"
-              />
+                @change="togglePage" />
             </th>
             <th>学生</th>
             <th>练习</th>
@@ -313,21 +323,20 @@ useActionFeedback(exportError)
               <Checkbox
                 v-model="selected"
                 :value="s.id"
-                :aria-label="`选择${s.name}的${s.title}提交v${s.revision}`"
-              />
+                :aria-label="`选择${s.name}的${s.title}提交v${s.revision}`" />
             </td>
             <td>
               <div class="person-cell">
-                <span class="student-avatar">{{ s.name.slice(-2) }}</span
-                ><span class="person-text"
-                  ><strong>{{ s.name }}</strong
-                  ><small>{{ s.number }}</small></span
-                >
+                <span class="student-avatar">{{ s.name.slice(-2) }}</span>
+                <span class="person-text">
+                  <strong>{{ s.name }}</strong>
+                  <small>{{ s.number }}</small>
+                </span>
               </div>
             </td>
             <td>
-              <span class="table-exercise">{{ s.title }}</span
-              ><small class="cell-secondary">{{ s.filename }}</small>
+              <span class="table-exercise">{{ s.title }}</span>
+              <small class="cell-secondary">{{ s.filename }}</small>
             </td>
             <td>
               <span class="status positive">已提交 v{{ s.revision }}</span>
@@ -338,18 +347,19 @@ useActionFeedback(exportError)
                 <Button
                   variant="plain"
                   class="text-button"
-                  @click="download(`${s.number}-${s.name}-${s.filename}`, s.code)"
-                >
-                  <Download :size="14" />源文件</Button
-                ><RouterLink
+                  @click="download(`${s.number}-${s.name}-${s.filename}`, s.code)">
+                  <Download :size="14" />
+                  源文件
+                </Button>
+                <RouterLink
                   :to="{
                     path: '/teacher/students/' + s.user_id,
                     query: { exercise: s.exercise_id, submission: s.id },
                   }"
                   class="icon-button"
-                  aria-label="查看这次提交"
-                  ><ArrowRight :size="15"
-                /></RouterLink>
+                  aria-label="查看这次提交">
+                  <ArrowRight :size="15" />
+                </RouterLink>
               </div>
             </td>
           </tr>
@@ -365,8 +375,7 @@ useActionFeedback(exportError)
       v-model:page-size="pageSize"
       :total="total"
       :busy="loading"
-      unit="份提交"
-    />
+      unit="份提交" />
   </section>
 </template>
 <style scoped>

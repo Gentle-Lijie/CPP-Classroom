@@ -13,35 +13,34 @@ const first = computed(() => (props.total ? (page.value - 1) * pageSize.value + 
 </script>
 <template>
   <nav class="pagination" aria-label="列表分页">
-    <span class="pagination-summary" aria-live="polite"
-      >共 {{ total }} {{ unit
-      }}<template v-if="total">
-        · 显示 {{ first }}–{{ Math.min(page * pageSize, total) }}</template
-      ></span
-    >
+    <span class="pagination-summary" aria-live="polite">
+      共 {{ total }} {{ unit }}
+      <template v-if="total">· 显示 {{ first }}–{{ Math.min(page * pageSize, total) }}</template>
+    </span>
     <div class="pagination-controls">
-      <label
-        >每页<Select v-model.number="pageSize" :disabled="busy" aria-label="每页条数">
+      <label>
+        每页
+        <Select v-model.number="pageSize" :disabled="busy" aria-label="每页条数">
           <SelectOption v-for="n in [10, 20, 50]" :key="n" :value="n">{{ n }}</SelectOption>
-        </Select></label
-      >
+        </Select>
+      </label>
       <Button
         variant="outline"
         size="icon-sm"
         aria-label="上一页"
         :disabled="busy || page <= 1"
-        @click="page--"
-        ><ChevronLeft
-      /></Button>
+        @click="page--">
+        <ChevronLeft />
+      </Button>
       <span aria-live="polite">{{ page }} / {{ pages }}</span>
       <Button
         variant="outline"
         size="icon-sm"
         aria-label="下一页"
         :disabled="busy || page >= pages"
-        @click="page++"
-        ><ChevronRight
-      /></Button>
+        @click="page++">
+        <ChevronRight />
+      </Button>
     </div>
   </nav>
 </template>

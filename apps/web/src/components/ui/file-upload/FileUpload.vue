@@ -8,9 +8,10 @@ const input = ref<HTMLInputElement>()
 </script>
 <template>
   <span class="ui-file-upload">
-    <Button type="button" variant="outline" :disabled="disabled" @click="input?.click()"
-      ><Upload :size="16" /><slot>选择文件</slot></Button
-    >
+    <Button type="button" variant="outline" :disabled="disabled" @click="input?.click()">
+      <Upload :size="16" />
+      <slot>选择文件</slot>
+    </Button>
     <input
       ref="input"
       type="file"
@@ -19,7 +20,6 @@ const input = ref<HTMLInputElement>()
       :disabled="disabled"
       hidden
       tabindex="-1"
-      @change="emit('change', $event)"
-    />
+      @change="emit('change', $event)" />
   </span>
 </template>

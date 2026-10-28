@@ -24,7 +24,9 @@ defineEmits<{ retry: [] }>()
         </div>
         <h1 id="service-title">暂时无法连接服务器</h1>
         <p class="service-description">
-          服务器暂时不可用，或网络连接已中断。<br />请检查网络连接，或稍后再试。
+          服务器暂时不可用，或网络连接已中断。
+          <br />
+          请检查网络连接，或稍后再试。
         </p>
         <Button class="service-retry" :disabled="busy" @click="$emit('retry')">
           <RefreshCw :size="16" :class="{ 'animate-spin': busy }" />

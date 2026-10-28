@@ -49,48 +49,53 @@ function begin(chapter?: GuideChapter) {
         </h2>
         <p>共 {{ count }} 步</p>
       </div>
-      <Button size="lg" @click="begin()"
-        ><ScanLine :size="17" />开始导览<ArrowRight :size="16"
-      /></Button>
+      <Button size="lg" @click="begin()">
+        <ScanLine :size="17" />
+        开始导览
+        <ArrowRight :size="16" />
+      </Button>
     </section>
     <Alert v-if="ready.length < chapters.length" type="warning" :icon="LockKeyhole">
-      <span
-        >部分章节需要先{{
+      <span>
+        部分章节需要先{{
           role === 'student' ? '加入课堂并等待教师发布练习' : '选择课堂并准备练习'
-        }}。完整导览会先介绍当前可用的章节。</span
-      >
+        }}。完整导览会先介绍当前可用的章节。
+      </span>
     </Alert>
     <div class="guide-section-title">
-      <h2><BookOpen :size="18" />只看需要的环节</h2>
+      <h2>
+        <BookOpen :size="18" />
+        只看需要的环节
+      </h2>
     </div>
     <div class="guide-chapters">
       <section
         v-for="(chapter, index) in chapters"
         :key="chapter.id"
         class="panel guide-chapter"
-        :class="{ unavailable: !available(chapter) }"
-      >
+        :class="{ unavailable: !available(chapter) }">
         <div class="guide-chapter-number">{{ String(index + 1).padStart(2, '0') }}</div>
         <div class="guide-chapter-copy">
           <h3>{{ chapter.title }}</h3>
           <p>{{ chapter.description }}</p>
-          <span
-            >{{ chapter.steps.length }} 步{{
+          <span>
+            {{ chapter.steps.length }} 步{{
               !available(chapter)
                 ? chapter.requires === 'exercises'
                   ? ' · 需要课堂中有可访问的练习'
                   : ' · 需要先选择课堂'
                 : ''
-            }}</span
-          >
+            }}
+          </span>
         </div>
         <Button
           variant="outline"
           :disabled="!available(chapter)"
           :aria-label="`开始${chapter.title}导览`"
-          @click="begin(chapter)"
-          >开始<ArrowRight :size="15"
-        /></Button>
+          @click="begin(chapter)">
+          开始
+          <ArrowRight :size="15" />
+        </Button>
       </section>
     </div>
     <p class="guide-footnote">← → 切换步骤，Esc 退出；导览不会替你运行、提交或修改数据。</p>

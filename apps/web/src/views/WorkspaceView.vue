@@ -22,7 +22,6 @@ import {
   History,
   CodeXml,
   Check,
-  ChevronDown,
   Settings2,
   WifiOff,
   HelpCircle,
@@ -615,31 +614,33 @@ useActionFeedback(actionError)
 <template>
   <div v-if="exercise" class="ide-page">
     <header class="workspace-toolbar">
-      <RouterLink to="/student/classes" class="icon-button" aria-label="返回我的课堂"
-        ><ArrowLeft :size="18"
-      /></RouterLink>
+      <RouterLink to="/student/classes" class="icon-button" aria-label="返回我的课堂">
+        <ArrowLeft :size="18" />
+      </RouterLink>
       <div class="workspace-context">
-        <span class="workspace-classroom" :title="activeClassroom.name">{{
-          activeClassroom.name
-        }}</span>
-        <label class="workspace-exercise"
-          ><BookOpen :size="16" /><Select
+        <span class="workspace-classroom" :title="activeClassroom.name">
+          {{ activeClassroom.name }}
+        </span>
+        <label class="workspace-exercise">
+          <BookOpen :size="16" />
+          <Select
             :model-value="selected"
             aria-label="选择练习"
             :disabled="loading || switching || runningRequest"
-            @update:model-value="changeExercise"
-          >
+            @update:model-value="changeExercise">
             <SelectOption
               v-for="e in exercises.filter((e) => e.status === '已发布' || e.id === selected)"
               :key="e.id"
-              :value="e.id"
-            >
+              :value="e.id">
               {{ e.title || '未命名题目' }}
             </SelectOption>
-          </Select></label
-        >
+          </Select>
+        </label>
       </div>
-      <span v-if="submitted" class="status positive"><Check :size="12" />已提交</span>
+      <span v-if="submitted" class="status positive">
+        <Check :size="12" />
+        已提交
+      </span>
       <span
         class="save-label workspace-save"
         :class="{
@@ -652,8 +653,8 @@ useActionFeedback(actionError)
           'save-pending': dirty || loading,
         }"
         role="status"
-        :title="saveState"
-        ><WifiOff
+        :title="saveState">
+        <WifiOff
           v-if="
             conflict ||
             loadError ||
@@ -661,18 +662,19 @@ useActionFeedback(actionError)
             saveState.includes('无法') ||
             saveState.includes('不可用')
           "
-          :size="15"
-        /><CloudCheck v-else :size="15" /><span>{{ saveState }}</span></span
-      >
+          :size="15" />
+        <CloudCheck v-else :size="15" />
+        <span>{{ saveState }}</span>
+      </span>
       <div class="workspace-actions">
         <Button
           variant="plain"
           class="icon-button"
           aria-label="使用导览"
           data-guide="workspace-guide"
-          @click="startUserGuide"
-          ><HelpCircle :size="18"
-        /></Button>
+          @click="startUserGuide">
+          <HelpCircle :size="18" />
+        </Button>
         <ThemeToggle />
         <LocalDirectoryPanel
           ref="directoryPanel"
@@ -681,38 +683,46 @@ useActionFeedback(actionError)
           :exercise-id="selected"
           :filename="exercise.filename"
           :readonly="readonly"
-          compact
-        />
-        <Button variant="outline" size="sm" :disabled="readonly" data-guide="help" @click="openHelp"
-          ><Hand />{{ helpSent ? '已求助' : '求助' }}</Button
-        >
+          compact />
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="readonly"
+          data-guide="help"
+          @click="openHelp">
+          <Hand />
+          {{ helpSent ? '已求助' : '求助' }}
+        </Button>
         <Button
           variant="outline"
           size="sm"
           :disabled="readonly || (submitted && activeClassroom.settings?.allowResubmit === false)"
           data-guide="submit"
-          @click="openSubmit"
-          ><Send />提交作品</Button
-        >
+          @click="openSubmit">
+          <Send />
+          提交作品
+        </Button>
         <Button
           v-if="runtime || run?.status === '排队' || run?.status === '编译中'"
           variant="destructive"
           size="sm"
           :disabled="stopping"
           data-guide="stop"
-          @click="stop"
-          ><Square />{{ stopping ? '停止中…' : '停止' }}</Button
-        >
+          @click="stop">
+          <Square />
+          {{ stopping ? '停止中…' : '停止' }}
+        </Button>
         <Button
           :disabled="readonly || runningRequest || active() || !!otherRun"
           size="sm"
           data-guide="run"
-          @click="startRun"
-          ><Play />{{ runningRequest ? '正在创建…' : '编译运行' }}</Button
-        >
-        <span class="avatar small" :title="currentUser?.name">{{
-          currentUser?.name.slice(-1)
-        }}</span>
+          @click="startRun">
+          <Play />
+          {{ runningRequest ? '正在创建…' : '编译运行' }}
+        </Button>
+        <span class="avatar small" :title="currentUser?.name">
+          {{ currentUser?.name.slice(-1) }}
+        </span>
       </div>
     </header>
     <Alert v-if="otherRun" class="app-alert--banner" type="warning">
@@ -720,40 +730,40 @@ useActionFeedback(actionError)
         classrooms.find((c) => c.id === otherRun?.classroomId)?.name ?? '另一道练习'
       }}仍有运行中的任务，结束后才能运行本题。
 
-      <template #actions
-        ><Button variant="plain" data-guide="other-run" @click="returnToRunning">
+      <template #actions>
+        <Button variant="plain" data-guide="other-run" @click="returnToRunning">
           返回该练习控制运行
-        </Button></template
-      >
+        </Button>
+      </template>
     </Alert>
-    <Alert v-if="loading" class="app-alert--banner" role="status" type="info"
-      >正在读取草稿，请稍候…</Alert
-    >
+    <Alert v-if="loading" class="app-alert--banner" role="status" type="info">
+      正在读取草稿，请稍候…
+    </Alert>
     <Alert v-if="loadError" class="app-alert--banner" role="alert" type="error">
       {{ loadError }}
 
-      <template #actions
-        ><Button variant="plain" data-guide="draft-retry" @click="loadCode"
-          >重新读取</Button
-        ></template
-      >
+      <template #actions>
+        <Button variant="plain" data-guide="draft-retry" @click="loadCode">重新读取</Button>
+      </template>
     </Alert>
     <Alert v-if="viewing" class="app-alert--banner" type="info" :icon="History">
       正在查看 {{ viewing.id }} 的只读代码快照，当前草稿独立保留。
 
-      <template #actions
-        ><Button variant="plain" data-guide="return-draft" @click="viewing = undefined">
-          返回当前草稿 <ArrowLeft :size="13" /> </Button
-      ></template>
+      <template #actions>
+        <Button variant="plain" data-guide="return-draft" @click="viewing = undefined">
+          返回当前草稿
+          <ArrowLeft :size="13" />
+        </Button>
+      </template>
     </Alert>
     <Alert v-if="conflict" class="app-alert--banner" type="warning" :icon="WifiOff">
       {{ saveState }}
 
-      <template #actions
-        ><Button variant="plain" data-guide="server-conflict" @click="useServer"
-          >下载本机修改并读取服务器版本</Button
-        ></template
-      >
+      <template #actions>
+        <Button variant="plain" data-guide="server-conflict" @click="useServer">
+          下载本机修改并读取服务器版本
+        </Button>
+      </template>
     </Alert>
     <Alert v-else-if="isArchived" class="app-alert--banner" type="warning">
       当前课堂或练习只读，请询问老师。
@@ -762,42 +772,40 @@ useActionFeedback(actionError)
       direction="horizontal"
       auto-save-id="student-workspace-columns"
       class="workspace-layout"
-      :keyboard-resize-by="2"
-    >
+      :keyboard-resize-by="2">
       <SplitterPanel
         id="workspace-problem"
         as="aside"
         class="ide-problem"
         :default-size="34"
         :min-size="26"
-        :max-size="50"
-      >
+        :max-size="50">
         <div class="problem-tabs">
           <Button
             variant="plain"
             :class="{ selected: panel === '题目' }"
             data-guide="problem-tab"
-            @click="panel = '题目'"
-          >
-            <BookOpen :size="15" />题目说明</Button
-          ><Button
+            @click="panel = '题目'">
+            <BookOpen :size="15" />
+            题目说明
+          </Button>
+          <Button
             variant="plain"
             :class="{ selected: panel === '历史' }"
             data-guide="history-tab"
-            @click="panel = '历史'"
-          >
-            <History :size="15" />运行历史
+            @click="panel = '历史'">
+            <History :size="15" />
+            运行历史
           </Button>
         </div>
         <div v-if="panel === '题目'" class="problem-content">
-          <span class="topic-label"
-            >练习 {{ exercises.findIndex((e) => e.id === selected) + 1 }} ·
-            {{ exercise.topic }}</span
-          >
+          <span class="topic-label">
+            练习 {{ exercises.findIndex((e) => e.id === selected) + 1 }} · {{ exercise.topic }}
+          </span>
           <h1>{{ exercise?.title }}</h1>
           <div class="problem-limits">
-            <span>{{ executionSettings.runTimeMs }} ms</span
-            ><span>{{ executionSettings.runMemoryMb }} MiB</span>
+            <span>{{ executionSettings.runTimeMs }} ms</span>
+            <span>{{ executionSettings.runMemoryMb }} MiB</span>
           </div>
           <MarkdownContent :source="exercise.description" />
           <h3>输入说明</h3>
@@ -824,28 +832,28 @@ useActionFeedback(actionError)
               variant="plain"
               class="history-item"
               :class="{ selected: viewing?.id === r.id }"
-              @click="viewing = r"
-            >
-              <span
-                ><strong>{{ r.status }}</strong
-                ><small
-                  >{{ new Date(r.time).toLocaleString('zh-CN', { hour12: false }) }} ·
-                  {{ r.id.slice(0, 8) }}</small
-                ></span
-              ><History :size="15" />
+              @click="viewing = r">
+              <span>
+                <strong>{{ r.status }}</strong>
+                <small>
+                  {{ new Date(r.time).toLocaleString('zh-CN', { hour12: false }) }} ·
+                  {{ r.id.slice(0, 8) }}
+                </small>
+              </span>
+              <History :size="15" />
             </Button>
             <Alert v-if="historyError" role="alert" type="error">
               {{ historyError }}
 
-              <template #actions
-                ><Button
+              <template #actions>
+                <Button
                   variant="plain"
                   class="text-button"
                   data-guide="history-retry"
-                  @click="loadHistory"
-                  >重试</Button
-                ></template
-              >
+                  @click="loadHistory">
+                  重试
+                </Button>
+              </template>
             </Alert>
             <p v-else-if="!history.length" class="small-empty">本练习还没有运行记录。</p>
           </div>
@@ -854,54 +862,49 @@ useActionFeedback(actionError)
             v-model:page-size="historySize"
             :total="historyTotal"
             :busy="loading"
-            unit="条记录"
-          />
+            unit="条记录" />
         </div>
       </SplitterPanel>
       <SplitterResizeHandle
         class="workspace-resize-handle"
         aria-label="调整题目与代码区宽度"
-        aria-orientation="vertical"
-      />
+        aria-orientation="vertical" />
       <SplitterPanel id="workspace-main" :default-size="66" :min-size="50" class="workspace-main">
         <SplitterGroup
           direction="vertical"
           auto-save-id="student-workspace-rows"
           class="workspace-editor-split"
-          :keyboard-resize-by="2"
-        >
+          :keyboard-resize-by="2">
           <SplitterPanel
             id="workspace-editor"
             as="section"
             class="editor-area"
             :default-size="64"
-            :min-size="35"
-          >
+            :min-size="35">
             <div class="code-toolbar">
-              <span class="file-tab"
-                ><CodeXml :size="15" />{{ viewing?.filename ?? exercise.filename }}
-                <i v-if="!readonly" class="file-dot" /><span v-if="readonly" class="muted"
-                  >只读</span
-                ></span
-              >
+              <span class="file-tab">
+                <CodeXml :size="15" />
+                {{ viewing?.filename ?? exercise.filename }}
+                <i v-if="!readonly" class="file-dot" />
+                <span v-if="readonly" class="muted">只读</span>
+              </span>
               <div class="inline-items ml-auto">
-                <label class="compact-select"
-                  ><Settings2 :size="13" /><Select
-                    v-model.number="fontSize"
-                    aria-label="编辑器字号"
-                  >
+                <label class="compact-select">
+                  <Settings2 :size="13" />
+                  <Select v-model.number="fontSize" aria-label="编辑器字号">
                     <SelectOption :value="14">14 px</SelectOption>
                     <SelectOption :value="16">16 px</SelectOption>
                     <SelectOption :value="18">18 px</SelectOption>
-                  </Select></label
-                ><Button
+                  </Select>
+                </label>
+                <Button
                   variant="plain"
                   class="icon-button"
                   aria-label="下载当前代码"
-                  @click="download(viewing?.filename ?? exercise.filename, viewing?.code ?? code)"
-                >
-                  <Download :size="14" /></Button
-                ><Button
+                  @click="download(viewing?.filename ?? exercise.filename, viewing?.code ?? code)">
+                  <Download :size="14" />
+                </Button>
+                <Button
                   v-if="undo !== undefined"
                   data-guide="undo-reset"
                   variant="plain"
@@ -913,24 +916,25 @@ useActionFeedback(actionError)
                       undo = undefined
                       notify('已恢复重置前的本机代码')
                     }
-                  "
-                >
-                  撤销重置</Button
-                ><Button
+                  ">
+                  撤销重置
+                </Button>
+                <Button
                   v-else
                   variant="plain"
                   class="icon-button"
                   aria-label="重置初始代码"
                   :disabled="readonly"
-                  @click="reset = true"
-                >
-                  <RotateCcw :size="14" /></Button
-                ><span class="language-label"
-                  >{{
+                  @click="reset = true">
+                  <RotateCcw :size="14" />
+                </Button>
+                <span class="language-label">
+                  {{
                     compilerLabel(
                       viewing ? viewing.compilerProfile : executionSettings.compilerProfile,
                     )
-                  }}</span>
+                  }}
+                </span>
               </div>
             </div>
             <CodeEditor
@@ -938,32 +942,29 @@ useActionFeedback(actionError)
               :readonly="readonly"
               :font-size="fontSize"
               :filename="viewing?.filename ?? exercise.filename"
-              @update:model-value="!readonly && (code = $event)"
-            />
+              @update:model-value="!readonly && (code = $event)" />
           </SplitterPanel>
           <SplitterResizeHandle
             class="workspace-resize-handle"
             aria-label="调整代码与输入输出高度"
-            aria-orientation="horizontal"
-          />
+            aria-orientation="horizontal" />
           <SplitterPanel id="workspace-io" class="workspace-io" :default-size="36" :min-size="22">
             <SplitterGroup
               direction="horizontal"
               auto-save-id="student-workspace-input-output"
               class="workspace-io-split"
-              :keyboard-resize-by="2"
-            >
+              :keyboard-resize-by="2">
               <SplitterPanel
                 id="workspace-input"
                 as="section"
                 class="stdin-panel"
                 :default-size="30"
                 :min-size="22"
-                :max-size="55"
-              >
+                :max-size="55">
                 <div class="code-toolbar">
-                  <span>输入</span><span class="muted text-xs">stdin</span
-                  ><Button
+                  <span>输入</span>
+                  <span class="muted text-xs">stdin</span>
+                  <Button
                     variant="plain"
                     class="text-button ml-auto"
                     :disabled="!!viewing"
@@ -973,8 +974,7 @@ useActionFeedback(actionError)
                         input = exercise?.sampleInput ?? ''
                         notify('已填入题目样例')
                       }
-                    "
-                  >
+                    ">
                     填入样例
                   </Button>
                 </div>
@@ -983,8 +983,7 @@ useActionFeedback(actionError)
                   v-model="input"
                   aria-label="标准输入"
                   placeholder="运行前填写标准输入…"
-                  :readonly="isArchived"
-                />
+                  :readonly="isArchived" />
                 <pre v-else class="snapshot-input">{{ viewing.input }}</pre>
                 <div class="stdin-note">
                   <span v-if="viewing">本次运行使用的固定输入</span>
@@ -992,30 +991,27 @@ useActionFeedback(actionError)
                     v-else
                     data-guide="interactive-toggle"
                     class="inline-items"
-                    title="运行后可逐行发送输入，最长 60 秒"
-                  >
-                    <Checkbox v-model="interactive" :disabled="active()" />运行时输入
+                    title="运行后可逐行发送输入，最长 60 秒">
+                    <Checkbox v-model="interactive" :disabled="active()" />
+                    运行时输入
                   </label>
                 </div>
               </SplitterPanel>
               <SplitterResizeHandle
                 class="workspace-resize-handle"
                 aria-label="调整输入与输出宽度"
-                aria-orientation="vertical"
-              />
+                aria-orientation="vertical" />
               <SplitterPanel
                 id="workspace-output"
                 :default-size="70"
                 :min-size="45"
-                class="workspace-output"
-              >
+                class="workspace-output">
                 <RunOutput
                   :key="(viewing ?? run)?.id"
                   :run="viewing ?? run"
                   :interactive="runtime && !viewing && !run?.eof"
                   :send-input="sendLine"
-                  :close-input="eof"
-                />
+                  :close-input="eof" />
               </SplitterPanel>
             </SplitterGroup>
           </SplitterPanel>
@@ -1023,8 +1019,8 @@ useActionFeedback(actionError)
       </SplitterPanel>
     </SplitterGroup>
     <footer class="ide-statusbar">
-      <span
-        ><span
+      <span>
+        <span
           class="live-dot"
           :class="{
             'sync-unavailable':
@@ -1034,31 +1030,33 @@ useActionFeedback(actionError)
               saveState.includes('异常') ||
               saveState.includes('无法') ||
               saveState.includes('不可用'),
-          }"
-        />{{ loading ? '读取中' : readonly ? '只读工作区' : dirty ? '等待同步' : saveState }}</span
-      ><span class="ml-auto"
-        >UTF-8
-        <span class="desktop-only"
-          >· GCC 13.3 /
-          {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</span
-        ></span
-      >
+          }" />
+        {{ loading ? '读取中' : readonly ? '只读工作区' : dirty ? '等待同步' : saveState }}
+      </span>
+      <span class="ml-auto">
+        UTF-8
+        <span class="desktop-only">
+          · GCC 13.3 / {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+        </span>
+      </span>
     </footer>
   </div>
-  <Modal v-model:open="help" title="告诉老师，你遇到了什么？"
-    ><Form class="form-stack" @submit.prevent="sendHelp">
-      <label
-        >求助说明<Textarea
+  <Modal v-model:open="help" title="告诉老师，你遇到了什么？">
+    <Form class="form-stack" @submit.prevent="sendHelp">
+      <label>
+        求助说明
+        <Textarea
           v-model="helpText"
           data-guide="help-message"
           rows="4"
           placeholder="例如：循环里的变量应该怎么初始化？"
           maxlength="300"
-          required
-        />
+          required />
       </label>
       <Alert data-guide="help-context" type="info">
-        关联练习：{{ exercise?.title }}<br />关联运行：{{ run?.id ?? '无最近运行' }}
+        关联练习：{{ exercise?.title }}
+        <br />
+        关联运行：{{ run?.id ?? '无最近运行' }}
       </Alert>
 
       <div class="modal-actions">
@@ -1067,20 +1065,24 @@ useActionFeedback(actionError)
           variant="outline"
           :disabled="helping"
           data-guide="help-cancel"
-          @click="help = false"
-          >取消</Button
-        ><Button data-guide="help-send" type="submit" :disabled="helping || !helpText.trim()"
-          ><Hand />{{ helping ? '发送中…' : helpSent ? '更新求助' : '发起求助' }}</Button
-        >
+          @click="help = false">
+          取消
+        </Button>
+        <Button data-guide="help-send" type="submit" :disabled="helping || !helpText.trim()">
+          <Hand />
+          {{ helping ? '发送中…' : helpSent ? '更新求助' : '发起求助' }}
+        </Button>
       </div>
-    </Form></Modal
-  >
+    </Form>
+  </Modal>
   <Modal
     v-model:open="submit"
     title="提交当前作品？"
-    description="提交会保存固定代码版本，你仍然可以继续修改。"
-    ><Alert data-guide="submit-info" type="info">
-      {{ exercise?.title }} · {{ exercise?.filename }}<br />提交保存到服务器。提交不等于通过判题。
+    description="提交会保存固定代码版本，你仍然可以继续修改。">
+    <Alert data-guide="submit-info" type="info">
+      {{ exercise?.title }} · {{ exercise?.filename }}
+      <br />
+      提交保存到服务器。提交不等于通过判题。
     </Alert>
 
     <p v-if="submittedAt" class="form-hint">
@@ -1091,44 +1093,48 @@ useActionFeedback(actionError)
         variant="outline"
         :disabled="submitting"
         data-guide="submit-cancel"
-        @click="submit = false"
-        >继续修改</Button
-      ><Button :disabled="submitting" data-guide="submit-confirm" @click="doSubmit"
-        ><Send />{{ submitting ? '提交中…' : '确认提交' }}</Button
-      >
-    </div></Modal
-  >
+        @click="submit = false">
+        继续修改
+      </Button>
+      <Button :disabled="submitting" data-guide="submit-confirm" @click="doSubmit">
+        <Send />
+        {{ submitting ? '提交中…' : '确认提交' }}
+      </Button>
+    </div>
+  </Modal>
   <Modal
     v-model:open="reset"
     title="重置为初始代码？"
-    description="当前代码会保留在本次页面的恢复区，可通过工具栏撤销。"
-    ><div class="modal-actions">
-      <Button variant="outline" data-guide="reset-cancel" @click="reset = false"
-        >保留当前代码</Button
-      ><Button variant="destructive" data-guide="reset-confirm" @click="resetCode">确认重置</Button>
-    </div></Modal
-  >
+    description="当前代码会保留在本次页面的恢复区，可通过工具栏撤销。">
+    <div class="modal-actions">
+      <Button variant="outline" data-guide="reset-cancel" @click="reset = false">
+        保留当前代码
+      </Button>
+      <Button variant="destructive" data-guide="reset-confirm" @click="resetCode">确认重置</Button>
+    </div>
+  </Modal>
   <Modal
     :open="!!pendingExercise"
     title="先停止当前运行再切换练习？"
     description="当前程序尚未结束。停止后将保留代码与运行记录，再打开所选练习。"
-    @update:open="!$event && !stopping && (pendingExercise = '')"
-    ><div class="modal-actions">
+    @update:open="!$event && !stopping && (pendingExercise = '')">
+    <div class="modal-actions">
       <Button
         variant="outline"
         :disabled="stopping"
         data-guide="switch-cancel"
-        @click="pendingExercise = ''"
-        >留在当前练习</Button
-      ><Button
+        @click="pendingExercise = ''">
+        留在当前练习
+      </Button>
+      <Button
         variant="destructive"
         :disabled="stopping"
         data-guide="switch-confirm"
-        @click="stopAndSwitch"
-        >{{ stopping ? '等待程序停止…' : '停止并切换' }}</Button
-      >
-    </div></Modal
-  >
+        @click="stopAndSwitch">
+        {{ stopping ? '等待程序停止…' : '停止并切换' }}
+      </Button>
+    </div>
+  </Modal>
   <div v-if="!exercise" class="empty-state">
     <BookOpen :size="32" />
     <h1>暂无可访问的练习</h1>

@@ -100,14 +100,16 @@ onBeforeRouteLeave(() => !busy.value)
 </script>
 
 <template>
-  <Button variant="outline" @click="show"><Upload />批量导入</Button>
+  <Button variant="outline" @click="show">
+    <Upload />
+    批量导入
+  </Button>
   <Modal
     v-model:open="open"
     title="批量导入练习"
     wide
     :busy="busy"
-    description="每个文件创建一道练习，按选择顺序追加到课堂末尾，统一保存为草稿。"
-  >
+    description="每个文件创建一道练习，按选择顺序追加到课堂末尾，统一保存为草稿。">
     <div class="import-toolbar">
       <FileUpload accept=".md,.markdown,.json" multiple :disabled="busy" @change="read">
         {{ reading ? '正在解析…' : entries.length ? '重新选择文件' : '选择多个文件' }}
@@ -122,26 +124,26 @@ onBeforeRouteLeave(() => !busy.value)
           v-for="(entry, index) in entries"
           :key="index"
           class="import-row"
-          :class="{ active: active === index }"
-        >
+          :class="{ active: active === index }">
           <Checkbox
             v-model="selected"
             :value="String(index)"
             :disabled="busy || !!entry.errors.length"
-            :aria-label="'导入 ' + entry.name"
-          />
+            :aria-label="'导入 ' + entry.name" />
           <Button variant="plain" class="import-file" :disabled="busy" @click="active = index">
             <strong>{{ entry.exercise?.title || '未命名题目' }}</strong>
             <span>{{ entry.name }}</span>
-            <small>{{
-              entry.errors.length
-                ? '无法导入'
-                : conflicts.has(index)
-                  ? '文件名冲突'
-                  : entry.warnings.length
-                    ? '请核对警告'
-                    : '可导入'
-            }}</small>
+            <small>
+              {{
+                entry.errors.length
+                  ? '无法导入'
+                  : conflicts.has(index)
+                    ? '文件名冲突'
+                    : entry.warnings.length
+                      ? '请核对警告'
+                      : '可导入'
+              }}
+            </small>
           </Button>
         </div>
       </div>
@@ -149,9 +151,9 @@ onBeforeRouteLeave(() => !busy.value)
         <h3>{{ current.name }}</h3>
         <Alert v-for="message in current.errors" :key="message" type="error">{{ message }}</Alert>
         <Alert v-if="conflicts.has(active)" type="error">{{ conflicts.get(active) }}</Alert>
-        <Alert v-for="message in current.warnings" :key="message" type="warning">{{
-          message
-        }}</Alert>
+        <Alert v-for="message in current.warnings" :key="message" type="warning">
+          {{ message }}
+        </Alert>
         <p v-if="current.exercise && !fields.length" class="form-hint">备份中的题目字段均为空。</p>
         <section v-for="{ key, label } in fields" :key="key" class="import-field">
           <h4>{{ label }}</h4>
@@ -168,9 +170,9 @@ onBeforeRouteLeave(() => !busy.value)
     <div class="modal-actions">
       <span class="form-hint">已选 {{ selected.length }} / {{ entries.length }} 道练习</span>
       <Button variant="outline" :disabled="busy" @click="open = false">取消</Button>
-      <Button :disabled="!canImport" @click="save">{{
-        saving ? '正在导入…' : `导入为草稿（${selected.length}）`
-      }}</Button>
+      <Button :disabled="!canImport" @click="save">
+        {{ saving ? '正在导入…' : `导入为草稿（${selected.length}）` }}
+      </Button>
     </div>
   </Modal>
 </template>

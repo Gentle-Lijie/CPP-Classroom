@@ -282,52 +282,60 @@ function closeWindow() {
 </script>
 <template>
   <div v-if="popup" class="inspect-banner">
-    <span><Monitor :size="15" />学生详情 · 独立窗口<span class="demo-tag">实时数据</span></span>
+    <span>
+      <Monitor :size="15" />
+      学生详情 · 独立窗口
+      <span class="demo-tag">实时数据</span>
+    </span>
     <div class="inline-items">
-      <ThemeToggle /><Button variant="outline" size="sm" @click="closeWindow">关闭此窗口</Button>
+      <ThemeToggle />
+      <Button variant="outline" size="sm" @click="closeWindow">关闭此窗口</Button>
     </div>
   </div>
   <div v-if="student && exercise" class="detail-page" :class="{ 'inspect-detail': popup }">
     <div class="detail-heading">
       <div class="inline-items">
-        <RouterLink to="/teacher/overview" class="icon-button" aria-label="返回课堂总览"
-          ><ArrowLeft :size="20" /></RouterLink
-        ><span class="student-avatar large">{{ student.name.slice(-2) }}</span>
+        <RouterLink to="/teacher/overview" class="icon-button" aria-label="返回课堂总览">
+          <ArrowLeft :size="20" />
+        </RouterLink>
+        <span class="student-avatar large">{{ student.name.slice(-2) }}</span>
         <div>
           <h1>
-            {{ student.name }}<span class="heading-count">{{ student.number }}</span>
+            {{ student.name }}
+            <span class="heading-count">{{ student.number }}</span>
           </h1>
           <p>
-            <i class="presence" :class="{ online: student.online }" />{{
-              student.online ? '在线' : '离线'
-            }}
-            <span class="footer-dot">·</span> {{ exercise.title }}
-            <span class="footer-dot">·</span> 最近活动
+            <i class="presence" :class="{ online: student.online }" />
+            {{ student.online ? '在线' : '离线' }}
+            <span class="footer-dot">·</span>
+            {{ exercise.title }}
+            <span class="footer-dot">·</span>
+            最近活动
             {{ student.activity }}
           </p>
         </div>
       </div>
       <div class="inline-items">
-        <Button :disabled="projecting || loading || !!error" @click="project"
-          ><Monitor />{{ projecting ? '准备投屏…' : '投屏讲解' }}</Button
-        >
+        <Button :disabled="projecting || loading || !!error" @click="project">
+          <Monitor />
+          {{ projecting ? '准备投屏…' : '投屏讲解' }}
+        </Button>
         <div class="student-pager">
           <Button
             variant="plain"
             class="icon-button"
             :disabled="index === 0"
             aria-label="上一位学生"
-            @click="navigate(-1)"
-          >
-            <ChevronLeft :size="18" /></Button
-          ><span>{{ index + 1 }} / {{ students.length }}</span
-          ><Button
+            @click="navigate(-1)">
+            <ChevronLeft :size="18" />
+          </Button>
+          <span>{{ index + 1 }} / {{ students.length }}</span>
+          <Button
             variant="plain"
             class="icon-button"
             :disabled="index === students.length - 1"
             aria-label="下一位学生"
-            @click="navigate(1)"
-          >
+            @click="navigate(1)">
             <ChevronRight :size="18" />
           </Button>
         </div>
@@ -336,49 +344,59 @@ function closeWindow() {
     <Alert v-if="error" role="alert" type="error">
       {{ error }}
 
-      <template #actions
-        ><Button variant="outline" size="sm" @click="reload(true)">重新读取</Button></template
-      >
+      <template #actions>
+        <Button variant="outline" size="sm" @click="reload(true)">重新读取</Button>
+      </template>
     </Alert>
     <Alert v-if="loading" role="status" type="info">正在读取学生作品…</Alert>
-    <label class="detail-exercise-select"
-      >查看练习<Select v-model="chosenExercise" aria-label="选择查看学生的练习">
+    <label class="detail-exercise-select">
+      查看练习
+      <Select v-model="chosenExercise" aria-label="选择查看学生的练习">
         <SelectOption value="">跟随学生当前练习</SelectOption>
         <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</SelectOption>
-      </Select></label
-    >
+      </Select>
+    </label>
     <div class="detail-workbench">
       <div class="detail-code-panel panel">
         <div class="detail-followbar">
           <div class="inline-items">
-            <Radio v-if="!viewing" :size="15" class="positive-text" /><History
-              v-else
-              :size="15"
-              class="amber-text"
-            /><strong>{{
-              viewing
-                ? viewing.kind === 'submission'
-                  ? '提交代码快照'
-                  : '运行代码快照'
-                : '跟随当前代码'
-            }}</strong
-            ><span class="muted text-xs">{{
-              viewing
-                ? viewing.id.slice(0, 8) + ' · ' + formatTime(viewing.time)
-                : '当前草稿 · 服务器同步'
-            }}</span>
+            <Radio v-if="!viewing" :size="15" class="positive-text" />
+            <History v-else :size="15" class="amber-text" />
+            <strong>
+              {{
+                viewing
+                  ? viewing.kind === 'submission'
+                    ? '提交代码快照'
+                    : '运行代码快照'
+                  : '跟随当前代码'
+              }}
+            </strong>
+            <span class="muted text-xs">
+              {{
+                viewing
+                  ? viewing.id.slice(0, 8) + ' · ' + formatTime(viewing.time)
+                  : '当前草稿 · 服务器同步'
+              }}
+            </span>
           </div>
-          <Button v-if="viewing" variant="outline" size="sm" @click="viewing = undefined"
-            >返回当前代码<ArrowRight /></Button
-          ><span v-else class="readonly-label"><LockKeyhole :size="12" />教师只读</span>
+          <Button v-if="viewing" variant="outline" size="sm" @click="viewing = undefined">
+            返回当前代码
+            <ArrowRight />
+          </Button>
+          <span v-else class="readonly-label">
+            <LockKeyhole :size="12" />
+            教师只读
+          </span>
         </div>
         <Alert v-if="viewing" type="info" class="app-alert--banner">
           所选快照固定保留。学生后续修改不会改变此处代码；提交快照不代表已通过运行。
         </Alert>
         <div class="code-toolbar">
-          <span class="file-tab"
-            ><CodeXml :size="14" />{{ viewing?.filename ?? exercise.filename }}</span
-          ><Button
+          <span class="file-tab">
+            <CodeXml :size="14" />
+            {{ viewing?.filename ?? exercise.filename }}
+          </span>
+          <Button
             variant="plain"
             class="icon-button ml-auto"
             aria-label="下载当前查看的代码"
@@ -387,39 +405,41 @@ function closeWindow() {
                 student.number + '-' + (viewing?.filename ?? exercise.filename),
                 viewing?.code ?? currentCode,
               )
-            "
-          >
-            <Download :size="14" /></Button
-          ><span class="language-label">{{
-            compilerLabel(viewing ? viewing.compilerProfile : executionSettings.compilerProfile)
-          }}</span>
+            ">
+            <Download :size="14" />
+          </Button>
+          <span class="language-label">
+            {{
+              compilerLabel(viewing ? viewing.compilerProfile : executionSettings.compilerProfile)
+            }}
+          </span>
         </div>
         <div class="detail-editor">
           <CodeEditor
             :model-value="viewing?.code ?? currentCode"
             :filename="viewing?.filename ?? exercise.filename"
-            readonly
-          />
+            readonly />
         </div>
         <div class="detail-io">
           <section class="detail-input">
-            <div class="code-toolbar">输入 <span class="muted">stdin</span></div>
+            <div class="code-toolbar">
+              输入
+              <span class="muted">stdin</span>
+            </div>
             <pre>{{ (viewing ?? latestRun)?.input }}</pre>
           </section>
           <RunOutput
             v-if="viewing?.kind !== 'submission'"
             :key="viewing?.id ?? 'current'"
             :run="viewing ?? latestRun"
-            readonly-context
-          />
+            readonly-context />
           <Alert v-else type="info">这是提交时的代码版本，不包含运行结果。</Alert>
         </div>
         <Alert
           v-if="viewing?.kind !== 'submission'"
           type="info"
           :icon="History"
-          class="app-alert--banner"
-        >
+          class="app-alert--banner">
           结果来自{{ viewing ? '所选历史运行' : '最近一次真实运行' }}；{{
             viewing ? '代码与结果对应同一快照。' : '运行结果属于最近一次快照，可能与当前草稿不同。'
           }}
@@ -428,17 +448,20 @@ function closeWindow() {
       <aside class="detail-aside">
         <section v-if="currentHelp" class="help-detail-panel">
           <div class="inline-items amber-text">
-            <Hand :size="17" /><strong>学生请求帮助</strong
-            ><span class="ml-auto text-xs">待处理</span>
+            <Hand :size="17" />
+            <strong>学生请求帮助</strong>
+            <span class="ml-auto text-xs">待处理</span>
           </div>
           <p>
             {{ currentHelp.message }}
           </p>
-          <span class="muted text-xs"
-            >关联练习：{{ exercise.title }} · {{ formatTime(currentHelp.created_at) }}</span
-          ><Button class="w-full" variant="success" :disabled="resolving" @click="resolveHelp"
-            ><CircleCheck />{{ resolving ? '处理中…' : '解决此求助' }}</Button
-          >
+          <span class="muted text-xs">
+            关联练习：{{ exercise.title }} · {{ formatTime(currentHelp.created_at) }}
+          </span>
+          <Button class="w-full" variant="success" :disabled="resolving" @click="resolveHelp">
+            <CircleCheck />
+            {{ resolving ? '处理中…' : '解决此求助' }}
+          </Button>
         </section>
         <section class="panel">
           <div class="filter-tabs">
@@ -447,8 +470,7 @@ function closeWindow() {
               :key="t"
               variant="plain"
               :class="{ selected: sidebarTab === t }"
-              @click="sidebarTab = t"
-            >
+              @click="sidebarTab = t">
               {{ t }}
             </Button>
           </div>
@@ -459,17 +481,17 @@ function closeWindow() {
               variant="plain"
               class="history-item"
               :class="{ selected: viewing?.id === r.id }"
-              @click="viewing = r"
-            >
+              @click="viewing = r">
               <span
                 class="history-state-dot"
                 :class="
                   r.status === '编译失败' ? 'red' : r.status === '运行完成' ? 'positive' : 'amber'
-                "
-              /><span
-                ><strong>{{ r.status }}</strong
-                ><small>{{ formatTime(r.time) }} · {{ r.id.slice(0, 8) }}</small></span
-              ><ArrowUpRight :size="14" />
+                " />
+              <span>
+                <strong>{{ r.status }}</strong>
+                <small>{{ formatTime(r.time) }} · {{ r.id.slice(0, 8) }}</small>
+              </span>
+              <ArrowUpRight :size="14" />
             </Button>
             <p v-if="!records.length && !loading" class="small-empty">这道练习还没有运行记录。</p>
           </div>
@@ -479,12 +501,12 @@ function closeWindow() {
               :key="s.id"
               variant="plain"
               class="history-item"
-              @click="viewing = s"
-            >
-              <CircleCheck :size="22" class="positive-text" /><span
-                ><strong>固定提交快照</strong
-                ><small>{{ new Date(s.time).toLocaleString() }}</small></span
-              >
+              @click="viewing = s">
+              <CircleCheck :size="22" class="positive-text" />
+              <span>
+                <strong>固定提交快照</strong>
+                <small>{{ new Date(s.time).toLocaleString() }}</small>
+              </span>
             </Button>
             <div v-if="!submissions.length" class="small-empty">
               <History :size="25" />
@@ -497,15 +519,14 @@ function closeWindow() {
             v-model:page-size="pageSize"
             :total="recordTotal"
             :busy="loading"
-            unit="次运行"
-          /><Pagination
+            unit="次运行" />
+          <Pagination
             v-else
             v-model:page="submissionPage"
             v-model:page-size="pageSize"
             :total="submissionTotal"
             :busy="loading"
-            unit="次提交"
-          />
+            unit="次提交" />
         </section>
       </aside>
     </div>
@@ -515,9 +536,9 @@ function closeWindow() {
     <p>
       {{ student ? '先创建练习，再查看学生代码。' : '学生可能已移出课堂，或链接对应其他课堂。' }}
     </p>
-    <RouterLink :to="student ? '/teacher/exercises/new' : '/teacher/roster'">{{
-      student ? '创建练习' : '返回学生名册'
-    }}</RouterLink>
+    <RouterLink :to="student ? '/teacher/exercises/new' : '/teacher/roster'">
+      {{ student ? '创建练习' : '返回学生名册' }}
+    </RouterLink>
   </div>
 </template>
 

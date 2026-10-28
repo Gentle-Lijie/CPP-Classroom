@@ -51,8 +51,7 @@ const theme = { ...pastelTheme, '--nv-width': '100%' }
     :icons="icons"
     :role="role"
     aria-atomic="true"
-    hide-close
-  >
+    hide-close>
     <div class="app-alert-content">
       <h3 v-if="title" class="Notivue__content-title">{{ title }}</h3>
       <div class="app-alert-message"><slot /></div>

@@ -9,7 +9,6 @@ import {
   CircleAlert,
   Hand,
   Search,
-  ChevronDown,
   ArrowRight,
   ArrowUpRight,
   UserPlus,
@@ -163,53 +162,79 @@ async function regenerateInvite() {
   <div class="page-heading">
     <div>
       <div class="heading-meta">
-        <span class="status" :class="tone(activeClassroom.status)"
-          ><span class="status-dot" />{{ activeClassroom.status }}</span
-        ><span>课堂概览</span>
+        <span class="status" :class="tone(activeClassroom.status)">
+          <span class="status-dot" />
+          {{ activeClassroom.status }}
+        </span>
+        <span>课堂概览</span>
       </div>
       <h1>{{ activeClassroom.name }}</h1>
     </div>
     <div class="heading-actions">
-      <Button variant="outline" :disabled="!exercises.length" @click="router.push('/teacher/teach')"
-        ><Monitor />开始授课</Button
-      >
-      <Button variant="outline" :disabled="busy" @click="exportClass"><Download />导出作品</Button
-      ><Button :disabled="!inviteAvailable" @click="invite = true"><UserPlus />邀请学生</Button>
+      <Button
+        variant="outline"
+        :disabled="!exercises.length"
+        @click="router.push('/teacher/teach')">
+        <Monitor />
+        开始授课
+      </Button>
+      <Button variant="outline" :disabled="busy" @click="exportClass">
+        <Download />
+        导出作品
+      </Button>
+      <Button :disabled="!inviteAvailable" @click="invite = true">
+        <UserPlus />
+        邀请学生
+      </Button>
     </div>
   </div>
   <div class="stat-grid">
     <Button variant="plain" class="stat-card" @click="filter = '在线'">
       <div class="stat-top">
-        在线学生<span class="stat-icon green"><Users :size="18" /></span>
+        在线学生
+        <span class="stat-icon green"><Users :size="18" /></span>
       </div>
       <div class="stat-number">
-        {{ counts.online }}<span>/ {{ counts.total }}</span>
+        {{ counts.online }}
+        <span>/ {{ counts.total }}</span>
       </div>
       <!-- <div class="stat-foot">
         <span class="live-dot" />{{ counts.total - counts.online }} 位同学暂时离线
       </div> -->
-      </Button
-    ><Button variant="plain" class="stat-card" @click="filter = '已提交'">
+    </Button>
+    <Button variant="plain" class="stat-card" @click="filter = '已提交'">
       <div class="stat-top">
-        当前练习已提交<span class="stat-icon blue"><CircleCheck :size="18" /></span>
+        当前练习已提交
+        <span class="stat-icon blue"><CircleCheck :size="18" /></span>
       </div>
-      <div class="stat-number">{{ counts.submitted }}<span>位同学</span></div>
+      <div class="stat-number">
+        {{ counts.submitted }}
+        <span>位同学</span>
+      </div>
       <!-- <div class="stat-foot">按每位学生当前练习统计，不代表通过</div> -->
-      </Button
-    ><Button variant="plain" class="stat-card" @click="filter = '编译失败'">
+    </Button>
+    <Button variant="plain" class="stat-card" @click="filter = '编译失败'">
       <div class="stat-top">
-        最近编译失败<span class="stat-icon red"><CircleAlert :size="18" /></span>
+        最近编译失败
+        <span class="stat-icon red"><CircleAlert :size="18" /></span>
       </div>
-      <div class="stat-number">{{ counts.errors }}<span>位同学</span></div>
+      <div class="stat-number">
+        {{ counts.errors }}
+        <span>位同学</span>
+      </div>
       <!-- <div class="stat-foot">查看原始诊断，找到问题所在 <ArrowUpRight :size="13" /></div> -->
-      </Button
-    ><Button variant="plain" class="stat-card" @click="filter = '请求帮助'">
+    </Button>
+    <Button variant="plain" class="stat-card" @click="filter = '请求帮助'">
       <div class="stat-top">
-        待处理求助<span class="stat-icon amber"><Hand :size="18" /></span>
+        待处理求助
+        <span class="stat-icon amber"><Hand :size="18" /></span>
       </div>
-      <div class="stat-number">{{ counts.help }}<span>条请求</span></div>
+      <div class="stat-number">
+        {{ counts.help }}
+        <span>条请求</span>
+      </div>
       <!-- <div class="stat-foot amber-text"> -->
-        <!-- {{ counts.help ? '有同学正在等你' : '暂时没有待处理的求助' }} <ArrowRight :size="13" /> -->
+      <!-- {{ counts.help ? '有同学正在等你' : '暂时没有待处理的求助' }} <ArrowRight :size="13" /> -->
       <!-- </div> -->
     </Button>
   </div>
@@ -218,8 +243,11 @@ async function regenerateInvite() {
       <div class="panel-heading">
         <div class="section-heading">
           <h2>课堂巡视</h2>
-          <span class="subtle-count">{{ counts.total }}</span
-          ><span class="sync-label"><Radio :size="13" />服务器状态同步</span>
+          <span class="subtle-count">{{ counts.total }}</span>
+          <span class="sync-label">
+            <Radio :size="13" />
+            服务器状态同步
+          </span>
         </div>
       </div>
       <div class="filter-tabs">
@@ -228,26 +256,30 @@ async function regenerateInvite() {
           :key="f.label"
           variant="plain"
           :class="{ selected: filter === f.label }"
-          @click="filter = f.label"
-        >
-          {{ f.label }}<span>{{ f.count }}</span>
+          @click="filter = f.label">
+          {{ f.label }}
+          <span>{{ f.count }}</span>
         </Button>
       </div>
       <div class="table-controls">
-        <label class="search-field"
-          ><Search :size="16" /><Input
+        <label class="search-field">
+          <Search :size="16" />
+          <Input
             ref="searchInput"
             v-model="search"
             aria-label="搜索学生"
-            placeholder="搜索姓名或学号…"
-          /><kbd>⌘ K</kbd></label
-        ><label class="select-wrap"
-          ><SlidersHorizontal :size="14" /><Select v-model="exercise" aria-label="按练习筛选">
+            placeholder="搜索姓名或学号…" />
+          <kbd>⌘ K</kbd>
+        </label>
+        <label class="select-wrap">
+          <SlidersHorizontal :size="14" />
+          <Select v-model="exercise" aria-label="按练习筛选">
             <SelectOption>全部练习</SelectOption>
             <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">
               {{ e.title }}
-            </SelectOption></Select
-          ></label>
+            </SelectOption>
+          </Select>
+        </label>
       </div>
       <div class="table-scroll">
         <table class="student-table">
@@ -267,34 +299,44 @@ async function regenerateInvite() {
               :key="s.id"
               tabindex="0"
               @click="router.push('/teacher/students/' + s.id)"
-              @keydown.enter="router.push('/teacher/students/' + s.id)"
-            >
+              @keydown.enter="router.push('/teacher/students/' + s.id)">
               <td>
                 <div class="person-cell">
                   <span
                     class="student-avatar"
-                    :class="['avatar-' + (index % 5), { offline: !s.online }]"
-                    >{{ s.name.slice(-2) }}<i :class="{ online: s.online }" /></span
-                  ><span class="person-text"
-                    ><strong>{{ s.name }}</strong
-                    ><small>{{ s.number }}</small></span
-                  >
+                    :class="['avatar-' + (index % 5), { offline: !s.online }]">
+                    {{ s.name.slice(-2) }}
+                    <i :class="{ online: s.online }" />
+                  </span>
+                  <span class="person-text">
+                    <strong>{{ s.name }}</strong>
+                    <small>{{ s.number }}</small>
+                  </span>
                 </div>
               </td>
               <td>
-                <span class="table-exercise">{{ studentExercise(s)?.title ?? '尚未选择练习' }}</span
-                ><small class="cell-secondary">{{ s.online ? '在线编辑' : '当前离线' }}</small>
+                <span class="table-exercise">
+                  {{ studentExercise(s)?.title ?? '尚未选择练习' }}
+                </span>
+                <small class="cell-secondary">{{ s.online ? '在线编辑' : '当前离线' }}</small>
               </td>
               <td>
-                <span class="status" :class="tone(s.status)"
-                  ><span class="status-dot" />{{ s.status }}</span
-                ><small class="cell-secondary error-summary">{{ s.summary }}</small>
+                <span class="status" :class="tone(s.status)">
+                  <span class="status-dot" />
+                  {{ s.status }}
+                </span>
+                <small class="cell-secondary error-summary">{{ s.summary }}</small>
               </td>
               <td>
-                <span v-if="s.help" class="help-label"><Hand :size="13" />请求帮助</span
-                ><span v-else-if="s.submitted" class="submitted-label"
-                  ><Check :size="13" />已提交</span
-                ><span v-else class="muted">—</span>
+                <span v-if="s.help" class="help-label">
+                  <Hand :size="13" />
+                  请求帮助
+                </span>
+                <span v-else-if="s.submitted" class="submitted-label">
+                  <Check :size="13" />
+                  已提交
+                </span>
+                <span v-else class="muted">—</span>
               </td>
               <td class="activity-cell">{{ s.activity }}</td>
               <td><ArrowRight :size="15" class="row-arrow" /></td>
@@ -313,17 +355,16 @@ async function regenerateInvite() {
                 filter = '全部学生'
                 exercise = '全部练习'
               }
-            "
-            >清除筛选</Button
-          >
+            ">
+            清除筛选
+          </Button>
         </div>
       </div>
       <Pagination
         v-model:page="page"
         v-model:page-size="pageSize"
         :total="visible.length"
-        unit="位学生"
-      />
+        unit="位学生" />
     </section>
     <aside class="overview-aside">
       <section class="panel current-exercise">
@@ -336,28 +377,30 @@ async function regenerateInvite() {
           <h3>{{ recommended.title }}</h3>
           <p>{{ recommended.description.split('\n')[0] }}</p>
           <div class="exercise-progress">
-            <span>本题主动提交进度</span
-            ><strong>{{ recommendedSubmitted }} / {{ counts.total }}</strong>
+            <span>本题主动提交进度</span>
+            <strong>{{ recommendedSubmitted }} / {{ counts.total }}</strong>
           </div>
           <div class="progress-track">
             <i
               :style="{
                 width: (counts.total ? (recommendedSubmitted / counts.total) * 100 : 0) + '%',
-              }"
-            />
+              }" />
           </div>
-          <Button variant="outline" class="w-full" @click="router.push('/teacher/exercises')"
-            >管理练习 <ArrowRight
-          /></Button>
+          <Button variant="outline" class="w-full" @click="router.push('/teacher/exercises')">
+            管理练习
+            <ArrowRight />
+          </Button>
         </div>
         <div v-else class="small-empty">
           <BookOpen :size="28" />
           <p>还没有已发布的推荐练习</p>
           <Button
             variant="outline"
-            @click="router.push(exercises.length ? '/teacher/exercises' : '/teacher/exercises/new')"
-            >{{ exercises.length ? '选择推荐练习' : '创建练习' }}</Button
-          >
+            @click="
+              router.push(exercises.length ? '/teacher/exercises' : '/teacher/exercises/new')
+            ">
+            {{ exercises.length ? '选择推荐练习' : '创建练习' }}
+          </Button>
         </div>
       </section>
       <section class="panel help-panel">
@@ -367,18 +410,18 @@ async function regenerateInvite() {
         </div>
         <div v-for="s in students.filter((s) => s.help)" :key="s.id" class="help-item">
           <div class="help-item-heading">
-            <strong>{{ s.name }}</strong
-            ><small>{{ s.activity }}</small>
+            <strong>{{ s.name }}</strong>
+            <small>{{ s.activity }}</small>
           </div>
           <p>
             {{ s.helpMessage || '学生请求帮助，请打开详情查看。' }}
           </p>
-          <small class="help-context"
-            >{{ exercises.find((e) => e.id === s.helpExerciseId)?.title ?? '课堂练习' }} ·
+          <small class="help-context">
+            {{ exercises.find((e) => e.id === s.helpExerciseId)?.title ?? '课堂练习' }} ·
             {{
               s.helpCreatedAt ? new Date(s.helpCreatedAt).toLocaleTimeString('zh-CN') : s.activity
-            }}</small
-          >
+            }}
+          </small>
           <Button
             variant="plain"
             @click="
@@ -386,9 +429,9 @@ async function regenerateInvite() {
                 path: '/teacher/students/' + s.id,
                 query: { exercise: s.helpExerciseId },
               })
-            "
-          >
-            查看并辅导 <ArrowUpRight :size="13" />
+            ">
+            查看并辅导
+            <ArrowUpRight :size="13" />
           </Button>
         </div>
         <div v-if="!counts.help" class="small-empty">
@@ -401,38 +444,38 @@ async function regenerateInvite() {
   <Modal
     v-model:open="invite"
     title="邀请学生加入课堂"
-    description="学生登录后登记入班。课堂码不替代个人身份。"
-    ><div class="invitation-class"><GraduationCap :size="22" />{{ activeClassroom.name }}</div>
+    description="学生登录后登记入班。课堂码不替代个人身份。">
+    <div class="invitation-class">
+      <GraduationCap :size="22" />
+      {{ activeClassroom.name }}
+    </div>
     <label class="field-label">课堂码</label>
     <div class="invite-code">{{ demo.inviteCode }}</div>
     <div class="copy-row">
-      <Input
-        :value="`${origin}/join?code=${demo.inviteCode}`"
-        readonly
-        aria-label="邀请链接"
-      /><Button variant="outline" :disabled="inviteExpired" @click="copyInvite"
-        ><Check v-if="copied" /><Copy v-else />{{ copied ? '已复制' : '复制链接' }}</Button
-      >
+      <Input :value="`${origin}/join?code=${demo.inviteCode}`" readonly aria-label="邀请链接" />
+      <Button variant="outline" :disabled="inviteExpired" @click="copyInvite">
+        <Check v-if="copied" />
+        <Copy v-else />
+        {{ copied ? '已复制' : '复制链接' }}
+      </Button>
     </div>
     <p class="form-hint" :class="{ 'danger-text': inviteExpired }">
       {{ inviteExpired ? '课堂码已过期，请重新生成' : '有效至 ' + inviteExpires }} ·
       加入后由教师确认
     </p>
-    <Button variant="outline" class="w-full" @click="regenerate = true"
-      >重新生成课堂码</Button
-    ></Modal
-  >
+    <Button variant="outline" class="w-full" @click="regenerate = true">重新生成课堂码</Button>
+  </Modal>
   <Modal
     v-model:open="regenerate"
     title="使旧邀请链接失效？"
-    description="重新生成后需要把新课堂码交付给尚未加入的学生，已有成员不受影响。"
-    ><div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="regenerate = false">取消</Button
-      ><Button variant="warning" :disabled="busy" @click="regenerateInvite">{{
-        busy ? '正在更新…' : '确认重新生成'
-      }}</Button>
-    </div></Modal
-  >
+    description="重新生成后需要把新课堂码交付给尚未加入的学生，已有成员不受影响。">
+    <div class="modal-actions">
+      <Button variant="outline" :disabled="busy" @click="regenerate = false">取消</Button>
+      <Button variant="warning" :disabled="busy" @click="regenerateInvite">
+        {{ busy ? '正在更新…' : '确认重新生成' }}
+      </Button>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>

@@ -276,62 +276,70 @@ useActionFeedback(error)
   <div v-if="!missing" class="exercise-editor-page">
     <div class="page-heading">
       <div>
-        <RouterLink to="/teacher/exercises" class="back-link"
-          ><ArrowLeft :size="15" />返回练习管理</RouterLink
-        >
+        <RouterLink to="/teacher/exercises" class="back-link">
+          <ArrowLeft :size="15" />
+          返回练习管理
+        </RouterLink>
         <h1>{{ existing ? '编辑练习' : '创建练习' }}</h1>
         <p>
           {{ dirty ? '有尚未保存的修改' : draft.id ? '内容已保存' : '填写题目后保存草稿或发布' }}
         </p>
       </div>
       <div class="heading-actions">
-        <Button variant="outline" :disabled="busy || readingMarkdown" @click="save(false)"
-          ><Save />{{ draft.status === '已发布' ? '保存更改' : '保存草稿' }}</Button
-        ><Button variant="success" :disabled="busy || readingMarkdown" @click="save(true)"
-          ><Send />{{ busy ? '保存中…' : '保存并发布' }}</Button
-        >
+        <Button variant="outline" :disabled="busy || readingMarkdown" @click="save(false)">
+          <Save />
+          {{ draft.status === '已发布' ? '保存更改' : '保存草稿' }}
+        </Button>
+        <Button variant="success" :disabled="busy || readingMarkdown" @click="save(true)">
+          <Send />
+          {{ busy ? '保存中…' : '保存并发布' }}
+        </Button>
       </div>
     </div>
     <Alert v-if="restore" type="warning">
       <span>找到此题未保存的本机备份。</span>
 
-      <template #actions
-        ><Button variant="outline" size="sm" @click="restoreDraft">恢复编辑</Button>
-        <Button variant="ghost" size="sm" @click="restore = undefined">暂不恢复</Button></template
-      >
+      <template #actions>
+        <Button variant="outline" size="sm" @click="restoreDraft">恢复编辑</Button>
+        <Button variant="ghost" size="sm" @click="restore = undefined">暂不恢复</Button>
+      </template>
     </Alert>
     <div class="draft-tools">
       <FileUpload
         accept=".md,.markdown"
         :disabled="busy || readingMarkdown"
-        @change="importMarkdown"
-        >{{ readingMarkdown ? '正在解析…' : '导入 Markdown' }}</FileUpload
-      >
-      <Button variant="outline" size="sm" :disabled="busy" @click="downloadDraft"
-        ><Download />下载题目备份</Button
-      ><FileUpload accept=".json" :disabled="busy" @change="importDraft">导入备份</FileUpload>
+        @change="importMarkdown">
+        {{ readingMarkdown ? '正在解析…' : '导入 Markdown' }}
+      </FileUpload>
+      <Button variant="outline" size="sm" :disabled="busy" @click="downloadDraft">
+        <Download />
+        下载题目备份
+      </Button>
+      <FileUpload accept=".json" :disabled="busy" @change="importDraft">导入备份</FileUpload>
       <span>未保存修改自动备份在本机浏览器</span>
     </div>
 
     <section class="panel exercise-meta-panel" :inert="busy">
       <div class="exercise-meta-fields">
-        <label
-          >题目标题<Input
-            v-model="draft.title"
-            maxlength="100"
-            placeholder="例如：累加求和" /></label
-        ><label
-          >知识点<Input v-model="draft.topic" maxlength="100" placeholder="例如：for 循环" /></label
-        ><label
-          >学生源文件名
+        <label>
+          题目标题
+          <Input v-model="draft.title" maxlength="100" placeholder="例如：累加求和" />
+        </label>
+        <label>
+          知识点
+          <Input v-model="draft.topic" maxlength="100" placeholder="例如：for 循环" />
+        </label>
+        <label>
+          学生源文件名
           <div class="filename-field">
-            <FileCode2 :size="16" /><Input
+            <FileCode2 :size="16" />
+            <Input
               v-model="draft.filename"
               maxlength="80"
               placeholder="例如：sum.cpp"
-              spellcheck="false"
-            /></div
-        ></label>
+              spellcheck="false" />
+          </div>
+        </label>
       </div>
       <p class="form-hint">
         所有题目字段均可留空，空题也可保存或发布。源文件名留空时，下载和本地同步使用按题目编号生成的独立文件名。
@@ -341,47 +349,48 @@ useActionFeedback(error)
       <Button
         variant="plain"
         :class="{ selected: tab === '题面与样例' }"
-        @click="tab = '题面与样例'"
-      >
-        <FileText :size="16" />题面与样例</Button
-      ><Button variant="plain" :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
-        <CodeXml :size="16" />初始代码</Button
-      >
+        @click="tab = '题面与样例'">
+        <FileText :size="16" />
+        题面与样例
+      </Button>
+      <Button variant="plain" :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
+        <CodeXml :size="16" />
+        初始代码
+      </Button>
     </div>
-    <template v-if="tab === '题面与样例'"
-      ><div :inert="busy"><MarkdownEditor v-model="draft.description" /></div>
+    <template v-if="tab === '题面与样例'">
+      <div :inert="busy"><MarkdownEditor v-model="draft.description" /></div>
       <section class="panel exercise-samples-editor" :inert="busy">
         <div class="form-grid">
-          <label
-            >输入说明<Textarea
+          <label>
+            输入说明
+            <Textarea
               v-model="draft.input"
               rows="3"
-              placeholder="描述输入格式和数据范围；无输入可留空" /></label
-          ><label
-            >输出说明<Textarea v-model="draft.output" rows="3" placeholder="描述输出格式" /></label
-          ><label
-            >样例输入<Textarea
-              v-model="draft.sampleInput"
-              rows="5"
-              spellcheck="false"
-              placeholder="5" /></label
-          ><label
-            >样例输出<Textarea
-              v-model="draft.sampleOutput"
-              rows="5"
-              spellcheck="false"
-              placeholder="15"
-            />
+              placeholder="描述输入格式和数据范围；无输入可留空" />
           </label>
-        </div></section
-    ></template>
+          <label>
+            输出说明
+            <Textarea v-model="draft.output" rows="3" placeholder="描述输出格式" />
+          </label>
+          <label>
+            样例输入
+            <Textarea v-model="draft.sampleInput" rows="5" spellcheck="false" placeholder="5" />
+          </label>
+          <label>
+            样例输出
+            <Textarea v-model="draft.sampleOutput" rows="5" spellcheck="false" placeholder="15" />
+          </label>
+        </div>
+      </section>
+    </template>
     <section v-else class="panel initial-code-page" :inert="busy">
       <div class="code-toolbar">
-        <CodeXml :size="15" />{{ draft.filename || '初始代码（可留空）'
-        }}<span class="language-label ml-auto"
-          >{{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }} ·
-          初始代码</span
-        >
+        <CodeXml :size="15" />
+        {{ draft.filename || '初始代码（可留空）' }}
+        <span class="language-label ml-auto">
+          {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }} · 初始代码
+        </span>
       </div>
       <CodeEditor v-model="draft.code" :filename="draft.filename" />
       <Alert type="info">初始代码只用于创建学生的工作区，不会替换已经编辑的学生草稿。</Alert>
@@ -396,19 +405,18 @@ useActionFeedback(error)
     title="预览 Markdown 导入"
     :description="`${markdownFilename} · 勾选要填入的字段；确认后覆盖这些字段，未识别或未勾选的字段保留原内容。`"
     wide
-    @update:open="!$event && (markdownImport = undefined)"
-  >
+    @update:open="!$event && (markdownImport = undefined)">
     <template v-if="markdownImport">
       <p class="form-hint">
         支持一级标题作为题目名，以及「题目描述 / 输入格式 / 输出格式 / 样例输入 / 样例输出 /
         初始代码」等中英文标题。代码块会保留原始内容；普通 Markdown 正文填入题面。
       </p>
-      <Alert v-for="message in markdownImport.errors" :key="message" type="error">{{
-        message
-      }}</Alert>
-      <Alert v-for="message in markdownImport.warnings" :key="message" type="warning">{{
-        message
-      }}</Alert>
+      <Alert v-for="message in markdownImport.errors" :key="message" type="error">
+        {{ message }}
+      </Alert>
+      <Alert v-for="message in markdownImport.warnings" :key="message" type="warning">
+        {{ message }}
+      </Alert>
       <div class="markdown-import-preview">
         <section v-for="{ key, label } in detectedFields" :key="key" class="markdown-import-field">
           <label class="inline-items">
@@ -426,9 +434,9 @@ useActionFeedback(error)
         <Button variant="outline" @click="markdownImport = undefined">取消</Button>
         <Button
           :disabled="!!markdownImport.errors.length || !importFields.length"
-          @click="applyMarkdown"
-          >确认填充（{{ importFields.length }} 个字段）</Button
-        >
+          @click="applyMarkdown">
+          确认填充（{{ importFields.length }} 个字段）
+        </Button>
       </div>
     </template>
   </Modal>
@@ -436,20 +444,20 @@ useActionFeedback(error)
     :open="leaveDialog"
     title="离开前保留修改？"
     description="本页的未保存内容将丢失，已保存的题目不受影响。"
-    @update:open="!$event && settleLeave(false)"
-    ><div class="modal-actions">
-      <Button variant="outline" @click="downloadDraft">下载备份</Button
-      ><Button variant="outline" @click="settleLeave(false)">继续编辑</Button
-      ><Button variant="destructive" @click="settleLeave(true)">放弃修改并离开</Button>
-    </div></Modal
-  >
+    @update:open="!$event && settleLeave(false)">
+    <div class="modal-actions">
+      <Button variant="outline" @click="downloadDraft">下载备份</Button>
+      <Button variant="outline" @click="settleLeave(false)">继续编辑</Button>
+      <Button variant="destructive" @click="settleLeave(true)">放弃修改并离开</Button>
+    </div>
+  </Modal>
   <Modal
     :open="!!conflict"
     title="题目已有其他修改"
     description="你的内容已保留在本机。请比较两个版本，再选择继续编辑或采用服务器版本。"
     wide
-    @update:open="!$event && (conflict = undefined)"
-    ><div class="conflict-comparison">
+    @update:open="!$event && (conflict = undefined)">
+    <div class="conflict-comparison">
       <section>
         <h3>本地修改</h3>
         <pre>{{ JSON.stringify(draft, null, 2) }}</pre>
@@ -460,11 +468,11 @@ useActionFeedback(error)
       </section>
     </div>
     <div class="modal-actions">
-      <Button variant="outline" @click="downloadDraft">下载本地备份</Button
-      ><Button variant="outline" @click="useServer">采用服务器版本</Button
-      ><Button @click="keepLocal">保留本地修改继续编辑</Button>
-    </div></Modal
-  >
+      <Button variant="outline" @click="downloadDraft">下载本地备份</Button>
+      <Button variant="outline" @click="useServer">采用服务器版本</Button>
+      <Button @click="keepLocal">保留本地修改继续编辑</Button>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>

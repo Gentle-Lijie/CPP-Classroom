@@ -24,6 +24,5 @@ defineExpose({ element, focus: () => element.value?.focus() })
     data-ui="input"
     :aria-invalid="error ? true : undefined"
     @invalid.prevent="error = element?.validationMessage ?? '请核对输入内容'"
-    @input="error = ''"
-  />
+    @input="error = ''" />
 </template>

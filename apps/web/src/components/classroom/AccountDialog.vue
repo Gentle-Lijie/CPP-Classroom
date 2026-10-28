@@ -57,49 +57,51 @@ useActionFeedback(error)
     v-model:open="open"
     title="账号与密码"
     description="更新密码后，所有设备的旧登录都会失效，请重新登录。"
-    :busy="busy"
-  >
+    :busy="busy">
     <div class="account-summary">
-      <strong>{{ currentUser?.name }}</strong
-      ><span>{{ currentUser?.username }} · {{ roleLabels[currentUser?.role ?? ''] }}</span>
+      <strong>{{ currentUser?.name }}</strong>
+      <span>{{ currentUser?.username }} · {{ roleLabels[currentUser?.role ?? ''] }}</span>
     </div>
     <Form class="form-stack account-form" @submit.prevent="save">
-      <label
-        >当前密码<Input
+      <label>
+        当前密码
+        <Input
           v-model="current"
           :type="visible ? 'text' : 'password'"
           required
           maxlength="200"
           autocomplete="current-password"
-          :disabled="busy"
-      /></label>
-      <label
-        >新密码<Input
+          :disabled="busy" />
+      </label>
+      <label>
+        新密码
+        <Input
           v-model="password"
           :type="visible ? 'text' : 'password'"
           required
           maxlength="200"
           autocomplete="new-password"
-          :disabled="busy"
-      /></label>
-      <label
-        >确认新密码<Input
+          :disabled="busy" />
+      </label>
+      <label>
+        确认新密码
+        <Input
           v-model="confirm"
           :type="visible ? 'text' : 'password'"
           required
           maxlength="200"
           autocomplete="new-password"
-          :disabled="busy"
-      /></label>
+          :disabled="busy" />
+      </label>
       <Button
         variant="plain"
         class="text-button"
         type="button"
         data-guide="password-visible"
         :aria-pressed="visible"
-        @click="visible = !visible"
-      >
-        <component :is="visible ? EyeOff : Eye" :size="15" />{{ visible ? '隐藏密码' : '显示密码' }}
+        @click="visible = !visible">
+        <component :is="visible ? EyeOff : Eye" :size="15" />
+        {{ visible ? '隐藏密码' : '显示密码' }}
       </Button>
 
       <div class="modal-actions">
@@ -108,11 +110,13 @@ useActionFeedback(error)
           variant="outline"
           :disabled="busy"
           data-guide="password-cancel"
-          @click="open = false"
-          >取消</Button
-        ><Button data-guide="password-save" type="submit" :disabled="busy"
-          ><KeyRound />{{ busy ? '正在更新…' : '更新密码' }}</Button
-        >
+          @click="open = false">
+          取消
+        </Button>
+        <Button data-guide="password-save" type="submit" :disabled="busy">
+          <KeyRound />
+          {{ busy ? '正在更新…' : '更新密码' }}
+        </Button>
       </div>
     </Form>
   </Modal>

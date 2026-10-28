@@ -59,24 +59,30 @@ function clearFilters() {
         <span class="monitor-icon"><Users :size="21" /></span>
         <div>
           <h1>
-            在线课堂巡视<span>{{ online.length }}</span>
+            在线课堂巡视
+            <span>{{ online.length }}</span>
           </h1>
           <p>{{ activeClassroom.name }}</p>
         </div>
       </div>
       <div class="inline-items">
         <ThemeToggle />
-        <RouterLink to="/teacher/teach" target="_blank"
-          >授课页<ArrowUpRight :size="13"
-        /></RouterLink>
-        <span class="demo-tag">课堂实时名册</span
-        ><Button variant="outline" size="sm" @click="close"><X />关闭窗口</Button>
+        <RouterLink to="/teacher/teach" target="_blank">
+          授课页
+          <ArrowUpRight :size="13" />
+        </RouterLink>
+        <span class="demo-tag">课堂实时名册</span>
+        <Button variant="outline" size="sm" @click="close">
+          <X />
+          关闭窗口
+        </Button>
       </div>
     </header>
     <div class="monitor-window-body">
       <Alert v-if="blocked" type="warning">
         浏览器拦截了弹窗，请允许本站弹出窗口，或
-        <a :href="blocked" target="_blank" rel="noopener">点此打开学生详情</a>。
+        <a :href="blocked" target="_blank" rel="noopener">点此打开学生详情</a>
+        。
       </Alert>
       <div class="monitor-controls">
         <div class="segmented">
@@ -85,17 +91,14 @@ function clearFilters() {
             :key="f"
             variant="plain"
             :class="{ selected: filter === f }"
-            @click="filter = f"
-          >
+            @click="filter = f">
             {{ f }}
           </Button>
         </div>
-        <label class="search-field"
-          ><Search :size="16" /><Input
-            v-model="search"
-            aria-label="搜索在线学生"
-            placeholder="姓名或学号"
-        /></label>
+        <label class="search-field">
+          <Search :size="16" />
+          <Input v-model="search" aria-label="搜索在线学生" placeholder="姓名或学号" />
+        </label>
       </div>
       <div class="monitor-student-grid">
         <Button
@@ -103,24 +106,35 @@ function clearFilters() {
           :key="s.id"
           variant="plain"
           class="monitor-student-card"
-          @click="inspect(s.id)"
-        >
+          @click="inspect(s.id)">
           <div class="monitor-card-person">
-            <span class="student-avatar">{{ s.name.slice(-2) }}<i class="online" /></span
-            ><span
-              ><strong>{{ s.name }}</strong
-              ><small>{{ s.number }}</small></span
-            ><ArrowUpRight :size="17" class="ml-auto" />
+            <span class="student-avatar">
+              {{ s.name.slice(-2) }}
+              <i class="online" />
+            </span>
+            <span>
+              <strong>{{ s.name }}</strong>
+              <small>{{ s.number }}</small>
+            </span>
+            <ArrowUpRight :size="17" class="ml-auto" />
           </div>
-          <span class="monitor-exercise-name">{{ exerciseTitle(s) }}</span
-          ><span class="status" :class="tone(s.status)"
-            ><span class="status-dot" />{{ s.status }}</span
-          >
+          <span class="monitor-exercise-name">{{ exerciseTitle(s) }}</span>
+          <span class="status" :class="tone(s.status)">
+            <span class="status-dot" />
+            {{ s.status }}
+          </span>
           <p>{{ s.summary }}</p>
           <div class="monitor-card-footer">
-            <span v-if="s.help" class="help-label"><Hand :size="13" />待处理求助</span
-            ><span v-else-if="s.submitted" class="submitted-label"><Check :size="13" />已提交</span
-            ><span v-else>查看草稿</span><span>{{ s.activity }}</span>
+            <span v-if="s.help" class="help-label">
+              <Hand :size="13" />
+              待处理求助
+            </span>
+            <span v-else-if="s.submitted" class="submitted-label">
+              <Check :size="13" />
+              已提交
+            </span>
+            <span v-else>查看草稿</span>
+            <span>{{ s.activity }}</span>
           </div>
         </Button>
       </div>
@@ -129,8 +143,7 @@ function clearFilters() {
         v-model:page="page"
         v-model:page-size="pageSize"
         :total="visible.length"
-        unit="位在线学生"
-      />
+        unit="位在线学生" />
       <div v-if="!visible.length" class="empty-state">
         <Monitor :size="29" />
         <h2>{{ online.length ? '没有匹配的在线学生' : '当前没有在线学生' }}</h2>
@@ -141,9 +154,9 @@ function clearFilters() {
               : '请让学生进入已开放课堂的练习工作区，在线状态会自动更新。'
           }}
         </p>
-        <Button v-if="search || filter !== '全部在线'" variant="outline" @click="clearFilters"
-          >清除筛选</Button
-        >
+        <Button v-if="search || filter !== '全部在线'" variant="outline" @click="clearFilters">
+          清除筛选
+        </Button>
       </div>
     </div>
   </main>

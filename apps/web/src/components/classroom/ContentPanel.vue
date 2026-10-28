@@ -26,15 +26,15 @@ const slots = useSlots()
           <span v-if="icon" class="content-panel-icon"><component :is="icon" :size="19" /></span>
           <div>
             <h2 :id="titleId" class="content-panel-title">{{ title }}</h2>
-            <CardDescription v-if="description" class="content-panel-description">{{
-              description
-            }}</CardDescription>
+            <CardDescription v-if="description" class="content-panel-description">
+              {{ description }}
+            </CardDescription>
           </div>
         </div>
       </slot>
-      <CardAction v-if="slots.actions" class="content-panel-actions"
-        ><slot name="actions"
-      /></CardAction>
+      <CardAction v-if="slots.actions" class="content-panel-actions">
+        <slot name="actions" />
+      </CardAction>
     </CardHeader>
     <CardContent :class="cn('content-panel-body', props.contentClass)"><slot /></CardContent>
     <CardFooter v-if="slots.footer" class="content-panel-footer"><slot name="footer" /></CardFooter>

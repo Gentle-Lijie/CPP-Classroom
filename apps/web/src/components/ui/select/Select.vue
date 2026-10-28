@@ -38,8 +38,7 @@ function update(value: unknown) {
     :disabled="disabled"
     :required="required"
     :name="name"
-    @update:model-value="update"
-  >
+    @update:model-value="update">
     <SelectTrigger v-bind="$attrs" class="ui-select-trigger" data-ui="select">
       <SelectValue :placeholder="placeholder ?? '请选择'" />
       <SelectIcon as-child><ChevronDown :size="16" /></SelectIcon>
@@ -49,15 +48,14 @@ function update(value: unknown) {
         class="ui-select-content"
         position="popper"
         :side-offset="5"
-        :collision-padding="8"
-      >
-        <SelectScrollUpButton class="ui-select-scroll"
-          ><ChevronUp :size="16"
-        /></SelectScrollUpButton>
+        :collision-padding="8">
+        <SelectScrollUpButton class="ui-select-scroll">
+          <ChevronUp :size="16" />
+        </SelectScrollUpButton>
         <SelectViewport class="ui-select-viewport"><slot /></SelectViewport>
-        <SelectScrollDownButton class="ui-select-scroll"
-          ><ChevronDown :size="16"
-        /></SelectScrollDownButton>
+        <SelectScrollDownButton class="ui-select-scroll">
+          <ChevronDown :size="16" />
+        </SelectScrollDownButton>
       </SelectContent>
     </SelectPortal>
   </SelectRoot>

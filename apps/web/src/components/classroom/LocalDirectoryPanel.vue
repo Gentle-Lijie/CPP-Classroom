@@ -43,9 +43,10 @@ defineExpose({ flush: local.flush })
         size="sm"
         :title="status"
         aria-label="本地工作目录"
-        data-guide="directory-trigger"
-      >
-        <FolderCheck v-if="file && !needsPermission" /><FolderOpen v-else />工作目录
+        data-guide="directory-trigger">
+        <FolderCheck v-if="file && !needsPermission" />
+        <FolderOpen v-else />
+        工作目录
       </Button>
     </PopoverTrigger>
     <PopoverPortal :disabled="!compact">
@@ -53,52 +54,54 @@ defineExpose({ flush: local.flush })
         :is="compact ? PopoverContent : 'div'"
         v-bind="compact ? { sideOffset: 8, align: 'end' } : {}"
         :class="compact ? 'local-directory-popover' : undefined"
-        @interact-outside="spotlight.active && $event.preventDefault()"
-      >
+        @interact-outside="spotlight.active && $event.preventDefault()">
         <section
           class="local-directory-panel"
           :class="{ linked: !!file && !needsPermission }"
-          aria-label="本地工作目录"
-        >
-          <FolderCheck v-if="file && !needsPermission" :size="17" /><FolderOpen v-else :size="17" />
+          aria-label="本地工作目录">
+          <FolderCheck v-if="file && !needsPermission" :size="17" />
+          <FolderOpen v-else :size="17" />
           <div class="local-directory-status">
-            <strong>{{ root ? root.name + ' / ' + filename : '本地工作目录' }}</strong
-            ><span role="status">{{
-              local.supported
-                ? status
-                : '此浏览器不支持目录读写，可使用 Chrome / Edge；浏览器草稿与下载仍可用。'
-            }}</span>
+            <strong>{{ root ? root.name + ' / ' + filename : '本地工作目录' }}</strong>
+            <span role="status">
+              {{
+                local.supported
+                  ? status
+                  : '此浏览器不支持目录读写，可使用 Chrome / Edge；浏览器草稿与下载仍可用。'
+              }}
+            </span>
           </div>
-          <span v-if="file && !needsPermission" class="local-poll-hint"
-            >自动写入 · 每 2 秒检查外部修改</span
-          >
+          <span v-if="file && !needsPermission" class="local-poll-hint">
+            自动写入 · 每 2 秒检查外部修改
+          </span>
           <div class="inline-items ml-auto">
             <Button
               v-if="backup !== undefined"
               variant="plain"
               class="text-button"
               data-guide="directory-backup"
-              @click="download('backup-' + filename, backup)"
-            >
-              <Download :size="14" />下载读取前草稿</Button
-            ><Button
+              @click="download('backup-' + filename, backup)">
+              <Download :size="14" />
+              下载读取前草稿
+            </Button>
+            <Button
               v-if="local.supported && (!file || needsPermission)"
               variant="outline"
               size="sm"
               :disabled="readonly || busy"
               data-guide="directory-connect"
-              @click="local.connect"
-              ><RefreshCw v-if="needsPermission" /><FolderOpen v-else />{{
-                needsPermission ? '重新授权' : root ? '关联当前文件' : '选择工作目录'
-              }}</Button
-            ><Button
+              @click="local.connect">
+              <RefreshCw v-if="needsPermission" />
+              <FolderOpen v-else />
+              {{ needsPermission ? '重新授权' : root ? '关联当前文件' : '选择工作目录' }}
+            </Button>
+            <Button
               v-if="root"
               variant="plain"
               class="icon-button"
               :disabled="busy"
               aria-label="断开本地目录"
-              @click="local.disconnect"
-            >
+              @click="local.disconnect">
               <Unplug :size="15" />
             </Button>
           </div>
@@ -111,10 +114,11 @@ defineExpose({ flush: local.flush })
     :title="conflict?.reason === 'existing' ? '本地已有同名文件' : '磁盘与编辑器都有修改'"
     description="自动写入已暂停。对照两个版本后，选择要保留的内容；不会自动合并或覆盖。"
     wide
-    @update:open="!$event && local.cancelConflict()"
-    ><template v-if="conflict"
-      ><div class="file-conflict-name">
-        <FolderOpen :size="16" />{{ root?.name }} / {{ conflict.filename }}
+    @update:open="!$event && local.cancelConflict()">
+    <template v-if="conflict">
+      <div class="file-conflict-name">
+        <FolderOpen :size="16" />
+        {{ root?.name }} / {{ conflict.filename }}
       </div>
       <div class="file-conflict-comparison">
         <div>
@@ -132,20 +136,23 @@ defineExpose({ flush: local.flush })
           variant="ghost"
           :disabled="busy"
           data-guide="disk-backup"
-          @click="download('backup-' + filename, code)"
-          ><Download />备份编辑器草稿</Button
-        ><Button
+          @click="download('backup-' + filename, code)">
+          <Download />
+          备份编辑器草稿
+        </Button>
+        <Button
           variant="outline"
           :disabled="busy || readonly"
           data-guide="disk-use-editor"
-          @click="local.useEditor"
-          >用草稿覆盖磁盘</Button
-        ><Button :disabled="busy || readonly" data-guide="disk-use-disk" @click="local.useDisk"
-          >读取磁盘文件</Button
-        >
-      </div></template
-    ></Modal
-  >
+          @click="local.useEditor">
+          用草稿覆盖磁盘
+        </Button>
+        <Button :disabled="busy || readonly" data-guide="disk-use-disk" @click="local.useDisk">
+          读取磁盘文件
+        </Button>
+      </div>
+    </template>
+  </Modal>
 </template>
 
 <style scoped>

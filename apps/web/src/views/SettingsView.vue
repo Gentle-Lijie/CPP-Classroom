@@ -215,9 +215,10 @@ useActionFeedback(error)
         <div class="heading-meta">课堂管理</div>
         <h1>课堂设置</h1>
       </div>
-      <Button :disabled="busy || !dirty" @click="save()"
-        ><Save />{{ busy ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}</Button
-      >
+      <Button :disabled="busy || !dirty" @click="save()">
+        <Save />
+        {{ busy ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}
+      </Button>
     </div>
 
     <Alert v-if="dirty" role="status" type="warning">
@@ -230,9 +231,9 @@ useActionFeedback(error)
           :key="t"
           variant="plain"
           :class="{ selected: tab === t }"
-          @click="goTo(t)"
-        >
-          {{ t }}<ChevronRight :size="14" />
+          @click="goTo(t)">
+          {{ t }}
+          <ChevronRight :size="14" />
         </Button>
       </nav>
       <section ref="panelEl" class="panel settings-panel">
@@ -241,50 +242,62 @@ useActionFeedback(error)
             <Settings2 :size="19" />
             <h2>基本信息</h2>
           </div>
-          <label>课堂名称<Input v-model="form.name" required maxlength="50" /></label
-          ><label>课堂说明<Textarea v-model="form.description" rows="5" /></label>
-          <label
-            >课堂状态<Select
-              v-model="form.state"
-              :disabled="busy || activeClassroom.status === '已归档'"
-            >
+          <label>
+            课堂名称
+            <Input v-model="form.name" required maxlength="50" />
+          </label>
+          <label>
+            课堂说明
+            <Textarea v-model="form.description" rows="5" />
+          </label>
+          <label>
+            课堂状态
+            <Select v-model="form.state" :disabled="busy || activeClassroom.status === '已归档'">
               <SelectOption>未开始</SelectOption>
               <SelectOption>进行中</SelectOption>
               <SelectOption>已关闭</SelectOption>
               <SelectOption v-if="activeClassroom.status === '已归档'">已归档</SelectOption>
-            </Select></label
-          >
+            </Select>
+          </label>
         </Form>
         <div id="settings-section-1" class="form-stack settings-section">
           <div class="settings-title">
             <ShieldCheck :size="19" />
             <h2>加入与邀请</h2>
           </div>
-          <label class="toggle-row"
-            ><span
-              ><strong>允许新成员加入</strong><small>关闭后，已有成员仍可访问课堂。</small></span
-            ><Switch v-model="form.allowJoin" /></label
-          ><label
-            >入班方式<Select v-model="form.access">
+          <label class="toggle-row">
+            <span>
+              <strong>允许新成员加入</strong>
+              <small>关闭后，已有成员仍可访问课堂。</small>
+            </span>
+            <Switch v-model="form.allowJoin" />
+          </label>
+          <label>
+            入班方式
+            <Select v-model="form.access">
               <SelectOption value="approval">教师审批后加入</SelectOption>
               <SelectOption value="roster">仅名单中的学生可加入</SelectOption>
-            </Select></label
-          ><label
-            >当前课堂码
+            </Select>
+          </label>
+          <label>
+            当前课堂码
             <div class="copy-row">
-              <Input :value="demo.inviteCode" readonly /><Button variant="outline" @click="copy"
-                ><Copy />复制邀请</Button
-              >
-            </div></label
-          >
+              <Input :value="demo.inviteCode" readonly />
+              <Button variant="outline" @click="copy">
+                <Copy />
+                复制邀请
+              </Button>
+            </div>
+          </label>
           <p class="form-hint" :class="{ 'danger-text': inviteExpired }">
             {{ inviteExpired ? '课堂码已过期' : '有效至' }}：{{
               inviteExpires
             }}。重新生成后原课堂码失效。
           </p>
-          <Button variant="outline" class="self-start" :disabled="busy" @click="regenerate = true"
-            ><RefreshCw />重新生成</Button
-          >
+          <Button variant="outline" class="self-start" :disabled="busy" @click="regenerate = true">
+            <RefreshCw />
+            重新生成
+          </Button>
         </div>
         <div id="settings-section-2" class="form-stack settings-section">
           <div class="settings-title">
@@ -294,41 +307,59 @@ useActionFeedback(error)
           <Alert type="info">编译标准与运行限制由平台管理员统一配置。</Alert>
           <p>GCC · {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</p>
           <div class="environment-grid">
-            <div><span>项目类型</span><strong>每题一个 C++ 源文件</strong></div>
             <div>
-              <span>运行时间</span><strong>{{ executionSettings.runTimeMs }} ms</strong>
+              <span>项目类型</span>
+              <strong>每题一个 C++ 源文件</strong>
             </div>
             <div>
-              <span>内存上限</span><strong>{{ executionSettings.runMemoryMb }} MiB</strong>
+              <span>运行时间</span>
+              <strong>{{ executionSettings.runTimeMs }} ms</strong>
             </div>
             <div>
-              <span>输出上限</span><strong>{{ executionSettings.outputLimitKb }} KiB</strong>
+              <span>内存上限</span>
+              <strong>{{ executionSettings.runMemoryMb }} MiB</strong>
             </div>
             <div>
-              <span>编译时间</span><strong>{{ executionSettings.compileTimeMs }} ms</strong>
+              <span>输出上限</span>
+              <strong>{{ executionSettings.outputLimitKb }} KiB</strong>
             </div>
             <div>
-              <span>编译内存</span><strong>{{ executionSettings.compileMemoryMb }} MiB</strong>
+              <span>编译时间</span>
+              <strong>{{ executionSettings.compileTimeMs }} ms</strong>
+            </div>
+            <div>
+              <span>编译内存</span>
+              <strong>{{ executionSettings.compileMemoryMb }} MiB</strong>
             </div>
           </div>
         </div>
         <div id="settings-section-3" class="form-stack settings-section">
           <h2>练习与课后访问</h2>
-          <label class="toggle-row"
-            ><span
-              ><strong>允许编译运行</strong><small>关闭后仍可编辑，并查看已有记录。</small></span
-            ><Switch v-model="form.allowRun" /></label
-          ><label class="toggle-row"
-            ><span><strong>允许重复提交</strong><small>每次主动提交保留独立版本。</small></span
-            ><Switch v-model="form.allowResubmit" /></label
-          ><label class="toggle-row"
-            ><span
-              ><strong>归档后保留只读访问</strong
-              ><small>学生仍可查看和下载自己的作品。</small></span
-            ><Switch v-model="form.readonly" /></label
-          ><label
-            >课堂人数上限<NumberInput v-model.number="form.capacity" min="1" max="50"
-          /></label>
+          <label class="toggle-row">
+            <span>
+              <strong>允许编译运行</strong>
+              <small>关闭后仍可编辑，并查看已有记录。</small>
+            </span>
+            <Switch v-model="form.allowRun" />
+          </label>
+          <label class="toggle-row">
+            <span>
+              <strong>允许重复提交</strong>
+              <small>每次主动提交保留独立版本。</small>
+            </span>
+            <Switch v-model="form.allowResubmit" />
+          </label>
+          <label class="toggle-row">
+            <span>
+              <strong>归档后保留只读访问</strong>
+              <small>学生仍可查看和下载自己的作品。</small>
+            </span>
+            <Switch v-model="form.readonly" />
+          </label>
+          <label>
+            课堂人数上限
+            <NumberInput v-model.number="form.capacity" min="1" max="50" />
+          </label>
           <p class="form-hint">
             当前已有 {{ activeClassroom.students }} 位学生。上限不可低于现有人数；最多 50 人。
           </p>
@@ -346,16 +377,16 @@ useActionFeedback(error)
             v-if="activeClassroom.status === '已归档'"
             variant="success"
             class="self-start"
-            @click="reopen = true"
-            >恢复课堂教学</Button
-          >
+            @click="reopen = true">
+            恢复课堂教学
+          </Button>
           <Button
             variant="destructive"
             class="self-start"
             :disabled="busy || activeClassroom.status === '已归档'"
-            @click="archive = true"
-            >{{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}</Button
-          >
+            @click="archive = true">
+            {{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}
+          </Button>
         </div>
       </section>
     </div>
@@ -363,75 +394,75 @@ useActionFeedback(error)
   <Modal
     v-model:open="archive"
     title="结束并归档课堂？"
-    description="归档后关闭加入、编辑与运行，保留作品和历史记录。"
-    ><p class="body-copy">
+    description="归档后关闭加入、编辑与运行，保留作品和历史记录。">
+    <p class="body-copy">
       归档后不再接受新成员、编辑与提交，正在运行的程序会停止。请先按需导出课堂作品。
     </p>
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="archive = false">继续教学</Button
-      ><Button variant="destructive" :disabled="busy" @click="archiveClass">{{
-        busy ? '正在归档…' : '确认归档'
-      }}</Button>
-    </div></Modal
-  >
+      <Button variant="outline" :disabled="busy" @click="archive = false">继续教学</Button>
+      <Button variant="destructive" :disabled="busy" @click="archiveClass">
+        {{ busy ? '正在归档…' : '确认归档' }}
+      </Button>
+    </div>
+  </Modal>
   <Modal
     v-model:open="regenerate"
     title="重新生成课堂码？"
-    description="旧课堂码与邀请链接会立即失效。已有成员不受影响，请将新邀请交付给尚未加入的学生。"
-    ><div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="regenerate = false">取消</Button
-      ><Button variant="warning" :disabled="busy" @click="regenerateInvite">{{
-        busy ? '正在更新…' : '确认重新生成'
-      }}</Button>
-    </div></Modal
-  >
+    description="旧课堂码与邀请链接会立即失效。已有成员不受影响，请将新邀请交付给尚未加入的学生。">
+    <div class="modal-actions">
+      <Button variant="outline" :disabled="busy" @click="regenerate = false">取消</Button>
+      <Button variant="warning" :disabled="busy" @click="regenerateInvite">
+        {{ busy ? '正在更新…' : '确认重新生成' }}
+      </Button>
+    </div>
+  </Modal>
   <Modal
     :open="leave"
     title="放弃未保存的设置？"
     description="已保存的课堂设置不受影响。"
-    @update:open="!$event && settleLeave(false)"
-    ><div class="modal-actions">
-      <Button variant="outline" @click="settleLeave(false)">继续编辑</Button
-      ><Button variant="destructive" @click="settleLeave(true)">放弃修改</Button>
-    </div></Modal
-  >
+    @update:open="!$event && settleLeave(false)">
+    <div class="modal-actions">
+      <Button variant="outline" @click="settleLeave(false)">继续编辑</Button>
+      <Button variant="destructive" @click="settleLeave(true)">放弃修改</Button>
+    </div>
+  </Modal>
   <Modal
     v-model:open="reopen"
     title="恢复课堂教学？"
-    description="课堂将回到进行中，成员可按课堂策略继续编辑、运行与提交。"
-    ><div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="reopen = false">取消</Button
-      ><Button
+    description="课堂将回到进行中，成员可按课堂策略继续编辑、运行与提交。">
+    <div class="modal-actions">
+      <Button variant="outline" :disabled="busy" @click="reopen = false">取消</Button>
+      <Button
         variant="success"
         :disabled="busy"
         @click="
           async () => {
             if (await save('进行中', true)) reopen = false
           }
-        "
-        >{{ busy ? '正在恢复…' : '确认恢复课堂' }}</Button
-      >
-    </div></Modal
-  >
+        ">
+        {{ busy ? '正在恢复…' : '确认恢复课堂' }}
+      </Button>
+    </div>
+  </Modal>
   <Modal
     :open="!!confirmState"
     title="更改课堂状态？"
     :description="`课堂将设为${confirmState}，学生只能查看作品，正在执行的程序会停止。`"
-    @update:open="!$event && (confirmState = '')"
-    ><div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="confirmState = ''">取消</Button
-      ><Button
+    @update:open="!$event && (confirmState = '')">
+    <div class="modal-actions">
+      <Button variant="outline" :disabled="busy" @click="confirmState = ''">取消</Button>
+      <Button
         variant="warning"
         :disabled="busy"
         @click="
           async () => {
             if (await save(confirmState, true)) confirmState = ''
           }
-        "
-        >确认更改</Button
-      >
-    </div></Modal
-  >
+        ">
+        确认更改
+      </Button>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>

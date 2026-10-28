@@ -230,31 +230,39 @@ async function imported(ids: string[]) {
         <Button
           variant="outline"
           :disabled="!exercise"
-          @click="router.push('/teacher/teach?exercise=' + exercise.id)"
-          ><Monitor />开始授课</Button
-        ><Button @click="router.push('/teacher/exercises/new')"><Plus />创建练习</Button>
+          @click="router.push('/teacher/teach?exercise=' + exercise.id)">
+          <Monitor />
+          开始授课
+        </Button>
+        <Button @click="router.push('/teacher/exercises/new')">
+          <Plus />
+          创建练习
+        </Button>
       </div>
     </div>
     <section v-if="!exercise" class="panel empty-state">
       <BookOpen :size="32" />
       <h2>课堂还没有练习</h2>
-      <Button @click="router.push('/teacher/exercises/new')"><Plus />创建第一个练习</Button>
+      <Button @click="router.push('/teacher/exercises/new')">
+        <Plus />
+        创建第一个练习
+      </Button>
     </section>
     <div v-else class="exercise-layout">
       <section class="panel exercise-list-panel">
         <div class="panel-heading">
           <h2>
-            课堂练习 <span class="muted">{{ exercises.length }}</span>
+            课堂练习
+            <span class="muted">{{ exercises.length }}</span>
           </h2>
           <span class="muted text-xs">按教学顺序</span>
         </div>
         <div class="exercise-list-filters">
-          <label class="search-field"
-            ><Search :size="15" /><Input
-              v-model="search"
-              aria-label="搜索练习"
-              placeholder="搜索题目、文件名…" /></label
-          ><Select v-model="status" aria-label="筛选练习状态">
+          <label class="search-field">
+            <Search :size="15" />
+            <Input v-model="search" aria-label="搜索练习" placeholder="搜索题目、文件名…" />
+          </label>
+          <Select v-model="status" aria-label="筛选练习状态">
             <SelectOption value="">全部状态</SelectOption>
             <SelectOption>草稿</SelectOption>
             <SelectOption>已发布</SelectOption>
@@ -268,52 +276,50 @@ async function imported(ids: string[]) {
               :indeterminate="!!checkedOnPage.length && checkedOnPage.length < paged.length"
               :disabled="!paged.length"
               aria-label="选择本页练习"
-              @change="selectPage"
-            />本页全选
+              @change="selectPage" />
+            本页全选
           </label>
           <span class="muted" aria-live="polite">已选 {{ checkedIds.length }} 道</span>
-          <Button variant="plain" size="sm" :disabled="!checkedIds.length" @click="checkedIds = []"
-            >清空</Button
-          >
+          <Button variant="plain" size="sm" :disabled="!checkedIds.length" @click="checkedIds = []">
+            清空
+          </Button>
           <Button
             variant="outline"
             size="sm"
             style="margin-left: auto"
             :disabled="!checkedIds.length || busy || batchBusy"
-            @click="openBatch"
-            ><Pencil />批量编辑</Button
-          >
+            @click="openBatch">
+            <Pencil />
+            批量编辑
+          </Button>
         </div>
         <div class="exercise-list-scroll">
           <div
             v-for="e in paged"
             :key="e.id"
             class="exercise-list-row"
-            :class="{ selected: selected === e.id }"
-          >
+            :class="{ selected: selected === e.id }">
             <Checkbox
               v-model="checkedIds"
               :value="e.id"
-              :aria-label="`选择练习：${e.title || '未命名题目'}`"
-            />
+              :aria-label="`选择练习：${e.title || '未命名题目'}`" />
             <Button
               variant="plain"
               class="exercise-list-item"
               :class="{ selected: selected === e.id }"
-              @click="selected = e.id"
-            >
-              <span class="exercise-order">{{
-                String(exercises.indexOf(e) + 1).padStart(2, '0')
-              }}</span>
+              @click="selected = e.id">
+              <span class="exercise-order">
+                {{ String(exercises.indexOf(e) + 1).padStart(2, '0') }}
+              </span>
               <div>
-                <strong>{{ e.title || '未命名题目' }}</strong
-                ><small
-                  >{{ e.filename || '未指定源文件名'
-                  }}<span v-if="activeClassroom.recommended === e.id"> · 当前推荐</span></small
-                >
+                <strong>{{ e.title || '未命名题目' }}</strong>
+                <small>
+                  {{ e.filename || '未指定源文件名' }}
+                  <span v-if="activeClassroom.recommended === e.id">· 当前推荐</span>
+                </small>
               </div>
-              <span class="status" :class="tone(e.status)">{{ e.status }}</span
-              ><ArrowRight :size="15" />
+              <span class="status" :class="tone(e.status)">{{ e.status }}</span>
+              <ArrowRight :size="15" />
             </Button>
           </div>
           <div v-if="!filtered.length" class="small-empty">没有匹配的练习</div>
@@ -322,16 +328,16 @@ async function imported(ids: string[]) {
           v-model:page="page"
           v-model:page-size="pageSize"
           :total="filtered.length"
-          unit="道练习"
-        />
+          unit="道练习" />
       </section>
       <section class="panel exercise-preview">
         <div class="panel-heading">
           <div class="inline-items">
-            <span class="status" :class="tone(exercise.status)">{{ exercise.status }}</span
-            ><span v-if="activeClassroom.recommended === exercise.id" class="recommended"
-              ><Star :size="13" />当前推荐</span
-            >
+            <span class="status" :class="tone(exercise.status)">{{ exercise.status }}</span>
+            <span v-if="activeClassroom.recommended === exercise.id" class="recommended">
+              <Star :size="13" />
+              当前推荐
+            </span>
           </div>
           <div class="inline-items">
             <Button
@@ -339,32 +345,36 @@ async function imported(ids: string[]) {
               class="icon-button"
               aria-label="练习向上移动"
               :disabled="busy || exercises.indexOf(exercise) === 0"
-              @click="move(-1)"
-            >
-              <ArrowUp :size="16" /></Button
-            ><Button
+              @click="move(-1)">
+              <ArrowUp :size="16" />
+            </Button>
+            <Button
               variant="plain"
               class="icon-button"
               aria-label="练习向下移动"
               :disabled="busy || exercises.indexOf(exercise) === exercises.length - 1"
-              @click="move(1)"
-            >
-              <ArrowDown :size="16" /></Button
-            ><Button variant="outline" size="sm" @click="edit(exercise)"><Pencil />编辑题目</Button>
+              @click="move(1)">
+              <ArrowDown :size="16" />
+            </Button>
+            <Button variant="outline" size="sm" @click="edit(exercise)">
+              <Pencil />
+              编辑题目
+            </Button>
           </div>
         </div>
         <div class="problem-content">
-          <span class="topic-label"
-            >{{ exercise.topic }} ·
-            {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</span
-          >
+          <span class="topic-label">
+            {{ exercise.topic }} ·
+            {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+          </span>
           <h2>{{ exercise.title || '未命名题目' }}</h2>
           <div class="problem-limits">
-            <span>时间限制 {{ executionSettings.runTimeMs }} ms</span
-            ><span>内存限制 {{ executionSettings.runMemoryMb }} MiB</span
-            ><span class="inline-items"
-              ><FileCode2 :size="13" />{{ exercise.filename || '自动文件名' }}</span
-            >
+            <span>时间限制 {{ executionSettings.runTimeMs }} ms</span>
+            <span>内存限制 {{ executionSettings.runMemoryMb }} MiB</span>
+            <span class="inline-items">
+              <FileCode2 :size="13" />
+              {{ exercise.filename || '自动文件名' }}
+            </span>
           </div>
           <MarkdownContent :source="exercise.description" />
           <h3>输入说明</h3>
@@ -385,29 +395,35 @@ async function imported(ids: string[]) {
         </div>
         <div class="exercise-preview-actions">
           <div class="inline-items">
-            <Button variant="outline" @click="preview = true"><Eye />学生预览</Button
-            ><Button
+            <Button variant="outline" @click="preview = true">
+              <Eye />
+              学生预览
+            </Button>
+            <Button
               variant="warning"
               :disabled="busy"
-              @click="exercise.status === '已关闭' ? close() : (confirmClose = true)"
-              ><Archive />{{ exercise.status === '已关闭' ? '移回草稿' : '关闭练习' }}</Button
-            >
+              @click="exercise.status === '已关闭' ? close() : (confirmClose = true)">
+              <Archive />
+              {{ exercise.status === '已关闭' ? '移回草稿' : '关闭练习' }}
+            </Button>
           </div>
           <Button
             v-if="exercise.status !== '已发布'"
             variant="success"
             :disabled="busy"
-            @click="publish"
-            ><Send />发布练习</Button
-          ><Button
+            @click="publish">
+            <Send />
+            发布练习
+          </Button>
+          <Button
             v-else
             :variant="activeClassroom.recommended === exercise.id ? 'outline' : 'default'"
             :disabled="busy || activeClassroom.recommended === exercise.id"
-            @click="recommend"
-            ><Check v-if="activeClassroom.recommended === exercise.id" /><Star v-else />{{
-              activeClassroom.recommended === exercise.id ? '当前推荐练习' : '设为当前推荐'
-            }}</Button
-          >
+            @click="recommend">
+            <Check v-if="activeClassroom.recommended === exercise.id" />
+            <Star v-else />
+            {{ activeClassroom.recommended === exercise.id ? '当前推荐练习' : '设为当前推荐' }}
+          </Button>
         </div>
       </section>
     </div>
@@ -416,11 +432,10 @@ async function imported(ids: string[]) {
     v-model:open="batchOpen"
     title="批量编辑练习"
     :description="`将修改已选的 ${batchTargets.length} 道练习（包含其他分页和筛选外的选择）。仅保存指定字段。`"
-    :busy="batchBusy"
-  >
+    :busy="batchBusy">
     <div class="batch-edit-fields" :inert="batchBusy">
-      <label
-        >练习状态
+      <label>
+        练习状态
         <Select v-model="batchStatus" aria-label="批量修改状态">
           <SelectOption value="">保持原状态</SelectOption>
           <SelectOption>草稿</SelectOption>
@@ -428,32 +443,34 @@ async function imported(ids: string[]) {
           <SelectOption>已关闭</SelectOption>
         </Select>
       </label>
-      <label class="inline-items"><Checkbox v-model="changeTopic" />统一修改知识点</label>
+      <label class="inline-items">
+        <Checkbox v-model="changeTopic" />
+        统一修改知识点
+      </label>
       <Input
         v-model="batchTopic"
         aria-label="批量修改知识点"
         maxlength="100"
         placeholder="输入知识点，留空则清空所选练习的知识点"
-        :disabled="!changeTopic"
-      />
-      <Alert v-if="batchStatus === '草稿' || batchStatus === '已关闭'" type="warning"
-        >{{
+        :disabled="!changeTopic" />
+      <Alert v-if="batchStatus === '草稿' || batchStatus === '已关闭'" type="warning">
+        {{
           batchStatus === '草稿'
             ? '移回草稿后，学生将无法查看这些练习。'
             : '关闭后，学生仍可查看题目，但不能编辑、运行或提交。'
-        }}所选练习的运行任务会停止，当前推荐也会取消。</Alert
-      >
+        }}所选练习的运行任务会停止，当前推荐也会取消。
+      </Alert>
     </div>
     <Alert v-if="batchError" type="error" role="alert">{{ batchError }}</Alert>
     <div class="modal-actions">
       <Button variant="outline" :disabled="batchBusy" @click="batchOpen = false">取消</Button>
-      <Button :disabled="batchBusy || (!batchStatus && !changeTopic)" @click="saveBatch">{{
-        batchBusy ? '正在保存…' : `保存 ${batchTargets.length} 道练习`
-      }}</Button>
+      <Button :disabled="batchBusy || (!batchStatus && !changeTopic)" @click="saveBatch">
+        {{ batchBusy ? '正在保存…' : `保存 ${batchTargets.length} 道练习` }}
+      </Button>
     </div>
   </Modal>
-  <Modal v-if="exercise" v-model:open="preview" title="学生预览" wide
-    ><h2>{{ exercise.title || '未命名题目' }}</h2>
+  <Modal v-if="exercise" v-model:open="preview" title="学生预览" wide>
+    <h2>{{ exercise.title || '未命名题目' }}</h2>
     <MarkdownContent :source="exercise.description" />
     <h3>输入说明</h3>
     <MarkdownContent :source="exercise.input" />
@@ -475,19 +492,19 @@ async function imported(ids: string[]) {
     </div>
     <div class="modal-actions">
       <Button variant="outline" @click="preview = false">关闭</Button>
-    </div></Modal
-  >
+    </div>
+  </Modal>
   <Modal
     v-model:open="confirmClose"
     title="关闭这道练习？"
-    description="学生仍可查看已有作品，但不能继续编辑、运行或提交。当前运行任务会停止，可重新发布以恢复教学。"
-    ><div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="confirmClose = false">取消</Button
-      ><Button variant="warning" :disabled="busy" @click="close">{{
-        busy ? '正在关闭…' : '确认关闭练习'
-      }}</Button>
-    </div></Modal
-  >
+    description="学生仍可查看已有作品，但不能继续编辑、运行或提交。当前运行任务会停止，可重新发布以恢复教学。">
+    <div class="modal-actions">
+      <Button variant="outline" :disabled="busy" @click="confirmClose = false">取消</Button>
+      <Button variant="warning" :disabled="busy" @click="close">
+        {{ busy ? '正在关闭…' : '确认关闭练习' }}
+      </Button>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>
@@ -572,7 +589,7 @@ async function imported(ids: string[]) {
   border-bottom: 1px solid var(--ui-line);
 }
 .exercise-list-filters .search-field {
-    max-width: none;
+  max-width: none;
   width: 100%;
 }
 .exercise-list-filters .ui-select-trigger {

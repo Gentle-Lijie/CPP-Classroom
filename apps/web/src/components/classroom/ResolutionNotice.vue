@@ -57,14 +57,14 @@ onBeforeUnmount(() => {
     class="resolution-notice"
     role="alertdialog"
     aria-modal="true"
-    aria-label="屏幕分辨率过低"
-  >
+    aria-label="屏幕分辨率过低">
     <div class="resolution-card">
       <span class="resolution-icon"><MonitorX :size="26" /></span>
       <h2>屏幕分辨率过低</h2>
       <p>
-        当前窗口为 <strong>{{ size }}</strong
-        >，低于建议的 1280 ×
+        当前窗口为
+        <strong>{{ size }}</strong>
+        ，低于建议的 1280 ×
         720。请放大窗口或调大显示器分辨率后使用，部分页面内容在小窗口下可能显示不完整。
       </p>
       <Button variant="outline" class="self-start" @click="dismiss">知道了，继续使用</Button>

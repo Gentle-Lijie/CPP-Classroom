@@ -475,12 +475,19 @@ useActionFeedback(error)
     <div>
       <div class="heading-meta">课堂管理</div>
       <h1>
-        学生名册 <span class="heading-count">{{ active.length }}</span>
+        学生名册
+        <span class="heading-count">{{ active.length }}</span>
       </h1>
     </div>
     <div class="heading-actions">
-      <Button variant="outline" @click="openImport"><Upload />导入名单</Button
-      ><Button @click="openAdd"><UserPlus />添加学生</Button>
+      <Button variant="outline" @click="openImport">
+        <Upload />
+        导入名单
+      </Button>
+      <Button @click="openAdd">
+        <UserPlus />
+        添加学生
+      </Button>
     </div>
   </div>
   <!-- <Alert type="info" :icon="KeyRound">
@@ -495,18 +502,18 @@ useActionFeedback(error)
       </p>
     </div>
 
-    <template #actions
-      ><Button v-if="credentials.length" variant="outline" @click="credentialsOpen = true"
-        >查看 / 导出凭据</Button
-      ></template
-    >
+    <template #actions>
+      <Button v-if="credentials.length" variant="outline" @click="credentialsOpen = true">
+        查看 / 导出凭据
+      </Button>
+    </template>
   </Alert> -->
   <Alert v-if="loadError" role="alert" type="error">
     {{ loadError }}
 
-    <template #actions
-      ><Button variant="plain" class="text-button" @click="loadMembers()">重试</Button></template
-    >
+    <template #actions>
+      <Button variant="plain" class="text-button" @click="loadMembers()">重试</Button>
+    </template>
   </Alert>
 
   <section class="panel panel-fill">
@@ -517,47 +524,51 @@ useActionFeedback(error)
           :key="t"
           variant="plain"
           :class="{ selected: tab === t }"
-          @click="tab = t"
-        >
-          {{ t
-          }}<span>{{
-            t === '已移除'
-              ? removed.length
-              : t === '待审批'
-                ? pending.length
-                : t === '在线成员'
-                  ? students.filter((s) => s.online).length
-                  : active.length
-          }}</span>
+          @click="tab = t">
+          {{ t }}
+          <span>
+            {{
+              t === '已移除'
+                ? removed.length
+                : t === '待审批'
+                  ? pending.length
+                  : t === '在线成员'
+                    ? students.filter((s) => s.online).length
+                    : active.length
+            }}
+          </span>
         </Button>
       </div>
       <div class="inline-items">
-        <span class="muted text-xs">{{
-          loading ? '加载中…' : updatedAt ? '更新于 ' + updatedAt : '尚未加载'
-        }}</span
-        ><Button variant="outline" size="sm" :disabled="loading || busy" @click="loadMembers()"
-          ><RefreshCw />刷新</Button
-        ><Button
+        <span class="muted text-xs">
+          {{ loading ? '加载中…' : updatedAt ? '更新于 ' + updatedAt : '尚未加载' }}
+        </span>
+        <Button variant="outline" size="sm" :disabled="loading || busy" @click="loadMembers()">
+          <RefreshCw />
+          刷新
+        </Button>
+        <Button
           variant="outline"
           size="sm"
           :disabled="loading || !!loadError"
-          @click="exportRoster"
-          ><Download />导出名册</Button
-        >
+          @click="exportRoster">
+          <Download />
+          导出名册
+        </Button>
       </div>
     </div>
     <div class="table-controls">
-      <label class="search-field"
-        ><Search :size="16" /><Input
-          v-model="search"
-          placeholder="搜索姓名、学号或账号…"
-          aria-label="搜索名册"
-      /></label>
+      <label class="search-field">
+        <Search :size="16" />
+        <Input v-model="search" placeholder="搜索姓名、学号或账号…" aria-label="搜索名册" />
+      </label>
       <div v-if="selected.length && tab !== '待审批' && tab !== '已移除'" class="inline-items">
-        <span class="muted">已选 {{ selected.length }} 位</span
-        ><Button variant="plain" class="text-button" @click="selected = []">取消选择</Button><Button size="sm" variant="warning" @click="openReset(selected)"
-          ><KeyRound />重置并生成凭据</Button
-        >
+        <span class="muted">已选 {{ selected.length }} 位</span>
+        <Button variant="plain" class="text-button" @click="selected = []">取消选择</Button>
+        <Button size="sm" variant="warning" @click="openReset(selected)">
+          <KeyRound />
+          重置并生成凭据
+        </Button>
       </div>
       <!-- <span v-else class="muted text-xs">{{
         tab === '待审批'
@@ -576,8 +587,7 @@ useActionFeedback(error)
                 aria-label="选择本页学生"
                 :disabled="busy || !selectablePage.length"
                 :checked="allPageSelected"
-                @change="selectPage"
-              />
+                @change="selectPage" />
             </th>
             <th>学生</th>
             <th>学号</th>
@@ -593,53 +603,59 @@ useActionFeedback(error)
                 v-model="selected"
                 :disabled="busy || !m.canResetPassword"
                 :value="m.id"
-                :aria-label="'选择' + m.name"
-              />
+                :aria-label="'选择' + m.name" />
             </td>
             <td>
               <div class="person-cell">
-                <span class="student-avatar">{{ m.name.slice(-2) }}</span
-                ><strong>{{ m.name }}</strong>
+                <span class="student-avatar">{{ m.name.slice(-2) }}</span>
+                <strong>{{ m.name }}</strong>
               </div>
             </td>
             <td>{{ m.number }}</td>
             <td class="roster-account">{{ m.username }}</td>
             <td>
-              <span v-if="tab === '已移除'" class="status neutral">已移除</span
-              ><span v-else-if="tab === '待审批'" class="status amber">待审批</span
-              ><span v-else class="inline-items"
-                ><i
+              <span v-if="tab === '已移除'" class="status neutral">已移除</span>
+              <span v-else-if="tab === '待审批'" class="status amber">待审批</span>
+              <span v-else class="inline-items">
+                <i
                   class="presence"
-                  :class="{ online: students.find((s) => s.id === m.id)?.online }"
-                />{{
+                  :class="{ online: students.find((s) => s.id === m.id)?.online }" />
+                {{
                   m.disabled
                     ? '账号已停用'
                     : students.find((s) => s.id === m.id)?.online
                       ? '在线'
                       : '离线'
-                }}</span
-              >
+                }}
+              </span>
             </td>
             <td>
               <div v-if="tab === '待审批'" class="inline-items">
-                <Button size="sm" variant="success" :disabled="busy" @click="decide(m.id, 'active')"
-                  ><Check />批准</Button
-                ><Button
+                <Button
+                  size="sm"
+                  variant="success"
+                  :disabled="busy"
+                  @click="decide(m.id, 'active')">
+                  <Check />
+                  批准
+                </Button>
+                <Button
                   size="sm"
                   variant="outline"
                   :disabled="busy"
-                  @click="decide(m.id, 'removed')"
-                  >拒绝</Button
-                >
+                  @click="decide(m.id, 'removed')">
+                  拒绝
+                </Button>
               </div>
               <div v-else-if="tab === '已移除'" class="inline-items">
                 <Button
                   size="sm"
                   variant="outline"
                   :disabled="busy || m.disabled"
-                  @click="decide(m.id, 'active')"
-                  >恢复课堂访问</Button
-                ><span v-if="m.disabled" class="muted text-xs">账号已停用，请联系管理员</span>
+                  @click="decide(m.id, 'active')">
+                  恢复课堂访问
+                </Button>
+                <span v-if="m.disabled" class="muted text-xs">账号已停用，请联系管理员</span>
               </div>
               <div v-else class="inline-items">
                 <Button
@@ -647,13 +663,14 @@ useActionFeedback(error)
                   variant="plain"
                   class="text-button"
                   :disabled="busy"
-                  @click="openReset([m.id])"
-                >
-                  <KeyRound :size="14" />重置密码</Button
-                ><span v-else class="muted text-xs">{{
-                  m.disabled ? '联系管理员启用' : '密码由管理员或创建教师恢复'
-                }}</span
-                ><Button
+                  @click="openReset([m.id])">
+                  <KeyRound :size="14" />
+                  重置密码
+                </Button>
+                <span v-else class="muted text-xs">
+                  {{ m.disabled ? '联系管理员启用' : '密码由管理员或创建教师恢复' }}
+                </span>
+                <Button
                   variant="plain"
                   class="text-button danger-text"
                   :disabled="busy"
@@ -662,9 +679,9 @@ useActionFeedback(error)
                       error = ''
                       remove = m
                     }
-                  "
-                >
-                  <UserMinus :size="14" />移除
+                  ">
+                  <UserMinus :size="14" />
+                  移除
                 </Button>
               </div>
             </td>
@@ -679,156 +696,162 @@ useActionFeedback(error)
         <p>
           {{ search ? '尝试其他姓名、学号或账号。' : '可以添加学生、导入名单，或分享课堂邀请。' }}
         </p>
-        <Button v-if="!search && tab !== '待审批' && tab !== '已移除'" @click="openAdd"
-          >添加第一位学生</Button
-        >
+        <Button v-if="!search && tab !== '待审批' && tab !== '已移除'" @click="openAdd">
+          添加第一位学生
+        </Button>
       </div>
     </div>
     <Pagination
       v-model:page="page"
       v-model:page-size="pageSize"
       :total="visible.length"
-      unit="位学生"
-    />
+      unit="位学生" />
   </section>
   <Modal
     v-model:open="add"
     :dismissible="!busy"
     title="添加学生"
-    description="学号对应唯一学生账号。已有账号加入课堂时保留原密码。登录账号与初始密码留空时自动生成。"
-    ><Form class="form-stack" @submit.prevent="save">
-      <label>学生姓名<Input v-model="name" required maxlength="50" placeholder="真实姓名" /></label
-      ><label
-        >学号<Input
-          v-model="number"
-          required
-          maxlength="50"
-          placeholder="例如：2026001（保留前导零）"
-      /></label
-      ><label
-        >登录账号（可选）<Input
+    description="学号对应唯一学生账号。已有账号加入课堂时保留原密码。登录账号与初始密码留空时自动生成。">
+    <Form class="form-stack" @submit.prevent="save">
+      <label>
+        学生姓名
+        <Input v-model="name" required maxlength="50" placeholder="真实姓名" />
+      </label>
+      <label>
+        学号
+        <Input v-model="number" required maxlength="50" placeholder="例如：2026001（保留前导零）" />
+      </label>
+      <label>
+        登录账号（可选）
+        <Input
           v-model="username"
           maxlength="80"
           autocomplete="off"
-          placeholder="留空自动生成；仅限字母、数字和 . _ @ -"
-      /></label
-      ><label
-        >初始密码（可选）<Input
+          placeholder="留空自动生成；仅限字母、数字和 . _ @ -" />
+      </label>
+      <label>
+        初始密码（可选）
+        <Input
           v-model="password"
           type="password"
           maxlength="200"
           autocomplete="new-password"
-          placeholder="留空自动生成"
-      /></label>
+          placeholder="留空自动生成" />
+      </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="add = false">取消</Button
-        ><Button type="submit" :disabled="busy">{{ busy ? '正在添加…' : '添加学生' }}</Button>
+        <Button type="button" variant="outline" :disabled="busy" @click="add = false">取消</Button>
+        <Button type="submit" :disabled="busy">{{ busy ? '正在添加…' : '添加学生' }}</Button>
       </div>
-    </Form></Modal
-  >
+    </Form>
+  </Modal>
   <Modal
     v-model:open="importing"
     :dismissible="!busy"
     title="导入学生名单"
-    description="支持 Excel（.xlsx，读取首个工作表）、UTF-8 / GB2312 CSV，或从 Excel 粘贴姓名、学号两列。可包含表头，每批最多 50 人。"
-    ><Form class="form-stack" @submit.prevent="importRows">
+    description="支持 Excel（.xlsx，读取首个工作表）、UTF-8 / GB2312 CSV，或从 Excel 粘贴姓名、学号两列。可包含表头，每批最多 50 人。">
+    <Form class="form-stack" @submit.prevent="importRows">
       <div class="inline-items roster-import-files">
         <Button
           variant="outline"
           type="button"
           :disabled="downloadingTemplate"
-          @click="downloadExcelTemplate"
-          ><FileDown />{{ downloadingTemplate ? '正在生成…' : '下载 Excel 模板' }}</Button
-        ><Button
+          @click="downloadExcelTemplate">
+          <FileDown />
+          {{ downloadingTemplate ? '正在生成…' : '下载 Excel 模板' }}
+        </Button>
+        <Button
           variant="outline"
           type="button"
-          @click="downloadBlob('学生名单模板.csv', rosterCsvTemplate())"
-          ><FileDown />CSV 模板（GB2312）</Button
-        ><FileUpload accept=".xlsx,.csv,.tsv,.txt" :disabled="busy" @change="readFile"
-          >选择名单文件</FileUpload
-        >
+          @click="downloadBlob('学生名单模板.csv', rosterCsvTemplate())">
+          <FileDown />
+          CSV 模板（GB2312）
+        </Button>
+        <FileUpload accept=".xlsx,.csv,.tsv,.txt" :disabled="busy" @change="readFile">
+          选择名单文件
+        </FileUpload>
       </div>
       <p class="form-hint">
         请替换模板中的示例学生。学号列请保持文本格式以保留前导零；CSV 含中文时请使用 GB2312
         编码保存。
       </p>
-      <label
-        >名单内容<Textarea
+      <label>
+        名单内容
+        <Textarea
           v-model="csv"
           :disabled="busy"
           rows="7"
           required
-          placeholder="姓名,学号&#10;刘亦安,2026013&#10;方可欣,2026014"
-        />
+          placeholder="姓名,学号&#10;刘亦安,2026013&#10;方可欣,2026014" />
       </label>
 
       <div v-if="importResults.length" class="import-results">
         <p
           v-for="(r, i) in importResults"
           :key="i"
-          :class="r.error ? 'danger-text' : 'positive-text'"
-        >
+          :class="r.error ? 'danger-text' : 'positive-text'">
           {{ r.name }} · {{ r.number }}：{{
             r.error ?? (r.created ? '已新建，可导出凭据' : '已有账号已加入，原密码不变')
           }}
         </p>
       </div>
-      <Button v-if="credentials.length" type="button" variant="outline" @click="exportCredentials"
-        ><Download />导出已成功账号凭据</Button
-      >
+      <Button v-if="credentials.length" type="button" variant="outline" @click="exportCredentials">
+        <Download />
+        导出已成功账号凭据
+      </Button>
       <p class="form-hint">
         已有账号不会修改密码。部分失败时保留成功结果与凭据，重试只处理失败行。
       </p>
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="importing = false"
-          >关闭</Button
-        ><Button type="submit" :disabled="busy || !csv.trim()"
-          ><Upload />{{
+        <Button type="button" variant="outline" :disabled="busy" @click="importing = false">
+          关闭
+        </Button>
+        <Button type="submit" :disabled="busy || !csv.trim()">
+          <Upload />
+          {{
             readingFile
               ? '正在读取文件…'
               : busy
                 ? `导入中，已处理 ${importResults.length} 位…`
                 : '导入名单'
-          }}</Button
-        >
+          }}
+        </Button>
       </div>
-    </Form></Modal
-  >
+    </Form>
+  </Modal>
   <CredentialDialog
     v-model:open="credentialsOpen"
     :credentials="credentials"
     @export="exportCredentials"
-    @clear="credentials = []"
-  />
+    @clear="credentials = []" />
   <Modal
     v-model:open="resetting"
     :dismissible="!busy"
     title="重置所选学生的密码？"
-    :description="`将为 ${resetTargets.length} 位学生生成新密码。该账号在所有课堂使用的新密码都会改变，旧登录会话失效，正在执行的程序会停止。`"
-    ><Alert type="warning">请确认学生已保存学习进度。重置成功后可复制、下载新凭据。</Alert>
+    :description="`将为 ${resetTargets.length} 位学生生成新密码。该账号在所有课堂使用的新密码都会改变，旧登录会话失效，正在执行的程序会停止。`">
+    <Alert type="warning">请确认学生已保存学习进度。重置成功后可复制、下载新凭据。</Alert>
 
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="resetting = false">取消</Button
-      ><Button variant="warning" :disabled="busy || !resetTargets.length" @click="resetPasswords"
-        ><KeyRound />{{ busy ? '正在重置…' : '确认重置并生成凭据' }}</Button
-      >
-    </div></Modal
-  >
+      <Button variant="outline" :disabled="busy" @click="resetting = false">取消</Button>
+      <Button variant="warning" :disabled="busy || !resetTargets.length" @click="resetPasswords">
+        <KeyRound />
+        {{ busy ? '正在重置…' : '确认重置并生成凭据' }}
+      </Button>
+    </div>
+  </Modal>
   <Modal
     :open="!!remove"
     :dismissible="!busy"
     :title="`移除 ${remove?.name ?? '这位学生'}？`"
     description="撤销该学生的课堂访问权限，保留历史作品。不删除账号或其他课堂成员关系。"
-    @update:open="!$event && (remove = undefined)"
-  >
+    @update:open="!$event && (remove = undefined)">
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="remove = undefined">取消</Button
-      ><Button variant="destructive" :disabled="busy" @click="removeStudent">{{
-        busy ? '正在移除…' : '确认移除'
-      }}</Button>
-    </div></Modal
-  >
+      <Button variant="outline" :disabled="busy" @click="remove = undefined">取消</Button>
+      <Button variant="destructive" :disabled="busy" @click="removeStudent">
+        {{ busy ? '正在移除…' : '确认移除' }}
+      </Button>
+    </div>
+  </Modal>
 </template>
 <style scoped>
 .roster-import-files {

@@ -85,31 +85,29 @@ async function eof() {
           :aria-selected="tab === '运行输出'"
           :class="{ selected: tab === '运行输出' }"
           data-guide="output-tab"
-          @click="select('运行输出')"
-        >
-          <Terminal :size="14" />运行输出</Button
-        ><Button
+          @click="select('运行输出')">
+          <Terminal :size="14" />
+          运行输出
+        </Button>
+        <Button
           variant="plain"
           role="tab"
           :aria-selected="tab === '编译诊断'"
           :class="{ selected: tab === '编译诊断' }"
           data-guide="diagnostic-tab"
-          @click="select('编译诊断')"
-        >
-          <CircleAlert :size="14" />编译诊断<span
-            v-if="run?.status === '编译失败'"
-            class="error-count"
-            >失败</span
-          ></Button
-        ><Button
+          @click="select('编译诊断')">
+          <CircleAlert :size="14" />
+          编译诊断
+          <span v-if="run?.status === '编译失败'" class="error-count">失败</span>
+        </Button>
+        <Button
           v-if="run?.stderr"
           variant="plain"
           role="tab"
           :aria-selected="tab === '标准错误'"
           :class="{ selected: tab === '标准错误' }"
           data-guide="stderr-tab"
-          @click="select('标准错误')"
-        >
+          @click="select('标准错误')">
           标准错误
         </Button>
       </div>
@@ -119,26 +117,26 @@ async function eof() {
           class="icon-button"
           aria-label="复制可见输出"
           :disabled="!run || cleared"
-          @click="copy"
-        >
-          <Copy :size="14" /></Button
-        ><Button
+          @click="copy">
+          <Copy :size="14" />
+        </Button>
+        <Button
           variant="plain"
           class="icon-button"
           :aria-label="cleared ? '恢复显示输出' : '清空可见输出（保留记录）'"
           :disabled="!run"
           data-guide="clear-output"
-          @click="cleared = !cleared"
-        >
-          <RotateCcw v-if="cleared" :size="14" /><Trash2 v-else :size="14" />
+          @click="cleared = !cleared">
+          <RotateCcw v-if="cleared" :size="14" />
+          <Trash2 v-else :size="14" />
         </Button>
       </div>
     </div>
     <div v-if="run" class="output-body">
       <div class="output-meta">
-        <span class="status" :class="tone(run.status)">{{ run.status }}</span
-        ><span v-if="run.id" :title="run.id">{{ run.id.slice(0, 8) }} · 快照</span
-        ><span>{{ formatTime(run.time) }}</span>
+        <span class="status" :class="tone(run.status)">{{ run.status }}</span>
+        <span v-if="run.id" :title="run.id">{{ run.id.slice(0, 8) }} · 快照</span>
+        <span>{{ formatTime(run.time) }}</span>
       </div>
       <pre
         v-if="!cleared"
@@ -153,18 +151,22 @@ async function eof() {
         }}</pre>
       <p v-else class="muted">已隐藏输出，点击恢复按钮可重新显示，原始记录保留。</p>
       <div class="output-exit">
-        <span>{{ tab === '编译诊断' ? 'compiler' : tab === '标准错误' ? 'stderr' : 'stdout' }}</span
-        ><span v-if="run.exit">退出码 / 原因：{{ run.exit }}</span>
+        <span>
+          {{ tab === '编译诊断' ? 'compiler' : tab === '标准错误' ? 'stderr' : 'stdout' }}
+        </span>
+        <span v-if="run.exit">退出码 / 原因：{{ run.exit }}</span>
       </div>
     </div>
     <div v-else class="output-placeholder">
       <FileText :size="24" />
       <p>暂无运行结果</p>
-      <small>{{
-        readonlyContext
-          ? '该学生尚未留下运行记录。当前代码仅供只读查看。'
-          : '点击“编译运行”，结果将与当次代码一同保存。'
-      }}</small>
+      <small>
+        {{
+          readonlyContext
+            ? '该学生尚未留下运行记录。当前代码仅供只读查看。'
+            : '点击“编译运行”，结果将与当次代码一同保存。'
+        }}
+      </small>
     </div>
     <p v-if="run?.eof" class="stdin-closed">stdin 已关闭 · 等待程序结束，可随时停止运行。</p>
     <Form v-if="interactive && !run?.eof" class="runtime-input" @submit.prevent="send">
@@ -173,20 +175,20 @@ async function eof() {
         aria-label="运行时输入"
         placeholder="输入一行文本…"
         :disabled="busy"
-        maxlength="4095"
-      /><Button data-guide="send-input" type="submit" size="sm" :disabled="busy">{{
-        busy ? '发送中…' : '发送'
-      }}</Button
-      ><Button
+        maxlength="4095" />
+      <Button data-guide="send-input" type="submit" size="sm" :disabled="busy">
+        {{ busy ? '发送中…' : '发送' }}
+      </Button>
+      <Button
         type="button"
         variant="outline"
         size="sm"
         :disabled="busy"
         title="关闭标准输入，之后不能继续发送文本"
         data-guide="send-eof"
-        @click="eof"
-        >EOF</Button
-      >
+        @click="eof">
+        EOF
+      </Button>
     </Form>
   </section>
 </template>

@@ -237,7 +237,7 @@ button.stat-card:hover,
 .stat-icon.blue,
 .stat-icon.red,
 .stat-icon.amber {
-/* border-ra */
+  /* border-ra */
   background: transparent;
   border-radius: 6px;
 }
