@@ -31,7 +31,7 @@ import {
   X,
   Menu,
   KeyRound,
-  RefreshCw,
+//   RefreshCw,
   Check,
   Ellipsis,
 } from '@lucide/vue'
@@ -42,7 +42,7 @@ import {
   currentUser,
   logout,
   reportError,
-  refresh,
+//   refresh,
   selectClass,
 } from '@/data/demo'
 import { connectionState } from '@/lib/api'
