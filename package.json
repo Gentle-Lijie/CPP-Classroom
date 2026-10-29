@@ -26,6 +26,8 @@
     "test": "pnpm build:packages && vitest run",
     "db:generate": "pnpm --filter @classroom/database db:generate",
     "db:migrate": "pnpm --filter @classroom/database db:migrate",
+    "runtime:probe": "pnpm --filter @classroom/worker runtime:probe",
+    "acceptance:languages": "node scripts/multilanguage-acceptance.mjs",
     "queue:probe": "pnpm --filter @classroom/worker probe",
     "auth:bootstrap": "node scripts/bootstrap-admin.mjs",
     "backup:verify": "node scripts/backup.mjs",

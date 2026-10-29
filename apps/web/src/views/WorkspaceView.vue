@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { useActionFeedback } from '@/composables/useActionFeedback'
-import { exerciseSourceFilename } from '@classroom/contracts'
+import {
+  exerciseSourceFilename,
+  exerciseStarterCode,
+  type SourceLanguage,
+} from '@classroom/contracts'
+import LanguageSelect from '@/components/classroom/LanguageSelect.vue'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage, preferredLanguage, rememberLanguage } from '@/lib/source-language'
 import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
@@ -59,10 +66,30 @@ const route = useRoute(),
   router = useRouter()
 const initial = String(route.query.exercise ?? demo.recommended ?? '')
 const selected = ref(exercises.some((e) => e.id === initial) ? initial : (exercises[0]?.id ?? ''))
+const language = ref<SourceLanguage>(
+  route.query.language === 'python' || route.query.language === 'cpp'
+    ? route.query.language
+    : preferredLanguage(
+        currentUser.value?.id,
+        demo.classroomId,
+        selected.value,
+        sourceLanguage(exercises.find((e) => e.id === selected.value)),
+      ),
+)
+const displayLanguage = computed(() =>
+  viewing.value ? sourceLanguage(viewing.value) : language.value,
+)
+const runtimeProfile = computed(() =>
+  language.value === 'python' ? 'cpython3-stdlib' : executionSettings.compilerProfile,
+)
 const exercise = computed(() => {
   const found = exercises.find((e) => e.id === selected.value)
   return found
-    ? { ...found, filename: exerciseSourceFilename(found), title: found.title || '未命名题目' }
+    ? {
+        ...found,
+        filename: exerciseSourceFilename(found, language.value),
+        title: found.title || '未命名题目',
+      }
     : undefined
 })
 const code = ref(''),
@@ -176,12 +203,14 @@ let polling = false,
 const context = () => ({
   classroom: demo.classroomId,
   exercise: selected.value,
+  language: language.value,
   user: currentUser.value?.id,
   generation,
 })
 const matches = (c: ReturnType<typeof context>) =>
   c.classroom === demo.classroomId &&
   c.exercise === selected.value &&
+  c.language === language.value &&
   c.user === currentUser.value?.id &&
   c.generation === generation
 const path = (c: ReturnType<typeof context>, suffix: string) => '/classes/' + c.classroom + suffix
@@ -189,7 +218,7 @@ function backup() {
   if (!selected.value || !currentUser.value) return
   try {
     localStorage.setItem(
-      draftStorageKey(selected.value),
+      draftStorageKey(selected.value, currentUser.value?.id, language.value),
       JSON.stringify({ code: code.value, revision: revision.value, pending: dirty.value }),
     )
   } catch {
@@ -204,7 +233,7 @@ async function loadHistory() {
     const result = await api<{ items: RunRecord[]; total: number }>(
       path(
         c,
-        `/runs?exercise=${c.exercise}&page=${historyPage.value}&pageSize=${historySize.value}`,
+        `/runs?exercise=${c.exercise}&language=${c.language}&page=${historyPage.value}&pageSize=${historySize.value}`,
       ),
     )
     if (matches(c) && request === historyGeneration) {
@@ -248,7 +277,7 @@ async function loadCode() {
       submitted?: boolean
       submittedAt?: string
       help?: { message: string } | null
-    }>(path(c, '/workspace/' + c.exercise))
+    }>(path(c, '/workspace/' + c.exercise + '?language=' + c.language))
     if (!matches(c)) return
     code.value = remote.code
     revision.value = remote.revision
@@ -257,7 +286,9 @@ async function loadCode() {
     helpSent.value = !!remote.help
     helpText.value = remote.help?.message ?? ''
     try {
-      const local = JSON.parse(localStorage.getItem(draftStorageKey(c.exercise)) ?? 'null')
+      const local = JSON.parse(
+        localStorage.getItem(draftStorageKey(c.exercise, c.user, c.language)) ?? 'null',
+      )
       if (local?.pending && typeof local.code === 'string') {
         code.value = local.code
         dirty.value = true
@@ -274,8 +305,12 @@ async function loadCode() {
       path(c, '/runs?active=true&scope=all'),
     )
     if (!matches(c)) return
-    run.value = activeRuns.find((r) => r.exerciseId === c.exercise)
-    otherRun.value = activeRuns.find((r) => r.exerciseId !== c.exercise)
+    run.value = activeRuns.find(
+      (r) => r.exerciseId === c.exercise && sourceLanguage(r) === c.language,
+    )
+    otherRun.value = activeRuns.find(
+      (r) => r.exerciseId !== c.exercise || sourceLanguage(r) !== c.language,
+    )
     await loadHistory()
   } catch (e) {
     if (matches(c)) {
@@ -308,10 +343,15 @@ async function saveNow(): Promise<boolean> {
   saveState.value = '同步中…'
   saving = (async () => {
     try {
-      const result = await api<{ revision: number }>(path(c, '/workspace/' + c.exercise), 'PUT', {
-        code: content,
-        revision: expectedRevision,
-      })
+      const result = await api<{ revision: number }>(
+        path(c, '/workspace/' + c.exercise + '?language=' + c.language),
+        'PUT',
+        {
+          language: c.language,
+          code: content,
+          revision: expectedRevision,
+        },
+      )
       if (!matches(c)) return false
       revision.value = result.revision
       dirty.value = code.value !== content
@@ -341,7 +381,7 @@ watch(code, () => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void saveNow(), 600)
 })
-watch(selected, () => void loadCode(), { immediate: true })
+watch([selected, language], () => void loadCode(), { immediate: true })
 watch(
   historySize,
   () => {
@@ -356,7 +396,7 @@ async function useServer() {
   const c = context()
   try {
     const remote = await api<{ code: string; revision: number }>(
-      path(c, '/workspace/' + c.exercise),
+      path(c, '/workspace/' + c.exercise + '?language=' + c.language),
     )
     if (!matches(c)) return
     download('本机未同步-' + exercise.value!.filename, code.value)
@@ -382,6 +422,7 @@ async function startRun() {
     if (!(await saveNow()) || !matches(c)) throw new Error('请先完成草稿同步')
     const result = await api<RunRecord>(path(c, '/runs'), 'POST', {
       exerciseId: c.exercise,
+      language: c.language,
       revision: revision.value,
       input: input.value,
       interactive: interactive.value,
@@ -454,7 +495,11 @@ async function doSubmit() {
   const c = context()
   try {
     if (!(await saveNow()) || !matches(c)) throw new Error('请先同步草稿')
-    await api(path(c, '/submissions'), 'POST', { exerciseId: c.exercise, revision: revision.value })
+    await api(path(c, '/submissions'), 'POST', {
+      exerciseId: c.exercise,
+      language: c.language,
+      revision: revision.value,
+    })
     if (matches(c)) {
       submitted.value = true
       submittedAt.value = new Date().toISOString()
@@ -469,7 +514,7 @@ async function doSubmit() {
 }
 function resetCode() {
   undo.value = code.value
-  code.value = exercise.value!.code
+  code.value = exerciseStarterCode(exercise.value!, language.value)
   reset.value = false
 }
 async function sendHelp() {
@@ -478,7 +523,11 @@ async function sendHelp() {
   actionError.value = ''
   const c = context()
   try {
-    await api(path(c, '/help'), 'POST', { exerciseId: c.exercise, message: helpText.value.trim() })
+    await api(path(c, '/help'), 'POST', {
+      exerciseId: c.exercise,
+      language: c.language,
+      message: helpText.value.trim(),
+    })
     if (matches(c)) {
       helpSent.value = true
       help.value = false
@@ -494,9 +543,9 @@ async function heartbeat() {
   if (studentGuideActive.value || loading.value || loadError.value || !selected.value) return
   try {
     const c = context()
-    await api(path(c, '/heartbeat'), 'POST', { exerciseId: c.exercise })
+    await api(path(c, '/heartbeat'), 'POST', { exerciseId: c.exercise, language: c.language })
     const requests = await api<{ message: string; resolved: boolean }[]>(
-      path(c, '/help?exerciseId=' + c.exercise),
+      path(c, '/help?exerciseId=' + c.exercise + '&language=' + c.language),
     )
     if (matches(c)) {
       const unresolved = requests.find((request) => !request.resolved)
@@ -507,7 +556,7 @@ async function heartbeat() {
     if (!dirty.value) saveState.value = '无法连接课堂，请检查网络或成员权限'
   }
 }
-async function switchTo(id: string) {
+async function switchTo(id: string, nextLanguage?: SourceLanguage) {
   if (switching.value || loading.value || runningRequest.value) return
   switching.value = true
   try {
@@ -515,7 +564,16 @@ async function switchTo(id: string) {
       notify('当前修改尚未保存，请先处理保存问题', 'error')
       return
     }
+    language.value =
+      nextLanguage ??
+      preferredLanguage(
+        currentUser.value?.id,
+        demo.classroomId,
+        id,
+        sourceLanguage(exercises.find((e) => e.id === id)),
+      )
     selected.value = id
+    rememberLanguage(currentUser.value?.id, demo.classroomId, id, language.value)
   } finally {
     switching.value = false
   }
@@ -524,13 +582,20 @@ async function returnToRunning() {
   const target = otherRun.value
   if (!target?.exerciseId) return
   if (!target.classroomId || target.classroomId === demo.classroomId) {
-    await switchTo(target.exerciseId)
+    await switchTo(target.exerciseId, sourceLanguage(target))
     return
   }
   await router.push('/student/classes')
   if (router.currentRoute.value.path !== '/student/classes') return
   await selectClass(target.classroomId)
-  await router.push({ path: '/student/workspace', query: { exercise: target.exerciseId } })
+  await router.push({
+    path: '/student/workspace',
+    query: { exercise: target.exerciseId, language: sourceLanguage(target) },
+  })
+}
+async function changeLanguage(value: SourceLanguage) {
+  if (value === language.value || active() || submitting.value || helping.value) return
+  await switchTo(selected.value, value)
 }
 async function changeExercise(value: string | number) {
   const id = String(value)
@@ -698,9 +763,9 @@ useActionFeedback(actionError)
           ref="directoryPanel"
           v-model="code"
           :classroom-id="demo.classroomId"
-          :exercise-id="selected"
+          :exercise-id="selected + ':' + language"
           :filename="exercise.filename"
-          :readonly="readonly"
+          :readonly="loading || !!loadError || !!viewing || isArchived || conflict"
           compact />
         <Button
           variant="outline"
@@ -748,7 +813,8 @@ useActionFeedback(actionError)
           data-guide="run"
           @click="startRun">
           <Play />
-          {{ runningRequest ? '正在创建…' : '编译运行' }}
+          {{ runningRequest ? '正在创建…' : '运行' }}
+          <PythonBeta v-if="language === 'python'" />
         </Button>
         <span class="avatar small" :title="currentUser?.name">
           {{ currentUser?.name.slice(-1) }}
@@ -859,6 +925,7 @@ useActionFeedback(actionError)
               @click="viewing = r">
               <span>
                 <strong>{{ r.status }}</strong>
+                <PythonBeta v-if="sourceLanguage(r) === 'python'" />
                 <small>
                   {{ new Date(r.time).toLocaleString('zh-CN', { hour12: false }) }} ·
                   {{ r.id.slice(0, 8) }}
@@ -913,6 +980,10 @@ useActionFeedback(actionError)
                 <span v-if="readonly" class="muted">只读</span>
               </span>
               <div class="inline-items ml-auto">
+                <LanguageSelect
+                  :model-value="displayLanguage"
+                  :disabled="readonly || active() || runningRequest || submitting || helping"
+                  @update:model-value="changeLanguage" />
                 <label class="compact-select">
                   <Settings2 :size="13" />
                   <Select v-model.number="fontSize" aria-label="编辑器字号">
@@ -957,7 +1028,9 @@ useActionFeedback(actionError)
                 <span class="language-label">
                   {{
                     compilerLabel(
-                      viewing ? viewing.compilerProfile : executionSettings.compilerProfile,
+                      viewing
+                        ? (viewing.runtimeProfile ?? viewing.compilerProfile)
+                        : runtimeProfile,
                     )
                   }}
                 </span>
@@ -965,6 +1038,7 @@ useActionFeedback(actionError)
             </div>
             <CodeEditor
               :model-value="viewing?.code ?? code"
+              :language="displayLanguage"
               :readonly="readonly"
               :font-size="fontSize"
               :filename="viewing?.filename ?? exercise.filename"
@@ -1044,6 +1118,7 @@ useActionFeedback(actionError)
                 <RunOutput
                   :key="(viewing ?? run)?.id"
                   :run="viewing ?? run"
+                  :language="displayLanguage"
                   :interactive="runtime && !viewing && !run?.eof"
                   :send-input="sendLine"
                   :close-input="eof" />
@@ -1071,7 +1146,8 @@ useActionFeedback(actionError)
       <span class="ml-auto">
         UTF-8
         <span class="desktop-only">
-          · GCC 13.3 / {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+          · {{ compilerLabel(runtimeProfile) }}
+          <PythonBeta v-if="language === 'python'" />
         </span>
       </span>
     </footer>
@@ -1121,6 +1197,7 @@ useActionFeedback(actionError)
     description="提交会保存固定代码版本，你仍然可以继续修改。">
     <Alert data-guide="submit-info" type="info">
       {{ exercise?.title }} · {{ exercise?.filename }}
+      <PythonBeta v-if="language === 'python'" />
       <br />
       提交保存到服务器。提交不等于通过判题。
     </Alert>

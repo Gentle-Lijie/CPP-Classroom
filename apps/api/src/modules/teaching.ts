@@ -13,7 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common'
 import { z } from 'zod'
-import { exerciseSourceFilename } from '@classroom/contracts'
+import { exerciseSourceFilename, exerciseStarterCode, sourceLanguages } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
 import { actor, parse, role, text, type AuthRequest } from './common.js'
 
@@ -21,6 +21,7 @@ const selectionSchema = z.object({
   exercise: z.uuid().optional(),
   exerciseId: z.uuid().optional(),
   student: z.uuid().optional(),
+  language: z.enum(sourceLanguages).optional(),
 })
 
 @Controller('classes/:id')
@@ -31,16 +32,16 @@ export class TeachingController {
     await this.service.access(actor(req), id, true)
     return (
       await this.service.pool.query(
-        `select u.id,u.name,u.number,m.exercise_id as "exerciseId",
+        `select u.id,u.name,u.number,m.exercise_id as "exerciseId",m.language,
           coalesce(m.last_seen>now()-interval '15 seconds',false) as online,m.last_seen as activity,
           coalesce(r.status,'尚未运行') as status,coalesce(r.exit,'尚未运行') as summary,
           (h.id is not null) as help,h.id as "helpRequestId",h.message as "helpMessage",
-          h.created_at as "helpCreatedAt",h.exercise_id as "helpExerciseId",
-          exists(select 1 from submissions s where s.classroom_id=m.classroom_id and s.user_id=u.id and s.exercise_id=m.exercise_id) as submitted,
+          h.created_at as "helpCreatedAt",h.exercise_id as "helpExerciseId",h.language as "helpLanguage",
+          exists(select 1 from submissions s where s.classroom_id=m.classroom_id and s.user_id=u.id and s.exercise_id=m.exercise_id and s.language=m.language) as submitted,
           exists(select 1 from submissions s where s.classroom_id=m.classroom_id and s.user_id=u.id and s.exercise_id=c.recommended) as "recommendedSubmitted"
         from memberships m join users u on u.id=m.user_id join classrooms c on c.id=m.classroom_id
-        left join lateral(select status,exit from runs where classroom_id=m.classroom_id and user_id=u.id and exercise_id=m.exercise_id order by created_at desc,id desc limit 1) r on true
-        left join lateral(select id,message,created_at,exercise_id from help_requests where classroom_id=m.classroom_id and user_id=u.id and not resolved order by created_at desc,id desc limit 1) h on true
+        left join lateral(select status,exit from runs where classroom_id=m.classroom_id and user_id=u.id and exercise_id=m.exercise_id and language=m.language order by created_at desc,id desc limit 1) r on true
+        left join lateral(select id,message,created_at,exercise_id,language from help_requests where classroom_id=m.classroom_id and user_id=u.id and not resolved order by created_at desc,id desc limit 1) h on true
         where m.classroom_id=$1 and m.status='active' order by u.number,u.name,u.id`,
         [id],
       )
@@ -54,19 +55,27 @@ export class TeachingController {
   ) {
     const user = actor(req)
     role(user, 'student')
-    const data = parse(z.object({ exerciseId: z.uuid(), message: text(1000) }), body)
-    await this.service.exercise(user, id, data.exerciseId, true)
+    const data = parse(
+      z.object({
+        exerciseId: z.uuid(),
+        message: text(1000),
+        language: z.enum(sourceLanguages).optional(),
+      }),
+      body,
+    )
+    const { e } = await this.service.exercise(user, id, data.exerciseId, true)
+    const language = data.language ?? e.language ?? 'cpp'
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
-        `help:${id}:${user.id}:${data.exerciseId}`,
+        `help:${id}:${user.id}:${data.exerciseId}:${language}`,
       ])
       await this.service.lockWritable(client, user, id, data.exerciseId)
       const existing = (
         await client.query(
-          'select id from help_requests where classroom_id=$1 and user_id=$2 and exercise_id=$3 and not resolved order by created_at desc limit 1 for update',
-          [id, user.id, data.exerciseId],
+          'select id from help_requests where classroom_id=$1 and user_id=$2 and exercise_id=$3 and language=$4 and not resolved order by created_at desc limit 1 for update',
+          [id, user.id, data.exerciseId, language],
         )
       ).rows[0]
       const result = existing
@@ -75,8 +84,8 @@ export class TeachingController {
             [existing.id, data.message],
           )
         : await client.query(
-            'insert into help_requests(classroom_id,exercise_id,user_id,message) values($1,$2,$3,$4) returning *',
-            [id, data.exerciseId, user.id, data.message],
+            'insert into help_requests(classroom_id,exercise_id,user_id,message,language) values($1,$2,$3,$4,$5) returning *',
+            [id, data.exerciseId, user.id, data.message, language],
           )
       await client.query('commit')
       return result.rows[0]
@@ -99,8 +108,8 @@ export class TeachingController {
     const student = user.role === 'student' ? user.id : (data.student ?? null)
     return (
       await this.service.pool.query(
-        "select h.*,e.content->>'title' as title from help_requests h join exercises e on e.id=h.exercise_id where h.classroom_id=$1 and ($2::uuid is null or h.user_id=$2) and ($3::uuid is null or h.exercise_id=$3) order by h.created_at desc,h.id desc limit 200",
-        [id, student, data.exerciseId ?? data.exercise ?? null],
+        "select h.*,e.content->>'title' as title from help_requests h join exercises e on e.id=h.exercise_id where h.classroom_id=$1 and ($2::uuid is null or h.user_id=$2) and ($3::uuid is null or h.exercise_id=$3) and ($4::text is null or h.language=$4) order by h.created_at desc,h.id desc limit 200",
+        [id, student, data.exerciseId ?? data.exercise ?? null, data.language ?? null],
       )
     ).rows
   }
@@ -132,18 +141,26 @@ export class TeachingController {
   ) {
     const user = actor(req)
     role(user, 'student')
-    const data = parse(z.object({ exerciseId: z.uuid(), revision: z.number().int().min(1) }), body)
-    await this.service.exercise(user, id, data.exerciseId, true)
+    const data = parse(
+      z.object({
+        exerciseId: z.uuid(),
+        revision: z.number().int().min(1),
+        language: z.enum(sourceLanguages).optional(),
+      }),
+      body,
+    )
+    const { e } = await this.service.exercise(user, id, data.exerciseId, true)
+    const language = data.language ?? e.language ?? 'cpp'
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
-        `submit:${id}:${user.id}:${data.exerciseId}`,
+        `submit:${id}:${user.id}:${data.exerciseId}:${language}`,
       ])
       const classroom = await this.service.lockWritable(client, user, id, data.exerciseId)
       const exercise = (
         await client.query(
-          'select id,status,filename from exercises where classroom_id=$1 and id=$2 for share',
+          'select id,status,filename,language from exercises where classroom_id=$1 and id=$2 for share',
           [id, data.exerciseId],
         )
       ).rows[0]
@@ -151,8 +168,8 @@ export class TeachingController {
         throw new ForbiddenException('课堂或练习当前只读')
       const previous = (
         await client.query(
-          'select * from submissions where classroom_id=$1 and user_id=$2 and exercise_id=$3 order by created_at desc,id desc limit 1',
-          [id, user.id, data.exerciseId],
+          'select * from submissions where classroom_id=$1 and user_id=$2 and exercise_id=$3 and language=$4 order by created_at desc,id desc limit 1',
+          [id, user.id, data.exerciseId, language],
         )
       ).rows[0]
       // Repeated clicks on the same saved revision are idempotent, even with resubmission disabled.
@@ -163,8 +180,15 @@ export class TeachingController {
       if (classroom.settings.allowResubmit === false && previous)
         throw new ForbiddenException('教师已关闭重复提交')
       const result = await client.query(
-        'insert into submissions(classroom_id,exercise_id,user_id,code,filename,revision) select classroom_id,exercise_id,user_id,code,$4,revision from drafts where classroom_id=$1 and exercise_id=$2 and user_id=$3 and revision=$5 returning *',
-        [id, data.exerciseId, user.id, exerciseSourceFilename(exercise), data.revision],
+        'insert into submissions(classroom_id,exercise_id,user_id,code,filename,revision,language) select classroom_id,exercise_id,user_id,code,$4,revision,language from drafts where classroom_id=$1 and exercise_id=$2 and user_id=$3 and revision=$5 and language=$6 returning *',
+        [
+          id,
+          data.exerciseId,
+          user.id,
+          exerciseSourceFilename(exercise, language),
+          data.revision,
+          language,
+        ],
       )
       if (!result.rowCount) throw new ConflictException('请先同步最新草稿版本')
       await client.query('commit')
@@ -200,13 +224,14 @@ export class TeachingController {
       data.exerciseId ?? data.exercise ?? null,
       data.search?.trim() ?? '',
       data.submissionId ?? null,
+      data.language ?? null,
     ]
     const base = `select s.*,u.name,u.number,e.content->>'title' as title,
-      row_number() over(partition by s.user_id,s.exercise_id order by s.created_at desc,s.id desc) as row_number
+      row_number() over(partition by s.user_id,s.exercise_id,s.language order by s.created_at desc,s.id desc) as row_number
       from submissions s join users u on u.id=s.user_id join exercises e on e.id=s.exercise_id
       where s.classroom_id=$1 and ($2::uuid is null or s.user_id=$2) and ($3::uuid is null or s.exercise_id=$3)
       and ($4='' or position(lower($4) in lower(u.name||' '||u.number||' '||(e.content->>'title')))>0)
-      and ($5::uuid is null or s.id=$5)`
+      and ($5::uuid is null or s.id=$5) and ($6::text is null or s.language=$6)`
     const filtered = `select * from (${base}) versions ${data.latest === 'true' ? 'where row_number=1' : ''}`
     if (data.page === undefined && data.pageSize === undefined)
       return (await this.service.pool.query(`${filtered} order by created_at desc,id desc`, values))
@@ -214,7 +239,7 @@ export class TeachingController {
     const page = data.page ?? 1,
       pageSize = data.pageSize ?? 20
     const result = await this.service.pool.query(
-      `select *,count(*) over()::int as total_count from (${filtered}) filtered order by created_at desc,id desc limit $6 offset $7`,
+      `select *,count(*) over()::int as total_count from (${filtered}) filtered order by created_at desc,id desc limit $7 offset $8`,
       [...values, pageSize, (page - 1) * pageSize],
     )
     const total =
@@ -252,7 +277,12 @@ export class TeachingController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin isolation level repeatable read read only')
-      const values = [id, data.student ?? null, data.exerciseId ?? data.exercise ?? null]
+      const values = [
+        id,
+        data.student ?? null,
+        data.exerciseId ?? data.exercise ?? null,
+        data.language ?? null,
+      ]
       const result: Record<string, unknown> = {
         classroomId: id,
         exportedAt: new Date().toISOString(),
@@ -272,7 +302,7 @@ export class TeachingController {
         const condition =
           table === 'exercises'
             ? 'classroom_id=$1 and ($2::uuid is null or id=$2)'
-            : 'classroom_id=$1 and ($2::uuid is null or user_id=$2) and ($3::uuid is null or exercise_id=$3)'
+            : 'classroom_id=$1 and ($2::uuid is null or user_id=$2) and ($3::uuid is null or exercise_id=$3) and ($4::text is null or language=$4)'
         const parameters = table === 'exercises' ? [id, values[2]] : values
         // Check size in PostgreSQL before transferring source/log bodies to API memory.
         const stats = (
@@ -325,11 +355,13 @@ export class TeachingController {
           exerciseId: z.uuid(),
           runId: z.uuid().optional(),
           submissionId: z.uuid().optional(),
+          language: z.enum(sourceLanguages).optional(),
         })
         .refine((value) => !(value.runId && value.submissionId), '运行记录和提交快照只能选择一种'),
       body,
     )
     const { e } = await this.service.exercise(actor(req), id, data.exerciseId)
+    const language = data.language ?? e.language ?? 'cpp'
     const member = (
       await this.service.pool.query(
         'select 1 from memberships where classroom_id=$1 and user_id=$2',
@@ -352,6 +384,8 @@ export class TeachingController {
       delete content.classroom_id
       snapshot = {
         ...content,
+        language: record.language ?? 'cpp',
+        runtimeProfile: record.runtime_profile ?? record.compiler_profile ?? null,
         kind: data.runId ? 'run' : 'submission',
         snapshotId: record.id,
         createdAt: record.created_at,
@@ -360,8 +394,8 @@ export class TeachingController {
     } else {
       const draft = (
         await this.service.pool.query(
-          'select id,code,revision,updated_at from drafts where classroom_id=$1 and user_id=$2 and exercise_id=$3',
-          [id, data.student, data.exerciseId],
+          'select id,code,revision,updated_at from drafts where classroom_id=$1 and user_id=$2 and exercise_id=$3 and language=$4',
+          [id, data.student, data.exerciseId, language],
         )
       ).rows[0]
       snapshot = {
@@ -370,8 +404,9 @@ export class TeachingController {
         snapshotId: draft?.id ?? null,
         createdAt: draft?.updated_at ?? new Date().toISOString(),
         revision: draft?.revision ?? 0,
-        code: draft?.code ?? e.content.code,
-        filename: exerciseSourceFilename(e),
+        code: draft?.code ?? exerciseStarterCode(e, language),
+        language,
+        filename: exerciseSourceFilename(e, language),
         title: e.content.title,
       }
     }

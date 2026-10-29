@@ -82,6 +82,7 @@ export const memberships = pgTable(
     status: text('status').notNull().default('pending'),
     lastSeen: timestamp('last_seen', { withTimezone: true }),
     exerciseId: uuid('exercise_id'),
+    language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
   },
   (t) => [uniqueIndex('membership_user_class_unique').on(t.classroomId, t.userId)],
 )
@@ -93,6 +94,11 @@ export const exercises = pgTable(
       .notNull()
       .references(() => classrooms.id),
     filename: text('filename').notNull(),
+    language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
+    starters: jsonb('starters')
+      .$type<Partial<Record<'cpp' | 'python', string>>>()
+      .notNull()
+      .default({}),
     status: text('status').notNull().default('草稿'),
     position: integer('position').notNull().default(0),
     version: integer('version').notNull().default(1),
@@ -119,11 +125,14 @@ export const drafts = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
+    language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
     code: text('code').notNull(),
     revision: integer('revision').default(1).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex('draft_user_exercise_unique').on(t.userId, t.exerciseId)],
+  (t) => [
+    uniqueIndex('draft_user_exercise_language_unique').on(t.userId, t.exerciseId, t.language),
+  ],
 )
 
 export const runs = pgTable(
@@ -139,9 +148,12 @@ export const runs = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
+    language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
     code: text('code').notNull(),
     filename: text('filename').notNull(),
     compilerProfile: text('compiler_profile'),
+    runtimeProfile: text('runtime_profile'),
+    executionConfig: jsonb('execution_config').$type<Record<string, number>>(),
     revision: integer('revision').notNull(),
     input: text('input').notNull(),
     status: text('status').notNull().default('排队'),
@@ -183,6 +195,7 @@ export const helpRequests = pgTable('help_requests', {
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id),
+  language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
   message: text('message').notNull(),
   resolved: boolean('resolved').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -198,6 +211,7 @@ export const submissions = pgTable('submissions', {
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id),
+  language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
   code: text('code').notNull(),
   filename: text('filename').notNull(),
   revision: integer('revision').notNull(),

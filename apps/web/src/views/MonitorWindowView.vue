@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
 import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Input } from '@/components/ui/input'
@@ -120,7 +121,13 @@ function clearFilters() {
             </span>
             <ArrowUpRight :size="17" class="ml-auto" />
           </div>
-          <span class="monitor-exercise-name">{{ exerciseTitle(s) }}</span>
+          <span class="monitor-exercise-name">
+            {{ exerciseTitle(s) }}
+            <span v-if="s.language === 'python'">
+              · Python
+              <PythonBeta />
+            </span>
+          </span>
           <span class="status" :class="tone(s.status)">
             <span class="status-dot" />
             {{ s.status }}

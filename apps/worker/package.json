@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "probe": "tsx src/probe.ts"
+    "probe": "tsx src/probe.ts",
+    "runtime:probe": "tsx src/runtime-probe.ts"
   },
   "dependencies": {
     "@classroom/config": "workspace:*",

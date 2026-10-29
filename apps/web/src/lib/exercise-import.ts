@@ -1,8 +1,16 @@
-import { exerciseImportLimits } from '@classroom/contracts'
+import {
+  exerciseImportLimits,
+  type SourceLanguage,
+  type SourceStarters,
+} from '@classroom/contracts'
 import { exerciseFields, parseExerciseMarkdown, type ExerciseField } from './exercise-markdown'
 import { validSourceFilename } from './source-file'
 
-export type ImportedExercise = Record<ExerciseField, string> & { status: '草稿' }
+export type ImportedExercise = Record<ExerciseField, string> & {
+  status: '草稿'
+  language?: SourceLanguage
+  starters?: SourceStarters
+}
 export interface ExerciseImportEntry {
   name: string
   exercise?: ImportedExercise
@@ -24,6 +32,8 @@ export async function readExerciseImport(file: File): Promise<ExerciseImportEntr
     }
     if (source.includes('\0')) throw new Error('文件包含无效字符，请上传文本文件')
     let fields: Partial<Record<ExerciseField, string>>
+    let language: SourceLanguage | undefined
+    let starters: SourceStarters | undefined
     if (/\.json$/i.test(file.name)) {
       let value: unknown
       try {
@@ -40,9 +50,33 @@ export async function readExerciseImport(file: File): Promise<ExerciseImportEntr
       )
         throw new Error('这不是有效的题目备份文件')
       fields = value as Record<ExerciseField, string>
+      const metadata = value as Record<string, unknown>
+      if (metadata.language !== undefined && !['cpp', 'python'].includes(String(metadata.language)))
+        throw new Error('不支持的编程语言，请使用 cpp 或 python')
+      language = metadata.language as SourceLanguage | undefined
+      if (metadata.starters !== undefined) {
+        if (
+          !metadata.starters ||
+          typeof metadata.starters !== 'object' ||
+          Array.isArray(metadata.starters)
+        )
+          throw new Error('初始代码格式无效')
+        starters = {}
+        for (const [key, source] of Object.entries(metadata.starters)) {
+          if (
+            !['cpp', 'python'].includes(key) ||
+            typeof source !== 'string' ||
+            source.length > 100000 ||
+            source.includes('\0')
+          )
+            throw new Error('初始代码格式无效或超过 100000 字符')
+          starters[key as SourceLanguage] = source
+        }
+      }
     } else {
       const parsed = parseExerciseMarkdown(source)
       fields = parsed.fields
+      language = parsed.language
       entry.errors.push(...parsed.errors)
       entry.warnings.push(...parsed.warnings)
     }
@@ -56,9 +90,21 @@ export async function readExerciseImport(file: File): Promise<ExerciseImportEntr
       if (exercise[key].length > limit && !entry.errors.some((error) => error.startsWith(label)))
         entry.errors.push(`${label}超过 ${limit} 字符，请缩短后重新上传。`)
     }
-    if (exercise.filename && !validSourceFilename(exercise.filename) && !entry.errors.length)
-      entry.errors.push('源文件名格式无效，请使用单个 .cpp、.cc 或 .cxx 文件名')
-    entry.exercise = { ...exercise, status: '草稿' }
+    language ??= /\.py$/i.test(exercise.filename) ? 'python' : 'cpp'
+    if (
+      exercise.filename &&
+      !validSourceFilename(exercise.filename, language) &&
+      !entry.errors.length
+    )
+      entry.errors.push(
+        '源文件名格式无效或与语言不匹配，请使用 C++ 的 .cpp、.cc、.cxx 或 Python 的 .py 文件名',
+      )
+    entry.exercise = {
+      ...exercise,
+      status: '草稿',
+      language,
+      starters: { ...starters, [language]: starters?.[language] ?? exercise.code },
+    }
   } catch (error) {
     entry.errors.push(error instanceof Error ? error.message : '文件读取失败')
   }

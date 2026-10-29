@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Gentle-Lijie/CPP-Classroom/actions/workflows/ci.yml/badge.svg)](https://github.com/Gentle-Lijie/CPP-Classroom/actions/workflows/ci.yml)[![Vue 3](https://img.shields.io/badge/Vue-3-42b883?logo=vuedotjs&logoColor=white)](https://vuejs.org/)[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)[![Node.js 24](https://img.shields.io/badge/Node.js-24-5fa04e?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
-面向 C++ 教学的浏览器编程教室，让讲题、写代码、编译运行、课堂巡视与作品收集在同一套工作区中完成。
+面向 C++ 与 Python（Beta）教学的浏览器编程教室，让讲题、写代码、编译运行、课堂巡视与作品收集在同一套工作区中完成。
 
 学生打开浏览器即可练习，教师可以查看进度、处理求助、投屏讲解并收集作品。项目采用 Vue 3、Monaco、NestJS、PostgreSQL 与独立的原生 Linux 评测服务，提供中文桌面界面。
 
@@ -12,17 +12,22 @@
 
 ## 功能亮点
 
-| 角色       | 主要功能                                                                                                                |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **学生**   | 加入课堂，使用 Monaco 编写 C++17/C++20 程序，自动保存草稿，编译运行，发送交互输入与 EOF，查看历史、发起求助并提交作品。 |
-| **教师**   | 创建课堂、导入名册、发布 Markdown 练习，使用授课模式讲解，在独立窗口巡视学生，查看代码与运行快照，处理求助并导出作品。  |
-| **管理员** | 管理账号与恢复申请、撤销会话、配置运行限额，查看服务健康与失败任务，创建数据库备份并验证恢复。                          |
+| 角色       | 主要功能                                                                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **学生**   | 加入课堂，使用 Monaco 编写 C++17/C++20 或 Python（Beta）程序，自动保存草稿，编译运行，发送交互输入与 EOF，查看历史、发起求助并提交作品。 |
+| **教师**   | 创建课堂、导入名册、发布 Markdown 练习，使用授课模式讲解，在独立窗口巡视学生，查看代码与运行快照，处理求助并导出作品。                   |
+| **管理员** | 管理账号与恢复申请、撤销会话、配置运行限额，查看服务健康与失败任务，创建数据库备份并验证恢复。                                           |
 
+- **Python Support · Beta。** 代码区下拉菜单可切换 C++ / Python，每位学生和教师的两种语言草稿独立保存；题目可配置默认语言和各自的初始代码。Python 使用原生 Linux 节点上的 CPython 3，仅支持单文件、标准库及 stdin/stdout；包含交互输入、EOF、异常 traceback、历史与导出。
 - **草稿自动保存。** 停止编辑后同步到服务器，断网时保留浏览器备份；多窗口修改发生冲突时明确提示，不静默覆盖。
 - **代码与结果对应。** 每次运行和提交都关联不可变的代码版本，当前草稿与历史结果分别展示，便于复盘。
 - **授课与巡视分屏。** 投影展示题目，另一块屏幕查看课堂进度；匿名投屏快照可撤销，并在两小时后过期。
 - **保留文件工作流。** 支持 Markdown／JSON 题目导入，以及源文件 ZIP、CSV 清单和 JSON 导出；桌面 Chrome／Edge 还可连接本地工作目录。
-- **按需开启代码补全。** 浏览器内的 clangd 提供 C++17 补全与诊断，默认关闭；需要较新的桌面 Chrome／Edge，详见[浏览器要求](docs/browser-clangd.md)。
+- **按需开启代码补全。** C++ 使用浏览器内的 clangd；Python（Beta）使用独立 Web Worker 中的 Pyright，提供补全、诊断、悬停、签名及当前文件内的定义跳转和重命名。两者默认关闭，源码分析在浏览器本地完成。Python 语言服务首次开启下载约 20 MB 资源，固定采用 `monaco-pyright-lsp@0.1.7` 内的 Pyright 1.1.386 与类型存根。C++ 需要较新的桌面 Chrome／Edge，详见[浏览器要求](docs/browser-clangd.md)。
+
+Python 仍处于 Beta，相关语言选择、编辑、运行和历史入口均显示胶囊标记。切换语言先保存当前草稿；运行中需先停止。下载和本地目录使用对应扩展名，另一种语言使用按题目 ID 生成的独立文件名，防止与命名题目覆盖。旧题目与旧记录按 C++ 兼容读取。科学计算包、Notebook、REPL 和多文件工程不在当前范围内。
+
+升级现有环境须先执行 `pnpm db:migrate`，保留原有数据。原生执行节点需要 `/usr/bin/python3` 及完整标准库；部署检查使用 `pnpm runtime:probe`，业务链路检查使用 `pnpm acceptance:languages`（创建并归档独立的测试课堂，不修改现有课堂）。macOS 不代替 Linux 执行验收。
 
 ## 界面截图
 

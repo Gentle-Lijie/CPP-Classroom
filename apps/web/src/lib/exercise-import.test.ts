@@ -9,6 +9,34 @@ import {
 const file = (name: string, text: string | Uint8Array) => new File([text as BlobPart], name)
 
 describe('batch exercise imports', () => {
+  it('imports Python metadata and preserves independent starter templates in backups', async () => {
+    const markdown = await readExerciseImport(
+      file(
+        'python.md',
+        '# 问候\n语言：Python\n源文件名：hello.py\n## 初始代码\n```python\nprint("你好")\n```',
+      ),
+    )
+    expect(markdown.errors).toEqual([])
+    expect(markdown.exercise).toMatchObject({
+      language: 'python',
+      filename: 'hello.py',
+      code: 'print("你好")',
+    })
+    const starters = { cpp: 'int main() {}', python: 'print("你好")' }
+    const backup = await readExerciseImport(
+      file('both.json', JSON.stringify({ ...markdown.exercise, starters })),
+    )
+    expect(backup.errors).toEqual([])
+    expect(backup.exercise?.starters).toEqual(starters)
+    const mismatch = await readExerciseImport(
+      file('bad.json', JSON.stringify({ ...markdown.exercise, language: 'cpp' })),
+    )
+    expect(mismatch.errors).not.toEqual([])
+    const invalid = await readExerciseImport(
+      file('bad.json', JSON.stringify({ ...markdown.exercise, starters: { python: 3 } })),
+    )
+    expect(invalid.errors).not.toEqual([])
+  })
   it('reads Markdown and backups as new drafts without restoring IDs, versions or publication', async () => {
     const markdown = await readExerciseImport(
       file('sum.md', '# 求和\n源文件名：sum.cpp\n## 输入\nn'),

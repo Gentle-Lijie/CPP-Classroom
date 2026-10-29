@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import CodeBlock from './CodeBlock.vue'
+import PythonBeta from './PythonBeta.vue'
+import { sourceLanguage } from '@/lib/source-language'
+import type { SourceLanguage } from '@classroom/contracts'
 import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { computed, ref, watch } from 'vue'
@@ -8,13 +11,23 @@ import { Button } from '@/components/ui/button'
 import { notify, type RunRecord, tone } from '@/data/demo'
 import { formatTime } from '@/lib/display'
 const props = defineProps<{
+  language?: SourceLanguage
   run?: RunRecord
   interactive?: boolean
   readonlyContext?: boolean
   sendInput?: (text: string) => Promise<boolean>
   closeInput?: () => Promise<boolean>
 }>()
-const tab = ref('运行输出'),
+const python = computed(() =>
+  props.run ? sourceLanguage(props.run) === 'python' : props.language === 'python',
+)
+const initialTab = () =>
+  props.run?.status === '编译失败'
+    ? '编译诊断'
+    : python.value && props.run?.stderr && !['排队', '运行中／可输入'].includes(props.run.status)
+      ? '标准错误'
+      : '运行输出'
+const tab = ref(initialTab()),
   line = ref(''),
   cleared = ref(false),
   busy = ref(false)
@@ -32,15 +45,18 @@ watch(
   () => props.run?.id,
   () => {
     cleared.value = false
-    tab.value = props.run?.status === '编译失败' ? '编译诊断' : '运行输出'
+    tab.value = initialTab()
     line.value = ''
   },
 )
 watch(
   () => props.run?.status,
   (status) => {
-    if (status === '编译失败') {
-      tab.value = '编译诊断'
+    if (
+      status === '编译失败' ||
+      (python.value && props.run?.stderr && !['排队', '运行中／可输入'].includes(status ?? ''))
+    ) {
+      tab.value = initialTab()
       cleared.value = false
     }
   },
@@ -94,6 +110,7 @@ async function eof() {
           运行输出
         </Button>
         <Button
+          v-if="!python"
           variant="plain"
           role="tab"
           :aria-selected="tab === '编译诊断'"
@@ -141,6 +158,10 @@ async function eof() {
     <div v-if="run" class="output-body">
       <div class="output-meta">
         <span class="status" :class="tone(run.status)">{{ run.status }}</span>
+        <span v-if="python" class="inline-items">
+          Python
+          <PythonBeta />
+        </span>
         <span v-if="run.id" :title="run.id">{{ run.id.slice(0, 8) }} · 快照</span>
         <span>{{ formatTime(run.time) }}</span>
       </div>
@@ -171,11 +192,13 @@ async function eof() {
         {{
           readonlyContext
             ? '该学生尚未留下运行记录。当前代码仅供只读查看。'
-            : '点击“编译运行”，结果将与当次代码一同保存。'
+            : '点击“运行”，结果将与当次代码一同保存。'
         }}
       </small>
     </div>
-    <p v-if="run?.eof" class="stdin-closed">stdin 已关闭 · 等待程序结束，可随时停止运行。</p>
+    <p v-if="run?.eof && run.status === '运行中／可输入'" class="stdin-closed">
+      stdin 已关闭 · 等待程序结束，可随时停止运行。
+    </p>
     <Form v-if="interactive && !run?.eof" class="runtime-input" @submit.prevent="send">
       <Input
         v-model="line"

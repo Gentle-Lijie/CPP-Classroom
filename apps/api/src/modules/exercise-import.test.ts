@@ -97,6 +97,9 @@ describe('atomic exercise batch import', () => {
     { exercises: [] },
     { exercises: Array.from({ length: 51 }, () => ({})) },
     { exercises: [{ filename: '../sum.cpp' }] },
+    { exercises: [{ filename: 'sum.py', language: 'cpp' }] },
+    { exercises: [{ filename: 'sum.cpp', language: 'python' }] },
+    { exercises: [{ starters: { python: 'bad\0starter' } }] },
     { exercises: [{ input: 'x'.repeat(10001) }] },
     { exercises: [{ description: 'bad\0text' }] },
     { exercises: Array.from({ length: 6 }, () => ({ description: 'x'.repeat(100000) })) },
@@ -114,5 +117,28 @@ describe('atomic exercise batch import', () => {
       mock.controller.importExercises(classId, { exercises: [{}] }, req),
     ).rejects.toBeInstanceOf(ForbiddenException)
     expect(mock.connect).not.toHaveBeenCalled()
+  })
+})
+
+it('imports Python with both templates and allows a literal Unicode escape in source', async () => {
+  const mock = setup()
+  await mock.controller.importExercises(
+    classId,
+    {
+      exercises: [
+        {
+          filename: 'hello.py',
+          language: 'python',
+          code: 'print(1)',
+          starters: { cpp: 'int main() {}', python: 'print("\\u0000")' },
+        },
+      ],
+    },
+    req,
+  )
+  expect(mock.writes[0]?.[5]).toBe('python')
+  expect(JSON.parse(String(mock.writes[0]?.[6]))).toEqual({
+    cpp: 'int main() {}',
+    python: 'print("\\u0000")',
   })
 })

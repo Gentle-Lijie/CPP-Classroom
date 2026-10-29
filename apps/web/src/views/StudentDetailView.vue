@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { Alert } from '@/components/ui/alert'
-import { exerciseSourceFilename } from '@classroom/contracts'
+import { exerciseSourceFilename, type SourceLanguage } from '@classroom/contracts'
+import LanguageSelect from '@/components/classroom/LanguageSelect.vue'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage } from '@/lib/source-language'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
@@ -52,6 +55,12 @@ const student = computed(
       | undefined,
 )
 const chosenExercise = ref(String(route.query.exercise ?? ''))
+const language = ref<SourceLanguage>(
+  route.query.language === 'python' ? 'python' : sourceLanguage(student.value),
+)
+const displayLanguage = computed(() =>
+  viewing.value ? sourceLanguage(viewing.value) : language.value,
+)
 const popup = computed(() => route.path.startsWith('/teacher/inspect/'))
 const exercise = computed(() => {
   const found =
@@ -59,7 +68,11 @@ const exercise = computed(() => {
       (e) => e.id === (chosenExercise.value || student.value?.exerciseId || demo.recommended),
     ) ?? exercises[0]
   return found
-    ? { ...found, filename: exerciseSourceFilename(found), title: found.title || '未命名题目' }
+    ? {
+        ...found,
+        filename: exerciseSourceFilename(found, language.value),
+        title: found.title || '未命名题目',
+      }
     : undefined
 })
 const index = computed(() => students.findIndex((s) => s.id === student.value?.id))
@@ -76,10 +89,18 @@ const recordPage = ref(1),
   pageSize = ref(10),
   recordTotal = ref(0),
   submissionTotal = ref(0)
-type Submitted = { id: string; filename: string; code: string; created_at: string }
+type Submitted = {
+  language?: SourceLanguage
+  runtime_profile?: string
+  id: string
+  filename: string
+  code: string
+  created_at: string
+}
 function submissionSnapshot(record: Submitted): Snapshot {
   return {
     ...record,
+    runtimeProfile: record.runtime_profile,
     kind: 'submission',
     status: '已提交',
     time: record.created_at,
@@ -96,6 +117,7 @@ let generation = 0,
 function context() {
   return {
     student: student.value?.id,
+    language: language.value,
     exercise: exercise.value?.id,
     classroom: demo.classroomId,
     generation,
@@ -104,6 +126,7 @@ function context() {
 function matches(c: ReturnType<typeof context>) {
   return (
     c.student === student.value?.id &&
+    c.language === language.value &&
     c.exercise === exercise.value?.id &&
     c.classroom === demo.classroomId &&
     c.generation === generation
@@ -122,14 +145,17 @@ async function reload(initial = false) {
   inFlight = true
   try {
     const draft = await api<{ code: string; help?: HelpRequest | null }>(
-      path(c, '/workspace/' + c.exercise + '?student=' + c.student),
+      path(c, '/workspace/' + c.exercise + '?student=' + c.student + '&language=' + c.language),
     )
     if (!matches(c)) return
     currentCode.value = draft.code
     currentHelp.value = draft.help?.exercise_id === c.exercise ? draft.help : undefined
     if (sidebarTab.value !== '运行记录' || recordPage.value !== 1) {
       const latest = await api<{ items: RunRecord[] }>(
-        path(c, `/runs?student=${c.student}&exercise=${c.exercise}&page=1&pageSize=1`),
+        path(
+          c,
+          `/runs?student=${c.student}&exercise=${c.exercise}&language=${c.language}&page=1&pageSize=1`,
+        ),
       )
       if (!matches(c)) return
       latestRun.value = latest.items[0]
@@ -138,7 +164,7 @@ async function reload(initial = false) {
       const result = await api<{ items: RunRecord[]; total: number }>(
         path(
           c,
-          `/runs?student=${c.student}&exercise=${c.exercise}&page=${recordPage.value}&pageSize=${pageSize.value}`,
+          `/runs?student=${c.student}&exercise=${c.exercise}&language=${c.language}&page=${recordPage.value}&pageSize=${pageSize.value}`,
         ),
       )
       if (!matches(c)) return
@@ -152,7 +178,7 @@ async function reload(initial = false) {
       }>(
         path(
           c,
-          `/submissions?student=${c.student}&exercise=${c.exercise}&page=${submissionPage.value}&pageSize=${pageSize.value}`,
+          `/submissions?student=${c.student}&exercise=${c.exercise}&language=${c.language}&page=${submissionPage.value}&pageSize=${pageSize.value}`,
         ),
       )
       if (!matches(c)) return
@@ -187,6 +213,10 @@ watch(
   [() => route.params.id, () => exercise.value?.id, () => demo.classroomId],
   () => {
     generation++
+    language.value =
+      route.query.language === 'python' || route.query.language === 'cpp'
+        ? route.query.language
+        : sourceLanguage(student.value)
     viewing.value = undefined
     currentCode.value = ''
     currentHelp.value = undefined
@@ -200,15 +230,22 @@ watch(
   },
   { immediate: true },
 )
-watch([() => route.query.exercise, () => route.query.submission], () => {
-  pendingSubmission.value = String(route.query.submission ?? '')
-  snapshotError.value = ''
-  chosenExercise.value = String(route.query.exercise ?? '')
-  sidebarTab.value = pendingSubmission.value ? '提交记录' : '运行记录'
-  generation++
-  viewing.value = undefined
-  void reload(true)
-})
+watch(
+  [() => route.query.exercise, () => route.query.submission, () => route.query.language],
+  () => {
+    pendingSubmission.value = String(route.query.submission ?? '')
+    snapshotError.value = ''
+    chosenExercise.value = String(route.query.exercise ?? '')
+    language.value =
+      route.query.language === 'python' || route.query.language === 'cpp'
+        ? route.query.language
+        : sourceLanguage(student.value)
+    sidebarTab.value = pendingSubmission.value ? '提交记录' : '运行记录'
+    generation++
+    viewing.value = undefined
+    void reload(true)
+  },
+)
 watch(
   pageSize,
   () => {
@@ -217,6 +254,13 @@ watch(
   },
   { flush: 'sync' },
 )
+watch(language, () => {
+  generation++
+  viewing.value = undefined
+  recordPage.value = 1
+  submissionPage.value = 1
+  void reload(true)
+})
 watch([recordPage, submissionPage, pageSize, sidebarTab], () => {
   generation++
   void reload()
@@ -241,6 +285,7 @@ async function project() {
     const result = await api<{ id: string }>(path(c, '/projections'), 'POST', {
       student: c.student,
       exerciseId: c.exercise,
+      language: c.language,
       ...(snapshot
         ? snapshot.kind === 'submission'
           ? { submissionId: snapshot.id }
@@ -404,6 +449,10 @@ function closeWindow() {
           所选快照固定保留。学生后续修改不会改变此处代码；提交快照不代表已通过运行。
         </Alert>
         <div class="code-toolbar">
+          <LanguageSelect
+            :model-value="displayLanguage"
+            :disabled="!!viewing || loading"
+            @update:model-value="language = $event" />
           <span class="file-tab">
             <CodeXml :size="14" />
             {{ viewing?.filename ?? exercise.filename }}
@@ -420,15 +469,23 @@ function closeWindow() {
             ">
             <Download :size="14" />
           </Button>
+          <PythonBeta v-if="displayLanguage === 'python'" />
           <span class="language-label">
             {{
-              compilerLabel(viewing ? viewing.compilerProfile : executionSettings.compilerProfile)
+              compilerLabel(
+                viewing
+                  ? (viewing.runtimeProfile ?? viewing.compilerProfile)
+                  : language === 'python'
+                    ? 'cpython3-stdlib'
+                    : executionSettings.compilerProfile,
+              )
             }}
           </span>
         </div>
         <div class="detail-editor">
           <CodeEditor
             :model-value="viewing?.code ?? currentCode"
+            :language="displayLanguage"
             :filename="viewing?.filename ?? exercise.filename"
             readonly />
         </div>

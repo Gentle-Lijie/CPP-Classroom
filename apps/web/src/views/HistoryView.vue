@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage } from '@/lib/source-language'
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { Alert } from '@/components/ui/alert'
 import { Select, SelectOption } from '@/components/ui/select'
@@ -179,10 +181,17 @@ void load()
         <div class="code-toolbar">
           <CodeXml :size="14" />
           {{ run.filename }}
-          <span class="language-label ml-auto">{{ compilerLabel(run.compilerProfile) }}</span>
+          <PythonBeta v-if="sourceLanguage(run) === 'python'" />
+          <span class="language-label ml-auto">
+            {{ compilerLabel(run.runtimeProfile ?? run.compilerProfile) }}
+          </span>
         </div>
         <div class="history-editor">
-          <CodeEditor :model-value="run.code" :filename="run.filename" readonly />
+          <CodeEditor
+            :model-value="run.code"
+            :language="sourceLanguage(run)"
+            :filename="run.filename"
+            readonly />
         </div>
         <div class="detail-io">
           <section class="detail-input">

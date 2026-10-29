@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { exerciseSourceFilename, type SourceLanguage } from '@classroom/contracts'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage } from '@/lib/source-language'
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
 import { Select, SelectOption } from '@/components/ui/select'
@@ -13,6 +16,7 @@ import { api } from '@/lib/api'
 import { csvDocument } from '@/lib/csv'
 import { downloadBlob, safeArchivePart, sourceArchive } from '@/lib/source-archive'
 interface Submission {
+  language?: SourceLanguage
   id: string
   exercise_id: string
   user_id: string
@@ -25,6 +29,7 @@ interface Submission {
   created_at: string
 }
 interface ExportWork {
+  language?: SourceLanguage
   id: string
   exercise_id: string
   user_id: string
@@ -137,13 +142,20 @@ async function exportWorks() {
     const data = await api<ExportData>(classPath('/export?' + params))
     if (selected.value.length && kind.value !== 'drafts') {
       data.submissions = data.submissions.filter((s) => selected.value.includes(s.id))
-      const pairs = new Set(data.submissions.map((s) => `${s.user_id}:${s.exercise_id}`))
-      data.drafts = data.drafts.filter((s) => pairs.has(`${s.user_id}:${s.exercise_id}`))
-      if (data.runs) data.runs = data.runs.filter((s) => pairs.has(`${s.user_id}:${s.exercise_id}`))
+      const pairs = new Set(
+        data.submissions.map((s) => `${s.user_id}:${s.exercise_id}:${sourceLanguage(s)}`),
+      )
+      data.drafts = data.drafts.filter((s) =>
+        pairs.has(`${s.user_id}:${s.exercise_id}:${sourceLanguage(s)}`),
+      )
+      if (data.runs)
+        data.runs = data.runs.filter((s) =>
+          pairs.has(`${s.user_id}:${s.exercise_id}:${sourceLanguage(s)}`),
+        )
     } else if (latest.value) {
       const newest = new Map<string, ExportWork>()
       for (const s of data.submissions) {
-        const key = `${s.user_id}:${s.exercise_id}`,
+        const key = `${s.user_id}:${s.exercise_id}:${sourceLanguage(s)}`,
           previous = newest.get(key)
         if (!previous || `${s.created_at}:${s.id}` > `${previous.created_at}:${previous.id}`)
           newest.set(key, s)
@@ -159,17 +171,23 @@ async function exportWorks() {
       return
     }
     const rows: (string | number)[][] = [
-      ['类型', '姓名', '学号', '练习', '文件名', '版本', '时间', '记录ID'],
+      ['类型', '姓名', '学号', '练习', '语言', '文件名', '版本', '时间', '记录ID'],
     ]
     const files = records.map((s) => {
       const person = data.roster.find((p) => p.id === s.user_id),
         problem = data.exercises.find((e) => e.id === s.exercise_id)
-      const filename = s.filename ?? problem?.filename ?? 'main.cpp'
+      const filename =
+        s.filename ||
+        exerciseSourceFilename(
+          { id: s.exercise_id, filename: problem?.filename ?? '' },
+          sourceLanguage(s),
+        )
       rows.push([
         s.kind,
         person?.name ?? s.user_id,
         person?.number ?? '',
         problem?.content.title ?? s.exercise_id,
+        sourceLanguage(s) === 'python' ? 'Python (Beta)' : 'C++',
         filename,
         s.revision,
         s.created_at ?? s.updated_at ?? '',
@@ -355,7 +373,10 @@ useActionFeedback(exportError)
             </td>
             <td>
               <span class="table-exercise">{{ s.title }}</span>
-              <small class="cell-secondary">{{ s.filename }}</small>
+              <small class="cell-secondary">
+                {{ s.filename }}
+                <PythonBeta v-if="sourceLanguage(s) === 'python'" />
+              </small>
             </td>
             <td>
               <span class="status positive">已提交 v{{ s.revision }}</span>
@@ -373,7 +394,11 @@ useActionFeedback(exportError)
                 <RouterLink
                   :to="{
                     path: '/teacher/students/' + s.user_id,
-                    query: { exercise: s.exercise_id, submission: s.id },
+                    query: {
+                      exercise: s.exercise_id,
+                      submission: s.id,
+                      language: sourceLanguage(s),
+                    },
                   }"
                   class="icon-button"
                   aria-label="查看这次提交">

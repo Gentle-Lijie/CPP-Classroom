@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
 import { Input } from '@/components/ui/input'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
@@ -433,7 +434,12 @@ async function regenerateInvite() {
             {{ s.helpMessage || '学生请求帮助，请打开详情查看。' }}
           </p>
           <small class="help-context">
-            {{ exercises.find((e) => e.id === s.helpExerciseId)?.title ?? '课堂练习' }} ·
+            {{ exercises.find((e) => e.id === s.helpExerciseId)?.title ?? '课堂练习' }}
+            <span v-if="s.helpLanguage === 'python'">
+              · Python
+              <PythonBeta />
+            </span>
+            ·
             {{
               s.helpCreatedAt ? new Date(s.helpCreatedAt).toLocaleTimeString('zh-CN') : s.activity
             }}
@@ -443,7 +449,7 @@ async function regenerateInvite() {
             @click="
               router.push({
                 path: '/teacher/students/' + s.id,
-                query: { exercise: s.helpExerciseId },
+                query: { exercise: s.helpExerciseId, language: s.helpLanguage ?? s.language },
               })
             ">
             查看并辅导

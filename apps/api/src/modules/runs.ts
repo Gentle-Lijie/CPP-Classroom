@@ -12,7 +12,7 @@ import {
   ConflictException,
 } from '@nestjs/common'
 import { z } from 'zod'
-import { exerciseSourceFilename } from '@classroom/contracts'
+import { exerciseSourceFilename, executionSnapshot, sourceLanguages } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
 import { actor, parse, role, type AuthRequest } from './common.js'
 export const activeStatuses = ['排队', '编译中', '运行中／可输入']
@@ -23,6 +23,9 @@ export function runDto(r: Record<string, unknown>) {
     exerciseId: r.exercise_id,
     userId: r.user_id,
     classroomId: r.classroom_id,
+    language: r.language ?? 'cpp',
+    runtimeProfile: r.runtime_profile ?? r.compiler_profile ?? null,
+    executionConfig: r.execution_config ?? null,
     compilerProfile: r.compiler_profile ?? null,
   }
 }
@@ -55,6 +58,7 @@ export class RunsController {
     const data = parse(
       z.object({
         exerciseId: z.uuid(),
+        language: z.enum(sourceLanguages).optional(),
         revision: z.number().int().min(1),
         input: z.string().max(65536),
         interactive: z.boolean().default(false),
@@ -62,6 +66,7 @@ export class RunsController {
       body,
     )
     const { c, e } = await this.service.exercise(user, id, data.exerciseId, true)
+    const language = data.language ?? e.language ?? 'cpp'
     if (!c.settings.allowRun) throw new ForbiddenException('教师已关闭运行')
     const client = await this.service.pool.connect()
     try {
@@ -77,7 +82,7 @@ export class RunsController {
       ).rows[0]
       const exercise = (
         await client.query(
-          'select status from exercises where classroom_id=$1 and id=$2 for share',
+          'select status,filename,language from exercises where classroom_id=$1 and id=$2 for share',
           [id, e.id],
         )
       ).rows[0]
@@ -122,25 +127,33 @@ export class RunsController {
       ).rows[0].n
       if (size >= 100) throw new ConflictException('队列已满，请稍后重试')
       const draft = (
-        await client.query('select code,revision from drafts where user_id=$1 and exercise_id=$2', [
-          user.id,
-          e.id,
-        ])
+        await client.query(
+          'select code,revision from drafts where user_id=$1 and exercise_id=$2 and language=$3',
+          [user.id, e.id, language],
+        )
       ).rows[0]
       if (!draft || draft.revision !== data.revision)
         throw new ConflictException('草稿版本不一致，请先保存')
+      const settings = (
+        await client.query("select value from platform_settings where id='execution'")
+      ).rows[0]?.value
+      const snapshot = executionSnapshot(language, settings)
       const r = (
         await client.query(
-          'insert into runs(classroom_id,exercise_id,user_id,code,filename,revision,input,interactive) values($1,$2,$3,$4,$5,$6,$7,$8) returning *',
+          'insert into runs(classroom_id,exercise_id,user_id,code,filename,revision,input,interactive,language,runtime_profile,execution_config,compiler_profile) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning *',
           [
             id,
             e.id,
             user.id,
             draft.code,
-            exerciseSourceFilename(e),
+            exerciseSourceFilename({ ...e, ...exercise }, language),
             draft.revision,
             data.input,
             data.interactive,
+            language,
+            snapshot.runtimeProfile,
+            JSON.stringify(snapshot.executionConfig),
+            language === 'cpp' ? snapshot.runtimeProfile : null,
           ],
         )
       ).rows[0]
@@ -162,6 +175,7 @@ export class RunsController {
     @Query('active') active: string | undefined,
     @Query('status') status: string | undefined,
     @Query('scope') scope: string | undefined,
+    @Query('language') language: string | undefined,
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
@@ -177,11 +191,12 @@ export class RunsController {
       active === 'true',
       status ? parse(z.string().max(40), status) : null,
       scope === 'all' && active === 'true' && (!student || student === user.id),
+      language ? parse(z.enum(sourceLanguages), language) : null,
     ]
     const where =
-      "($6::boolean or classroom_id=$1) and user_id=$2 and ($3::uuid is null or exercise_id=$3) and (not $4::boolean or status in ('排队','编译中','运行中／可输入')) and ($5::text is null or status=$5)"
+      "($6::boolean or classroom_id=$1) and user_id=$2 and ($3::uuid is null or exercise_id=$3) and (not $4::boolean or status in ('排队','编译中','运行中／可输入')) and ($5::text is null or status=$5) and ($7::text is null or language=$7)"
     const result = await this.service.pool.query(
-      `select * from runs where ${where} order by created_at desc,id desc limit $7 offset $8`,
+      `select * from runs where ${where} order by created_at desc,id desc limit $8 offset $9`,
       [...params, paging ? size : 100, paging ? (currentPage - 1) * size : 0],
     )
     if (!paging) return result.rows.map(runDto)

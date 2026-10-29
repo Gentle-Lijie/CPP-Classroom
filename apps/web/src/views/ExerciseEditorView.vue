@@ -1,4 +1,13 @@
 <script setup lang="ts">
+import {
+  exerciseSourceFilename,
+  exerciseStarterCode,
+  type SourceLanguage,
+} from '@classroom/contracts'
+import LanguageSelect from '@/components/classroom/LanguageSelect.vue'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage, normalizeExerciseSources } from '@/lib/source-language'
+import { readExerciseImport } from '@/lib/exercise-import'
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
@@ -34,9 +43,11 @@ const existing = computed(() => exercises.find((e) => e.id === route.params.id))
 const missing = computed(() => !!route.params.id && !existing.value)
 const draft = reactive<Exercise>(
   existing.value
-    ? { ...existing.value }
+    ? JSON.parse(JSON.stringify(existing.value))
     : {
         id: '',
+        language: 'cpp',
+        starters: { cpp: '', python: '' },
         title: '',
         topic: '',
         filename: '',
@@ -49,6 +60,27 @@ const draft = reactive<Exercise>(
         code: '',
       },
 )
+Object.assign(draft, normalizeExerciseSources(draft))
+const editingLanguage = ref<SourceLanguage>(draft.language ?? 'cpp')
+const starter = computed({
+  get: () => exerciseStarterCode(draft, editingLanguage.value),
+  set: (value: string) => {
+    draft.starters = { ...draft.starters, [editingLanguage.value]: value }
+    if (editingLanguage.value === draft.language) draft.code = value
+  },
+})
+function changeDefaultLanguage(language: SourceLanguage) {
+  draft.starters = { ...draft.starters, [draft.language ?? 'cpp']: draft.code }
+  draft.code = exerciseStarterCode(draft, language)
+  if (draft.filename)
+    draft.filename = draft.filename.replace(
+      /\.(cpp|cc|cxx|py)$/i,
+      language === 'python' ? '.py' : '.cpp',
+    )
+  draft.language = language
+  draft.starters[language] = draft.code
+  editingLanguage.value = language
+}
 const initial = ref(JSON.stringify(draft))
 const error = ref('')
 const busy = ref(false)
@@ -88,9 +120,16 @@ async function importMarkdown(event: Event) {
 function applyMarkdown() {
   if (!markdownImport.value || markdownImport.value.errors.length || !importFields.value.length)
     return
+  if (
+    markdownImport.value.language &&
+    (importFields.value.includes('code') || importFields.value.includes('filename'))
+  )
+    changeDefaultLanguage(markdownImport.value.language)
   for (const { key } of detectedFields.value) {
     if (importFields.value.includes(key)) draft[key] = markdownImport.value.fields[key]!
   }
+  if (importFields.value.includes('code'))
+    draft.starters = { ...draft.starters, [draft.language ?? 'cpp']: draft.code }
   markdownImport.value = undefined
   notify('已填入选中的 Markdown 内容，请核对后保存')
 }
@@ -101,7 +140,12 @@ const conflict = ref<Exercise>()
 const restore = ref<Exercise>()
 function restoreDraft() {
   if (!restore.value) return
-  Object.assign(draft, restore.value)
+  Object.assign(
+    draft,
+    JSON.parse(JSON.stringify(restore.value)),
+    normalizeExerciseSources(restore.value),
+  )
+  editingLanguage.value = sourceLanguage(draft)
   restore.value = undefined
 }
 const backupKey = `cpp-teacher-exercise:${currentUser.value?.id}:${demo.classroomId}:${route.params.id ?? 'new'}`
@@ -156,7 +200,10 @@ async function importDraft(event: Event) {
   error.value = ''
   try {
     if (file.size > 1024 * 1024) throw new Error('备份文件过大，最多 1 MiB')
-    const value = JSON.parse(await file.text()) as Exercise
+    const imported = await readExerciseImport(file)
+    if (imported.errors.length || !imported.exercise)
+      throw new Error(imported.errors.join('；') || '这不是有效的题目备份文件')
+    const value = imported.exercise
     const fields = [
       'title',
       'topic',
@@ -171,6 +218,9 @@ async function importDraft(event: Event) {
     if (fields.some((field) => typeof value[field] !== 'string'))
       throw new Error('这不是有效的题目备份文件')
     for (const field of fields) draft[field] = value[field]
+    draft.language = sourceLanguage(value)
+    draft.starters = { ...value.starters, [draft.language]: value.code }
+    editingLanguage.value = draft.language
     notify('已导入备份内容，请核对后保存')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '备份导入失败'
@@ -188,7 +238,12 @@ async function loadConflict() {
 }
 function useServer() {
   if (!conflict.value) return
-  Object.assign(draft, conflict.value)
+  Object.assign(
+    draft,
+    JSON.parse(JSON.stringify(conflict.value)),
+    normalizeExerciseSources(conflict.value),
+  )
+  editingLanguage.value = sourceLanguage(draft)
   initial.value = JSON.stringify(draft)
   conflict.value = undefined
   error.value = ''
@@ -235,9 +290,9 @@ async function save(publish: boolean) {
   if (busy.value) return
   error.value = ''
   const filename = draft.filename.trim()
-  if (filename && !validSourceFilename(filename))
+  if (filename && !validSourceFilename(filename, draft.language ?? 'cpp'))
     error.value =
-      '请输入单个 C++ 文件名，例如 sum.cpp；支持 .cpp、.cc、.cxx，不允许路径或特殊字符。'
+      '请输入与默认语言对应的源文件名；C++ 支持 .cpp、.cc、.cxx，Python 支持 .py，不允许路径。'
   else if (
     filename &&
     exercises.some(
@@ -343,6 +398,12 @@ useActionFeedback(error)
     <section class="panel exercise-meta-panel" :inert="busy">
       <div class="exercise-meta-fields">
         <label>
+          默认语言
+          <LanguageSelect
+            :model-value="draft.language ?? 'cpp'"
+            @update:model-value="changeDefaultLanguage" />
+        </label>
+        <label>
           题目标题
           <Input v-model="draft.title" maxlength="100" placeholder="例如：累加求和" />
         </label>
@@ -363,7 +424,8 @@ useActionFeedback(error)
         </label>
       </div>
       <p class="form-hint">
-        所有题目字段均可留空，空题也可保存或发布。源文件名留空时，下载和本地同步使用按题目编号生成的独立文件名。
+        学生可随时切换 C++ /
+        Python，两种语言分别保存草稿。默认语言只影响首次打开；初始代码可以分别编辑。源文件名留空时使用按题目编号生成的独立文件名。
       </p>
     </section>
     <div class="editor-page-tabs">
@@ -408,12 +470,24 @@ useActionFeedback(error)
     <section v-else class="panel initial-code-page" :inert="busy">
       <div class="code-toolbar">
         <CodeXml :size="15" />
-        {{ draft.filename || '初始代码（可留空）' }}
+        <LanguageSelect v-model="editingLanguage" label="初始代码语言" />
+        {{ draft.filename ? exerciseSourceFilename(draft, editingLanguage) : '初始代码（可留空）' }}
         <span class="language-label ml-auto">
-          {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }} · 初始代码
+          {{
+            editingLanguage === 'python'
+              ? 'Python 3'
+              : executionSettings.compilerProfile === 'gcc13-cpp20'
+                ? 'C++20'
+                : 'C++17'
+          }}
+          · 初始代码
+          <PythonBeta v-if="editingLanguage === 'python'" />
         </span>
       </div>
-      <CodeEditor v-model="draft.code" :filename="draft.filename" />
+      <CodeEditor
+        v-model="starter"
+        :language="editingLanguage"
+        :filename="exerciseSourceFilename(draft, editingLanguage)" />
       <Alert type="info">初始代码只用于创建学生的工作区，不会替换已经编辑的学生草稿。</Alert>
     </section>
   </div>
@@ -448,7 +522,7 @@ useActionFeedback(error)
           <CodeBlock
             v-if="['sampleInput', 'sampleOutput', 'code', 'filename'].includes(key)"
             :source="markdownImport.fields[key] ?? ''"
-            :language="key === 'code' ? 'cpp' : 'text'"
+            :language="key === 'code' ? (draft.language ?? 'cpp') : 'text'"
             :label="label" />
           <MarkdownContent v-else :source="markdownImport.fields[key] ?? ''" />
         </section>

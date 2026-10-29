@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it'
+import type { SourceLanguage } from '@classroom/contracts'
 import { validSourceFilename } from './source-file'
 
 export const exerciseFields = [
@@ -14,6 +15,7 @@ export const exerciseFields = [
 ] as const
 export type ExerciseField = (typeof exerciseFields)[number]['key']
 export interface MarkdownImport {
+  language?: SourceLanguage
   fields: Partial<Record<ExerciseField, string>>
   warnings: string[]
   errors: string[]
@@ -84,6 +86,7 @@ function unwrapCode(source: string) {
 export function parseExerciseMarkdown(source: string): MarkdownImport {
   const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
   const fields: MarkdownImport['fields'] = {}
+  let language: SourceLanguage | undefined
   const warnings: string[] = []
   const errors: string[] = []
   const lines = normalized.split('\n')
@@ -169,6 +172,14 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
     fields.description = body
       .filter((line, index) => {
         if (excluded.has(index)) return true
+        const languageLine = line.match(/^\s*(?:语言|默认语言|language)\s*[:：]\s*(.*?)\s*$/i)
+        if (languageLine) {
+          const value = languageLine[1]!.trim().toLowerCase()
+          if (['python', 'py', 'python3'].includes(value)) language = 'python'
+          else if (['cpp', 'c++', 'c++17', 'c++20'].includes(value)) language = 'cpp'
+          else errors.push('不支持的编程语言，请使用 C++ 或 Python。')
+          return false
+        }
         const match = line.match(
           /^\s*(知识点|标签|topic|tags|源文件名|学生源文件名|文件名|filename)\s*[:：]\s*(.*?)\s*$/i,
         )
@@ -184,8 +195,17 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
     if ((fields[key]?.length ?? 0) > limit)
       errors.push(`${label}超过 ${limit} 字符，请拆分或缩短后重新上传。`)
   }
-  if (fields.filename && !validSourceFilename(fields.filename))
-    errors.push('源文件名格式无效，请使用单个 .cpp、.cc 或 .cxx 文件名后重新上传。')
+  language ??= /\.py$/i.test(fields.filename ?? '') ? 'python' : undefined
+  if (!language && fields.code) {
+    const initial = tokens.find(
+      (token) => token.type === 'fence' && token.content.trim() === fields.code?.trim(),
+    )
+    if (initial && /^(python|py|python3)$/i.test(initial.info.trim())) language = 'python'
+  }
+  if (fields.filename && !validSourceFilename(fields.filename, language))
+    errors.push(
+      '源文件名格式无效，请使用 C++ 的 .cpp、.cc、.cxx 或 Python 的 .py 文件名后重新上传。',
+    )
   if (!Object.keys(fields).length) errors.push('文件没有可导入的内容。')
-  return { fields, warnings: [...new Set(warnings)], errors }
+  return { fields, warnings: [...new Set(warnings)], errors, ...(language ? { language } : {}) }
 }

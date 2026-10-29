@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ConflictException, ForbiddenException } from '@nestjs/common'
-import { RunsController } from './runs.js'
+import { RunsController, runDto } from './runs.js'
+import { executionDefaults } from '@classroom/contracts'
 import type { ClassroomService } from './classroom.js'
 import type { AuthRequest } from './common.js'
 
@@ -21,6 +22,7 @@ function setup(
     revision?: number
     active?: boolean
     queueSize?: number
+    savedSettings?: Record<string, unknown>
   } = {},
 ) {
   const role = options.role ?? 'teacher'
@@ -30,7 +32,7 @@ function setup(
       return {
         rows: [{ status: options.status ?? '进行中', settings, owner_id: options.owner ?? userId }],
       }
-    if (sql.startsWith('select status from exercises'))
+    if (sql.startsWith('select status,filename,language from exercises'))
       return { rows: [{ status: options.exerciseStatus ?? '已发布' }] }
     if (sql.startsWith('select status from memberships'))
       return { rows: [{ status: options.membership ?? 'active' }] }
@@ -38,6 +40,8 @@ function setup(
       return { rows: [{ disabled: options.disabled ?? false, role: options.accountRole ?? role }] }
     if (sql.startsWith('select id from runs')) return { rows: [], rowCount: options.active ? 1 : 0 }
     if (sql.startsWith('select count(*)')) return { rows: [{ n: options.queueSize ?? 0 }] }
+    if (sql.startsWith('select value from platform_settings'))
+      return { rows: [{ value: options.savedSettings ?? {} }] }
     if (sql.startsWith('select code,revision from drafts'))
       return { rows: [{ code: 'saved teacher source', revision: options.revision ?? 2 }] }
     if (sql.startsWith('insert into runs'))
@@ -74,6 +78,16 @@ describe('teacher demonstration runs', () => {
       2,
       '7\n',
       false,
+      'cpp',
+      'gcc13-cpp17',
+      JSON.stringify({
+        compileTimeMs: executionDefaults.compileTimeMs,
+        compileMemoryMb: executionDefaults.compileMemoryMb,
+        runTimeMs: executionDefaults.runTimeMs,
+        runMemoryMb: executionDefaults.runMemoryMb,
+        outputLimitKb: executionDefaults.outputLimitKb,
+      }),
+      'gcc13-cpp17',
     ])
     expect(mock.query.mock.calls.at(-1)?.[0]).toBe('commit')
     expect(mock.client.release).toHaveBeenCalledOnce()
@@ -123,4 +137,47 @@ describe('teacher demonstration runs', () => {
       expect(mock.query.mock.calls.at(-1)?.[0]).toBe('rollback')
     },
   )
+})
+
+describe('language and environment snapshots', () => {
+  it('reads the Python draft and freezes controlled settings, ignoring request profiles', async () => {
+    const mock = setup({
+      savedSettings: { compilerProfile: 'gcc13-cpp20', runTimeMs: 3400, runMemoryMb: 512 },
+    })
+    await mock.controller.create(
+      classId,
+      {
+        ...body,
+        language: 'python',
+        runtimeProfile: 'shell',
+        executionConfig: { runTimeMs: 999999 },
+      },
+      mock.req,
+    )
+    const draft = mock.query.mock.calls.find(([sql]) =>
+      sql.startsWith('select code,revision from drafts'),
+    )!
+    expect(draft[0]).toContain('language=$3')
+    expect(draft[1]).toEqual([userId, exerciseId, 'python'])
+    const write = mock.query.mock.calls.find(([sql]) => sql.startsWith('insert into runs'))![1]!
+    expect(write[4]).toBe(`exercise-${exerciseId}.py`)
+    expect(write[8]).toBe('python')
+    expect(write[9]).toBe('cpython3-stdlib')
+    expect(JSON.parse(String(write[10]))).toMatchObject({ runTimeMs: 3400, runMemoryMb: 512 })
+    expect(write[11]).toBeNull()
+  })
+
+  it('preserves unknown historical runtime identity', () => {
+    expect(runDto({ language: 'cpp', compiler_profile: null })).toMatchObject({
+      language: 'cpp',
+      runtimeProfile: null,
+    })
+    expect(
+      runDto({
+        language: 'python',
+        runtime_profile: 'cpython3-stdlib',
+        execution_config: { runTimeMs: 2000 },
+      }),
+    ).toMatchObject({ runtimeProfile: 'cpython3-stdlib', executionConfig: { runTimeMs: 2000 } })
+  })
 })

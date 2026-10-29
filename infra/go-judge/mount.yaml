@@ -1,4 +1,4 @@
-# Linux C++ baseline. Review these host paths on the actual execution machine.
+# Linux C++ / Python (Beta) baseline. Review these host paths on the actual execution machine.
 # Never mount project source, database data, home directories, secrets or control sockets.
 mount:
   - type: bind

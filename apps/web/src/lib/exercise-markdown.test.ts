@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { parseExerciseMarkdown } from './exercise-markdown'
 
 describe('Markdown exercise import', () => {
+  it('detects Python starters while keeping language-like lines inside code literal', () => {
+    const result = parseExerciseMarkdown(
+      '# 问候\n## 初始代码\n```python\n# language: cpp\nprint("你好")\n```',
+    )
+    expect(result.language).toBe('python')
+    expect(result.fields.code).toBe('# language: cpp\nprint("你好")')
+    expect(result.errors).toEqual([])
+    expect(parseExerciseMarkdown('# 问候练习\n语言：ruby').errors.length).toBeGreaterThan(0)
+  })
   it('splits a Chinese exercise and preserves code, whitespace, and fenced headings', () => {
     const result = parseExerciseMarkdown(
       [

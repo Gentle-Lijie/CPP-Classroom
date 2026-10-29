@@ -7,9 +7,11 @@ export function shortId(value?: string) {
   return value ? value.slice(0, 8) : '—'
 }
 export function compilerLabel(profile?: string) {
-  return profile === 'gcc13-cpp20'
-    ? 'GCC 13.3 / C++20'
-    : profile === 'gcc13-cpp17'
-      ? 'GCC 13.3 / C++17'
-      : '未记录编译配置'
+  return profile?.startsWith('cpython')
+    ? 'Python 3 · 标准库'
+    : profile === 'gcc13-cpp20'
+      ? 'GCC 13.3 / C++20'
+      : profile === 'gcc13-cpp17'
+        ? 'GCC 13.3 / C++17'
+        : '未记录运行环境'
 }

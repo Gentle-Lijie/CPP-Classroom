@@ -27,7 +27,7 @@ const executionSettings = (
   await pool.query("select value from platform_settings where id='execution'")
 ).rows[0]?.value
 console.log(
-  `Worker 已就绪：原生 Linux 编译运行队列（${executionSettings?.executionConcurrency ?? executionDefaults.executionConcurrency} 槽，可动态调整）与基础设施自检。`,
+  `Worker 已就绪：原生 Linux C++ / Python（Beta）运行队列（${executionSettings?.executionConcurrency ?? executionDefaults.executionConcurrency} 槽，可动态调整）与基础设施自检。`,
 )
 
 let stopping = false

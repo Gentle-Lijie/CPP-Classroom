@@ -17,11 +17,11 @@ export class DiskConflictError extends Error {
 const maxBytes = 1024 * 1024
 export async function readSourceFile(handle: SourceFileHandle) {
   const file = await handle.getFile()
-  if (file.size > maxBytes) throw new Error('文件超过 1 MB，请选择单文件 C++ 源码')
+  if (file.size > maxBytes) throw new Error('文件超过 1 MB，请选择单文件源码')
   return file.text()
 }
 export async function writeSourceFile(handle: SourceFileHandle, expected: string, text: string) {
-  if (!validSourceFilename(handle.name)) throw new Error('无效的 C++ 源文件名')
+  if (!validSourceFilename(handle.name)) throw new Error('无效的源文件名')
   if (new Blob([text]).size > maxBytes) throw new Error('代码超过 1 MB，已暂停磁盘写入')
   const current = await readSourceFile(handle)
   if (current !== expected && current !== text) throw new DiskConflictError(current)

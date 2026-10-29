@@ -1,9 +1,38 @@
 import { fileURLToPath, URL } from 'node:url'
+import { readFile } from 'node:fs/promises'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
+import { transform } from 'esbuild'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
+function pyrightWorkerAsset(): Plugin {
+  return {
+    name: 'pyright-production-worker-asset',
+    enforce: 'pre',
+    apply: 'build',
+    async load(id) {
+      if (!id.endsWith('/monaco-pyright-lsp/dist/worker.js?url')) return
+      const path = id.slice(0, -'?url'.length)
+      this.addWatchFile(path)
+      // The upstream worker is a development bundle. Minify before emitting
+      // so the self-hosted, content-hashed asset fits Makers' 25 MB limit.
+      const result = await transform(await readFile(path, 'utf8'), {
+        loader: 'js',
+        minify: true,
+        keepNames: true,
+        legalComments: 'eof',
+        target: 'es2022',
+      })
+      const reference = this.emitFile({
+        type: 'asset',
+        name: 'pyright.worker.js',
+        source: result.code,
+      })
+      return `export default import.meta.ROLLUP_FILE_URL_${reference}`
+    },
+  }
+}
 function clangdCdnAssets(): Plugin {
   return {
     name: 'clangd-production-cdn-assets',
@@ -30,6 +59,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, '')
   return {
     plugins: [
+      pyrightWorkerAsset(),
       {
         name: 'clangd-shared-worker-vite-compat',
         enforce: 'pre',

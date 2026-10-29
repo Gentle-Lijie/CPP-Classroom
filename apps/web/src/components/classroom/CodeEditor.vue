@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Alert } from '@/components/ui/alert'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import type * as Monaco from 'monaco-editor'
+import type { SourceLanguage } from '@classroom/contracts'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { RefreshCw } from '@lucide/vue'
 import { resolvedTheme } from '@/lib/theme'
@@ -17,8 +19,9 @@ const props = withDefaults(
     fontSize?: number
     errorLine?: number
     filename?: string
+    language?: SourceLanguage
   }>(),
-  { readonly: false, fontSize: 16, filename: 'source.cpp' },
+  { readonly: false, fontSize: 16, filename: 'source.cpp', language: 'cpp' },
 )
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const container = ref<HTMLElement>()
@@ -26,11 +29,14 @@ const editorError = ref(''),
   editorLoading = ref(true)
 let editor: Monaco.editor.IStandaloneCodeEditor | undefined
 let disposed = false
+let applyingValue = false
 let monacoApi: typeof import('monaco-editor/esm/vs/editor/editor.api.js') | undefined
 const languageEnabled = ref(false)
 const languagePending = ref(false)
 const languageStatusId = useId()
 const languageStatus = ref<ClangdStatus>()
+const languageLabel = computed(() => (props.language === 'python' ? 'Python' : 'C++'))
+const languageServiceLabel = computed(() => (props.language === 'python' ? 'Pyright' : 'clangd'))
 let languageConnection: BrowserClangd | undefined
 let languageController: AbortController | undefined
 let languageGeneration = 0
@@ -57,7 +63,7 @@ async function startLanguageService() {
     state: 'loading',
     errors: 0,
     warnings: 0,
-    message: '正在准备浏览器 clangd…',
+    message: `正在准备浏览器 ${languageServiceLabel.value}…`,
   }
   function fail(error: unknown) {
     if (generation !== languageGeneration || disposed) return
@@ -67,7 +73,7 @@ async function startLanguageService() {
       state: 'error',
       errors: 0,
       warnings: 0,
-      message: error instanceof Error ? error.message : 'clangd 加载失败，请重试',
+      message: error instanceof Error ? error.message : '语言服务加载失败，请重试',
     }
   }
   const aborted = () => fail(controller.signal.reason)
@@ -77,9 +83,12 @@ async function startLanguageService() {
     120000,
   )
   try {
-    const { attachBrowserClangd } = await import('@/lib/browser-clangd')
+    const attach =
+      props.language === 'python'
+        ? (await import('@/lib/browser-pyright')).attachBrowserPyright
+        : (await import('@/lib/browser-clangd')).attachBrowserClangd
     if (generation !== languageGeneration || disposed || controller.signal.aborted) return
-    const connection = await attachBrowserClangd(
+    const connection = await attach(
       monacoApi,
       model,
       (status) => {
@@ -115,10 +124,14 @@ function toggleLanguageService(enabled: boolean) {
   else stopLanguageService()
 }
 function createModel() {
-  const filename = validSourceFilename(props.filename) ? props.filename : 'source.cpp'
+  const filename = validSourceFilename(props.filename, props.language)
+    ? props.filename
+    : props.language === 'python'
+      ? 'source.py'
+      : 'source.cpp'
   return monacoApi!.editor.createModel(
     props.modelValue,
-    'cpp',
+    props.language,
     monacoApi!.Uri.from({ scheme: 'file', path: `/lsp/${crypto.randomUUID()}/${filename}` }),
   )
 }
@@ -151,6 +164,7 @@ async function initializeEditor() {
   try {
     const monaco = await import('monaco-editor/esm/vs/editor/editor.api.js')
     await import('monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution.js')
+    await import('monaco-editor/esm/vs/basic-languages/python/python.contribution.js')
     if (disposed || !container.value) return
     monacoApi = monaco
     self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
@@ -168,6 +182,9 @@ async function initializeEditor() {
       lineNumbersMinChars: 3,
       padding: { top: 12, bottom: 12 },
       tabSize: 4,
+      insertSpaces: true,
+      detectIndentation: props.language !== 'python',
+      autoIndent: 'full',
       bracketPairColorization: { enabled: false },
       // Avoid async WordHighlighter requests outliving models during rapid exercise switches.
       occurrencesHighlight: 'off',
@@ -179,7 +196,9 @@ async function initializeEditor() {
       fixedOverflowWidgets: true,
     })
     const currentEditor = editor
-    currentEditor.onDidChangeModelContent(() => emit('update:modelValue', currentEditor.getValue()))
+    currentEditor.onDidChangeModelContent(() => {
+      if (!applyingValue) emit('update:modelValue', currentEditor.getValue())
+    })
     markError()
   } catch (error) {
     editorError.value = error instanceof Error ? error.message : '编辑器资源加载失败'
@@ -197,7 +216,12 @@ watch(
   () => props.modelValue,
   (value) => {
     if (editor && editor.getValue() !== value) {
-      editor.setValue(value)
+      applyingValue = true
+      try {
+        editor.setValue(value)
+      } finally {
+        applyingValue = false
+      }
       markError()
     }
   },
@@ -206,7 +230,7 @@ watch(resolvedTheme, (theme) => {
   monacoApi?.editor.setTheme(theme === 'dark' ? 'classroom-monokai' : 'classroom-light')
 })
 watch(
-  () => props.filename,
+  () => [props.filename, props.language],
   () => {
     if (!editor || !monacoApi || disposed) return
     const restartLanguage = languageEnabled.value || languagePending.value
@@ -216,6 +240,8 @@ watch(
     editor.setModel(null)
     previous?.dispose()
     editor.setModel(createModel())
+    editor.updateOptions({ detectIndentation: props.language !== 'python', insertSpaces: true })
+    editor.getModel()?.updateOptions({ tabSize: 4, insertSpaces: true })
     markError()
     if (restartLanguage) void startLanguageService()
   },
@@ -267,7 +293,7 @@ onBeforeUnmount(() => {
     <div
       ref="container"
       class="code-editor"
-      :aria-label="readonly ? 'C++ 代码，只读' : 'C++ 代码编辑器'" />
+      :aria-label="readonly ? `${languageLabel} 代码，只读` : `${languageLabel} 代码编辑器`" />
     <div v-if="!readonly" class="editor-language-bar">
       <label
         class="editor-language-toggle"
@@ -283,10 +309,11 @@ onBeforeUnmount(() => {
                 : '语言服务正在切换，请稍候'
           "
           :aria-busy="languagePending"
-          aria-label="clangd 语言服务"
+          :aria-label="`${languageServiceLabel} 语言服务`"
           :aria-describedby="languageStatusId"
           @update:model-value="toggleLanguageService" />
-        <span>clangd</span>
+        <span>{{ languageServiceLabel }}</span>
+        <PythonBeta v-if="language === 'python'" />
       </label>
       <RefreshCw
         v-if="languageStatus?.state === 'loading' || languageStatus?.state === 'analyzing'"

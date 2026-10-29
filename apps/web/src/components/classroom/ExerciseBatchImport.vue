@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PythonBeta from './PythonBeta.vue'
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { computed, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
@@ -123,6 +124,10 @@ onBeforeRouteLeave(() => !busy.value)
     :busy="busy"
     description="每个文件创建一道练习，按选择顺序追加到课堂末尾，统一保存为草稿。">
     <div class="import-toolbar">
+      <span v-if="current?.exercise?.language === 'python'" class="inline-items">
+        Python
+        <PythonBeta />
+      </span>
       <FileUpload
         accept=".md,.markdown,.json"
         multiple
@@ -185,7 +190,7 @@ onBeforeRouteLeave(() => !busy.value)
           <CodeBlock
             v-if="['code', 'sampleInput', 'sampleOutput', 'filename'].includes(key)"
             :source="current.exercise?.[key] ?? ''"
-            :language="key === 'code' ? 'cpp' : 'text'"
+            :language="key === 'code' ? (current?.exercise?.language ?? 'cpp') : 'text'"
             :label="label" />
           <MarkdownContent v-else :source="current.exercise?.[key] ?? ''" />
         </section>

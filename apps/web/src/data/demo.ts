@@ -1,6 +1,6 @@
 import { computed, reactive, ref } from 'vue'
 import { api, ApiError, connectionState } from '@/lib/api'
-import { executionDefaults } from '@classroom/contracts'
+import { executionDefaults, type SourceLanguage } from '@classroom/contracts'
 import { clearNotifications, notify } from '@/lib/notifications'
 export { notify } from '@/lib/notifications'
 export const executionSettings = reactive({ ...executionDefaults })
@@ -8,6 +8,7 @@ export const starterCode =
   '#include <iostream>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n'
 export const errorCode = starterCode
 export interface Student {
+  language?: SourceLanguage
   id: string
   name: string
   number: string
@@ -20,11 +21,14 @@ export interface Student {
   exerciseId?: string
   helpMessage?: string
   helpCreatedAt?: string
+  helpLanguage?: SourceLanguage
   helpExerciseId?: string
   helpRequestId?: string
   recommendedSubmitted?: boolean
 }
 export interface Exercise {
+  language?: SourceLanguage
+  starters?: Partial<Record<SourceLanguage, string>>
   id: string
   title: string
   topic: string
@@ -55,6 +59,8 @@ export interface Classroom {
   recommended?: string
 }
 export interface RunRecord {
+  language?: SourceLanguage
+  runtimeProfile?: string
   id: string
   status: string
   time: string
@@ -258,8 +264,13 @@ export async function loadRuns(student?: string, exercise?: string) {
   return api<RunRecord[]>(classPath('/runs?' + params))
 }
 const drafts = reactive<Record<string, string>>({})
-export function draftStorageKey(exerciseId: string, studentId = currentUser.value?.id ?? '') {
-  return `cpp-draft:${currentUser.value?.id}:${demo.classroomId}:${studentId}:${exerciseId}`
+export function draftStorageKey(
+  exerciseId: string,
+  studentId = currentUser.value?.id ?? '',
+  language: SourceLanguage = 'cpp',
+) {
+  // Preserve the original C++ backup key across upgrades.
+  return `cpp-draft:${currentUser.value?.id}:${demo.classroomId}:${studentId}:${exerciseId}${language === 'cpp' ? '' : ':' + language}`
 }
 export function readDraft(
   exerciseId: string,

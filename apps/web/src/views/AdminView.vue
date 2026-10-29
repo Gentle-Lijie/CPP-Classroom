@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
@@ -458,6 +459,13 @@ const busyReason = ref('正在处理请求，请稍候')
         </Button>
       </template>
       <dl class="admin-environment-summary">
+        <div>
+          <dt>Python</dt>
+          <dd class="inline-items">
+            CPython 3 · 标准库
+            <PythonBeta />
+          </dd>
+        </div>
         <div>
           <dt>编译环境</dt>
           <dd>

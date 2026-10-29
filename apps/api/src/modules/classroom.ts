@@ -16,7 +16,12 @@ import {
   BadRequestException,
 } from '@nestjs/common'
 import { z } from 'zod'
-import { exerciseImportLimits, validSourceFilename } from '@classroom/contracts'
+import {
+  exerciseImportLimits,
+  exerciseStarterCode,
+  sourceLanguages,
+  validSourceFilename,
+} from '@classroom/contracts'
 import type { PoolClient } from '@classroom/database'
 import { DatabaseService } from '../database.service.js'
 import { passwordHash } from './auth.js'
@@ -40,13 +45,17 @@ const settingsSchema = z
     capacity: z.number().int().min(1).max(50),
   })
   .partial()
-export const exerciseSchema = z.object({
+const exerciseBaseSchema = z.object({
+  language: z.enum(sourceLanguages).default('cpp'),
+  starters: z
+    .object({ cpp: z.string().max(100000).optional(), python: z.string().max(100000).optional() })
+    .default({}),
   title: z.string().trim().max(100).default(''),
   topic: z.string().trim().max(100).default(''),
   filename: z
     .string()
     .trim()
-    .refine((value) => !value || validSourceFilename(value), '无效的 C++ 源文件名')
+    .refine((value) => !value || validSourceFilename(value), '无效的 C++ / Python 源文件名')
     .default(''),
   status: z.enum(['草稿', '已发布', '已关闭']).default('草稿'),
   description: z.string().max(100000).default(''),
@@ -58,6 +67,22 @@ export const exerciseSchema = z.object({
   position: z.number().int().min(0).max(10000).optional(),
   version: z.number().int().optional(),
 })
+const matchesExerciseLanguage = (exercise: z.infer<typeof exerciseBaseSchema>) =>
+  !exercise.filename || validSourceFilename(exercise.filename, exercise.language)
+const noExerciseNullCharacters = (exercise: Record<string, unknown>) =>
+  Object.values(exercise).every((value) =>
+    typeof value === 'string'
+      ? !value.includes('\0')
+      : typeof value === 'object' && value !== null
+        ? Object.values(value).every(
+            (starter) => typeof starter !== 'string' || !starter.includes('\0'),
+          )
+        : true,
+  )
+export const exerciseSchema = exerciseBaseSchema
+  .refine(matchesExerciseLanguage, '源文件扩展名必须与默认语言一致')
+  .refine(noExerciseNullCharacters, '题目包含无效的空字符')
+
 export interface ClassroomRow {
   id: string
   owner_id: string
@@ -590,6 +615,9 @@ export class ClassroomController {
       )
     ).rows.map((e) => ({
       ...e.content,
+      language: e.language,
+      starters: e.starters,
+      code: exerciseStarterCode(e, e.language),
       id: e.id,
       filename: e.filename,
       status: e.status,
@@ -620,8 +648,19 @@ export class ClassroomController {
         throw new ConflictException('文件名已存在（不区分大小写）')
       const result = (
         await client.query(
-          'insert into exercises(classroom_id,filename,status,position,content) values($1,$2,$3,coalesce($4,(select coalesce(max(position),0)+1 from exercises where classroom_id=$1)),$5) returning id',
-          [id, data.filename, data.status, data.position ?? null, JSON.stringify(data)],
+          'insert into exercises(classroom_id,filename,status,position,content,language,starters) values($1,$2,$3,coalesce($4,(select coalesce(max(position),0)+1 from exercises where classroom_id=$1)),$5,$6,$7) returning id',
+          [
+            id,
+            data.filename,
+            data.status,
+            data.position ?? null,
+            JSON.stringify(data),
+            data.language,
+            JSON.stringify({
+              ...data.starters,
+              [data.language]: data.starters[data.language] ?? data.code,
+            }),
+          ],
         )
       ).rows[0]
       await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
@@ -652,12 +691,14 @@ export class ClassroomController {
       z.object({
         exercises: z
           .array(
-            exerciseSchema
+            exerciseBaseSchema
               .omit({ status: true, position: true, version: true })
               .refine(
-                (exercise) => Object.values(exercise).every((value) => !value.includes('\0')),
-                '题目包含无效的空字符',
-              ),
+                (exercise) =>
+                  !exercise.filename || validSourceFilename(exercise.filename, exercise.language),
+                '源文件扩展名必须与默认语言一致',
+              )
+              .refine(noExerciseNullCharacters, '题目包含无效的空字符'),
           )
           .min(1)
           .max(exerciseImportLimits.files),
@@ -690,8 +731,19 @@ export class ClassroomController {
       const ids: string[] = []
       for (const [index, exercise] of exercises.entries()) {
         const result = await client.query(
-          'insert into exercises(classroom_id,filename,status,position,content) values($1,$2,$3,$4,$5) returning id',
-          [id, exercise.filename, '草稿', position + index + 1, JSON.stringify(exercise)],
+          'insert into exercises(classroom_id,filename,status,position,content,language,starters) values($1,$2,$3,$4,$5,$6,$7) returning id',
+          [
+            id,
+            exercise.filename,
+            '草稿',
+            position + index + 1,
+            JSON.stringify(exercise),
+            exercise.language,
+            JSON.stringify({
+              ...exercise.starters,
+              [exercise.language]: exercise.starters[exercise.language] ?? exercise.code,
+            }),
+          ],
         )
         ids.push(result.rows[0].id as string)
       }
@@ -850,7 +902,7 @@ export class ClassroomController {
       )
         throw new ConflictException('文件名已存在（不区分大小写）')
       const result = await client.query(
-        'update exercises set filename=$3,status=$4,position=coalesce($5,position),content=$6,version=version+1,updated_at=now() where classroom_id=$1 and id=$2 and version=$7 returning version',
+        'update exercises set filename=$3,status=$4,position=coalesce($5,position),content=$6,language=$8,starters=$9,version=version+1,updated_at=now() where classroom_id=$1 and id=$2 and version=$7 returning version',
         [
           id,
           exerciseId,
@@ -859,6 +911,11 @@ export class ClassroomController {
           data.position ?? null,
           JSON.stringify(data),
           data.version,
+          data.language,
+          JSON.stringify({
+            ...data.starters,
+            [data.language]: data.starters[data.language] ?? data.code,
+          }),
         ],
       )
       if (!result.rowCount) throw new ConflictException('题目已被修改，请刷新后重试')

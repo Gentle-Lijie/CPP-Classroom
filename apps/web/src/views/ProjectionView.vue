@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage } from '@/lib/source-language'
 import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
@@ -20,6 +22,7 @@ const size = ref(23),
 type Projection = Partial<RunRecord> & {
   title: string
   code: string
+  language?: 'cpp' | 'python'
   filename: string
   kind: 'draft' | 'run' | 'submission'
   createdAt?: string
@@ -163,10 +166,12 @@ async function fullscreen() {
         <div class="code-toolbar">
           <CodeXml />
           {{ snapshot.filename }}
+          <PythonBeta v-if="sourceLanguage(snapshot) === 'python'" />
           <span class="muted ml-auto">只读</span>
         </div>
         <CodeEditor
           :model-value="snapshot.code"
+          :language="sourceLanguage(snapshot)"
           :filename="snapshot.filename"
           :font-size="size"
           readonly />

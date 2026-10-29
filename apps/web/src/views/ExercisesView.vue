@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import {
+  exerciseSourceFilename,
+  exerciseStarterCode,
+  type SourceLanguage,
+} from '@classroom/contracts'
+import LanguageSelect from '@/components/classroom/LanguageSelect.vue'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage } from '@/lib/source-language'
 import { Alert } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -59,6 +67,10 @@ const filtered = computed(() =>
 )
 const { page, pageSize, paged } = usePagination(filtered, [search, status], 10)
 const preview = ref(false)
+const previewLanguage = ref<SourceLanguage>('cpp')
+watch([preview, selected], () => {
+  previewLanguage.value = sourceLanguage(exercises.find((e) => e.id === selected.value))
+})
 const busy = ref(false)
 const confirmClose = ref(false)
 const checkedIds = ref<string[]>([])
@@ -326,6 +338,7 @@ async function imported(ids: string[]) {
                 <strong>{{ e.title || '未命名题目' }}</strong>
                 <small>
                   {{ e.filename || '未指定源文件名' }}
+                  <PythonBeta v-if="sourceLanguage(e) === 'python'" />
                   <span v-if="activeClassroom.recommended === e.id">· 当前推荐</span>
                 </small>
               </div>
@@ -378,7 +391,14 @@ async function imported(ids: string[]) {
         <div class="problem-content">
           <span class="topic-label">
             {{ exercise.topic }} ·
-            {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+            {{
+              sourceLanguage(exercise) === 'python'
+                ? 'Python 3'
+                : executionSettings.compilerProfile === 'gcc13-cpp20'
+                  ? 'C++20'
+                  : 'C++17'
+            }}
+            <PythonBeta v-if="sourceLanguage(exercise) === 'python'" />
           </span>
           <h2>{{ exercise.title || '未命名题目' }}</h2>
           <div class="problem-limits">
@@ -503,8 +523,15 @@ async function imported(ids: string[]) {
       <CodeBlock :source="exercise.sampleOutput" label="样例输出" />
     </div>
     <div class="initial-editor">
-      <div class="code-toolbar">{{ exercise.filename }}</div>
-      <CodeEditor :model-value="exercise.code" readonly :filename="exercise.filename" />
+      <div class="code-toolbar">
+        <LanguageSelect v-model="previewLanguage" label="预览初始代码语言" />
+        {{ exerciseSourceFilename(exercise, previewLanguage) }}
+      </div>
+      <CodeEditor
+        :model-value="exerciseStarterCode(exercise, previewLanguage)"
+        :language="previewLanguage"
+        readonly
+        :filename="exerciseSourceFilename(exercise, previewLanguage)" />
     </div>
     <div class="modal-actions">
       <Button variant="outline" @click="preview = false">关闭</Button>

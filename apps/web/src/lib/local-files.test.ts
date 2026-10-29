@@ -30,6 +30,12 @@ function memoryFile(initial: string, failWrite = false) {
   return { handle, createWritable, abort, text: () => text }
 }
 describe('local source files', () => {
+  it('writes Python source without reinterpreting its extension or contents', async () => {
+    const disk = memoryFile('print("原文")')
+    disk.handle.name = '练习.py'
+    await writeSourceFile(disk.handle, 'print("原文")', 'print("新草稿")')
+    expect(disk.text()).toBe('print("新草稿")')
+  })
   it('writes the selected file only when its previous contents match', async () => {
     const disk = memoryFile('old')
     await writeSourceFile(disk.handle, 'old', 'new')

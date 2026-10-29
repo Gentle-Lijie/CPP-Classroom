@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { Alert } from '@/components/ui/alert'
-import { exerciseSourceFilename } from '@classroom/contracts'
+import { exerciseSourceFilename, type SourceLanguage } from '@classroom/contracts'
+import LanguageSelect from '@/components/classroom/LanguageSelect.vue'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import { sourceLanguage, preferredLanguage, rememberLanguage } from '@/lib/source-language'
+import { compilerLabel } from '@/lib/display'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -49,6 +53,17 @@ const route = useRoute()
 const router = useRouter()
 const initial = String(route.query.exercise ?? demo.recommended)
 const selected = ref(exercises.some((e) => e.id === initial) ? initial : (exercises[0]?.id ?? ''))
+const language = ref<SourceLanguage>(
+  preferredLanguage(
+    currentUser.value?.id,
+    demo.classroomId,
+    selected.value,
+    sourceLanguage(exercises.find((e) => e.id === selected.value)),
+  ),
+)
+const runtimeProfile = computed(() =>
+  language.value === 'python' ? 'cpython3-stdlib' : executionSettings.compilerProfile,
+)
 const mode = ref('题面'),
   fontSize = ref(20),
   teacherCode = ref(''),
@@ -75,7 +90,11 @@ const runBusy = computed(() => runningRequest.value || stopping.value || !!activ
 const exercise = computed(() => {
   const found = exercises.find((e) => e.id === selected.value)
   return found
-    ? { ...found, filename: exerciseSourceFilename(found), title: found.title || '未命名题目' }
+    ? {
+        ...found,
+        filename: exerciseSourceFilename(found, language.value),
+        title: found.title || '未命名题目',
+      }
     : undefined
 })
 const index = computed(() => exercises.findIndex((e) => e.id === selected.value))
@@ -115,6 +134,7 @@ let polling = false
 function context() {
   return {
     id: selected.value,
+    language: language.value,
     classroom: demo.classroomId,
     user: currentUser.value?.id,
     generation,
@@ -123,17 +143,18 @@ function context() {
 function matches(c: ReturnType<typeof context>) {
   return (
     c.id === selected.value &&
+    c.language === language.value &&
     c.classroom === demo.classroomId &&
     c.user === currentUser.value?.id &&
     c.generation === generation
   )
 }
 const draftPath = (c: ReturnType<typeof context>) =>
-  '/classes/' + c.classroom + '/workspace/' + c.id
+  '/classes/' + c.classroom + '/workspace/' + c.id + '?language=' + c.language
 const runPath = (c: ReturnType<typeof context>, suffix = '') =>
   '/classes/' + c.classroom + '/runs' + suffix
 const backupKey = (c: ReturnType<typeof context>) =>
-  `cpp-teacher-draft:${c.user}:${c.classroom}:${c.id}`
+  `cpp-teacher-draft:${c.user}:${c.classroom}:${c.id}${c.language === 'cpp' ? '' : ':' + c.language}`
 function backup() {
   try {
     localStorage.setItem(
@@ -198,17 +219,27 @@ async function loadRuns(c: ReturnType<typeof context>) {
   try {
     const [active, recent] = await Promise.all([
       api<TeachingRun[]>(runPath(c, '?active=true&scope=all')),
-      api<{ items: TeachingRun[] }>(runPath(c, `?exercise=${c.id}&page=1&pageSize=1`)),
+      api<{ items: TeachingRun[] }>(
+        runPath(c, `?exercise=${c.id}&language=${c.language}&page=1&pageSize=1`),
+      ),
     ])
     if (!matches(c)) return
     run.value =
-      active.find((r) => r.classroomId === c.classroom && r.exerciseId === c.id) ?? recent.items[0]
-    otherRun.value = active.find((r) => r.classroomId !== c.classroom || r.exerciseId !== c.id)
+      active.find(
+        (r) =>
+          r.classroomId === c.classroom &&
+          r.exerciseId === c.id &&
+          sourceLanguage(r) === c.language,
+      ) ?? recent.items[0]
+    otherRun.value = active.find(
+      (r) =>
+        r.classroomId !== c.classroom || r.exerciseId !== c.id || sourceLanguage(r) !== c.language,
+    )
   } catch (e) {
     if (matches(c)) runError.value = e instanceof Error ? e.message : '运行记录读取失败'
   }
 }
-watch(selected, () => void load(), { immediate: true })
+watch([selected, language], () => void load(), { immediate: true })
 watch(teacherCode, () => {
   if (readonly.value) return
   dirty.value = true
@@ -232,6 +263,7 @@ async function persist(): Promise<boolean> {
   saving = (async () => {
     try {
       const result = await api<{ revision: number }>(draftPath(c), 'PUT', {
+        language: c.language,
         code: content,
         revision: expected,
       })
@@ -253,19 +285,33 @@ async function persist(): Promise<boolean> {
   saving = undefined
   return ok && dirty.value ? persist() : ok
 }
-async function switchExercise(id: string) {
+async function switchExercise(id: string, nextLanguage?: SourceLanguage) {
   if (runBusy.value) {
     notify('请先停止当前运行或等待完成，再切换练习')
     return
   }
-  if (switching.value || loading.value || id === selected.value) return
+  if (
+    switching.value ||
+    loading.value ||
+    (id === selected.value && (!nextLanguage || nextLanguage === language.value))
+  )
+    return
   switching.value = true
   try {
     if (!(await persist())) {
       notify('示范代码尚未同步，请先重试或下载备份', 'error')
       return
     }
+    language.value =
+      nextLanguage ??
+      preferredLanguage(
+        currentUser.value?.id,
+        demo.classroomId,
+        id,
+        sourceLanguage(exercises.find((e) => e.id === id)),
+      )
     selected.value = id
+    rememberLanguage(currentUser.value?.id, demo.classroomId, id, language.value)
   } finally {
     switching.value = false
   }
@@ -287,6 +333,7 @@ async function startRun() {
     if (!(await persist()) || !matches(c)) throw new Error('请先完成示范代码同步')
     const result = await api<TeachingRun>(runPath(c), 'POST', {
       exerciseId: c.id,
+      language: c.language,
       revision,
       input: input.value,
       interactive: interactive.value,
@@ -479,6 +526,10 @@ onBeforeUnmount(() => {
         </span>
         <div class="inline-items">
           <span class="teaching-filename">{{ exercise.filename }}</span>
+          <LanguageSelect
+            :model-value="language"
+            :disabled="loading || switching || runBusy || conflict"
+            @update:model-value="switchExercise(selected, $event)" />
           <Button
             variant="plain"
             class="text-button"
@@ -609,7 +660,8 @@ onBeforeUnmount(() => {
           <div class="slide-title-row">
             <h1>{{ exercise.title }}</h1>
             <span>
-              {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
+              {{ compilerLabel(runtimeProfile) }}
+              <PythonBeta v-if="language === 'python'" />
             </span>
           </div>
           <div class="slide-description"><MarkdownContent :source="exercise.description" /></div>
@@ -721,12 +773,13 @@ onBeforeUnmount(() => {
                     "
                     @click="startRun">
                     <Play :size="14" />
-                    {{ runningRequest ? '提交中…' : '编译运行' }}
+                    {{ runningRequest ? '提交中…' : '运行' }}
                   </Button>
                 </div>
               </div>
               <CodeEditor
                 v-model="teacherCode"
+                :language="language"
                 :readonly="readonly"
                 :font-size="fontSize"
                 :filename="exercise.filename" />
@@ -790,6 +843,7 @@ onBeforeUnmount(() => {
                   :min-size="35">
                   <RunOutput
                     :run="run"
+                    :language="language"
                     :interactive="run?.status === '运行中／可输入' && run.interactive"
                     :send-input="sendInput"
                     :close-input="closeInput" />

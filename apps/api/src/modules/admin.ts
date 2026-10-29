@@ -186,7 +186,7 @@ export class AdminController {
     const args = ['%' + q.search + '%']
     const items = (
       await this.service.pool.query(
-        'select r.id,r.status,r.exit,r.created_at,r.metrics,c.name as classroom ' +
+        'select r.id,r.status,r.exit,r.created_at,r.metrics,r.language,r.runtime_profile as "runtimeProfile",c.name as classroom ' +
           where +
           ' order by r.created_at desc,r.id limit $2 offset $3',
         [...args, q.pageSize, (q.page - 1) * q.pageSize],
