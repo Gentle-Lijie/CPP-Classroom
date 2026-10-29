@@ -39,7 +39,11 @@ defineEmits<{ 'update:open': [value: boolean] }>()
           <div>
             <DialogTitle class="modal-title">{{ title }}</DialogTitle>
           </div>
-          <DialogClose class="icon-button" aria-label="关闭对话框" :disabled="busy || !dismissible">
+          <DialogClose
+            class="icon-button"
+            aria-label="关闭对话框"
+            :disabled="busy || !dismissible"
+            :data-disabled-reason="busy ? '正在处理，请稍候再关闭对话框' : '请先完成当前操作'">
             <X :size="18" />
           </DialogClose>
         </div>

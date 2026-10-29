@@ -275,6 +275,13 @@ onBeforeUnmount(() => {
         <Switch
           :model-value="languageEnabled"
           :disabled="editorLoading || !!editorError || languagePending"
+          :data-disabled-reason="
+            editorLoading
+              ? '编辑器正在加载，请稍候'
+              : editorError
+                ? '编辑器加载失败，请重试后开启语言服务'
+                : '语言服务正在切换，请稍候'
+          "
           :aria-busy="languagePending"
           aria-label="clangd 语言服务"
           :aria-describedby="languageStatusId"

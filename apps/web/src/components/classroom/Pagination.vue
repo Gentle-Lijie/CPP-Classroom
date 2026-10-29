@@ -20,7 +20,11 @@ const first = computed(() => (props.total ? (page.value - 1) * pageSize.value + 
     <div class="pagination-controls">
       <label>
         每页
-        <Select v-model.number="pageSize" :disabled="busy" aria-label="每页条数">
+        <Select
+          v-model.number="pageSize"
+          :disabled="busy"
+          data-disabled-reason="正在加载列表，请稍候"
+          aria-label="每页条数">
           <SelectOption v-for="n in [10, 20, 50]" :key="n" :value="n">{{ n }}</SelectOption>
         </Select>
       </label>
@@ -29,6 +33,7 @@ const first = computed(() => (props.total ? (page.value - 1) * pageSize.value + 
         size="icon-sm"
         aria-label="上一页"
         :disabled="busy || page <= 1"
+        :data-disabled-reason="busy ? '正在加载列表，请稍候' : '已经是第一页'"
         @click="page--">
         <ChevronLeft />
       </Button>
@@ -38,6 +43,7 @@ const first = computed(() => (props.total ? (page.value - 1) * pageSize.value + 
         size="icon-sm"
         aria-label="下一页"
         :disabled="busy || page >= pages"
+        :data-disabled-reason="busy ? '正在加载列表，请稍候' : '已经是最后一页'"
         @click="page++">
         <ChevronRight />
       </Button>

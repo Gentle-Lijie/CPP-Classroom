@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { computed, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { exerciseImportLimits } from '@classroom/contracts'
@@ -44,6 +45,17 @@ const canImport = computed(
     !oversized.value &&
     indices.value.every((index) => !entries.value[index]!.errors.length),
 )
+
+const importDisabledReason = computed(() => {
+  if (reading.value) return '正在解析导入文件，请稍候'
+  if (saving.value) return '正在导入练习，请稍候'
+  if (!drafts.value.length) return '请先选择要导入的练习'
+  if (conflicts.value.size) return '所选练习存在命名冲突，请取消冲突项或修改文件后重新选择'
+  if (oversized.value) return '所选练习总大小超过导入限制，请减少本次选择'
+  if (indices.value.some((index) => entries.value[index]!.errors.length))
+    return '所选文件存在解析错误，请修正后重新选择'
+  return ''
+})
 
 function show() {
   entries.value = []
@@ -111,7 +123,12 @@ onBeforeRouteLeave(() => !busy.value)
     :busy="busy"
     description="每个文件创建一道练习，按选择顺序追加到课堂末尾，统一保存为草稿。">
     <div class="import-toolbar">
-      <FileUpload accept=".md,.markdown,.json" multiple :disabled="busy" @change="read">
+      <FileUpload
+        accept=".md,.markdown,.json"
+        multiple
+        :disabled="busy"
+        :disabled-reason="reading ? '正在解析导入文件，请稍候' : '正在导入练习，请稍候'"
+        @change="read">
         {{ reading ? '正在解析…' : entries.length ? '重新选择文件' : '选择多个文件' }}
       </FileUpload>
       <span class="form-hint">Markdown 或题目 JSON 备份；每批最多 50 个，每个不超过 1 MiB。</span>
@@ -129,8 +146,16 @@ onBeforeRouteLeave(() => !busy.value)
             v-model="selected"
             :value="String(index)"
             :disabled="busy || !!entry.errors.length"
+            :data-disabled-reason="
+              busy ? '正在处理导入文件，请稍候' : '此文件存在解析错误，请修正后重新选择'
+            "
             :aria-label="'导入 ' + entry.name" />
-          <Button variant="plain" class="import-file" :disabled="busy" @click="active = index">
+          <Button
+            variant="plain"
+            class="import-file"
+            :disabled="busy"
+            :data-disabled-reason="reading ? '正在解析导入文件，请稍候' : '正在导入练习，请稍候'"
+            @click="active = index">
             <strong>{{ entry.exercise?.title || '未命名题目' }}</strong>
             <span>{{ entry.name }}</span>
             <small>
@@ -157,9 +182,11 @@ onBeforeRouteLeave(() => !busy.value)
         <p v-if="current.exercise && !fields.length" class="form-hint">备份中的题目字段均为空。</p>
         <section v-for="{ key, label } in fields" :key="key" class="import-field">
           <h4>{{ label }}</h4>
-          <pre v-if="['code', 'sampleInput', 'sampleOutput', 'filename'].includes(key)">{{
-            current.exercise?.[key]
-          }}</pre>
+          <CodeBlock
+            v-if="['code', 'sampleInput', 'sampleOutput', 'filename'].includes(key)"
+            :source="current.exercise?.[key] ?? ''"
+            :language="key === 'code' ? 'cpp' : 'text'"
+            :label="label" />
           <MarkdownContent v-else :source="current.exercise?.[key] ?? ''" />
         </section>
       </section>
@@ -169,8 +196,14 @@ onBeforeRouteLeave(() => !busy.value)
     </p>
     <div class="modal-actions">
       <span class="form-hint">已选 {{ selected.length }} / {{ entries.length }} 道练习</span>
-      <Button variant="outline" :disabled="busy" @click="open = false">取消</Button>
-      <Button :disabled="!canImport" @click="save">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="reading ? '正在解析导入文件，请稍候' : '正在导入练习，请稍候'"
+        @click="open = false">
+        取消
+      </Button>
+      <Button :disabled="!canImport" :data-disabled-reason="importDisabledReason" @click="save">
         {{ saving ? '正在导入…' : `导入为草稿（${selected.length}）` }}
       </Button>
     </div>

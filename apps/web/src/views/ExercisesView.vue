@@ -27,6 +27,7 @@ import ExerciseBatchImport from '@/components/classroom/ExerciseBatchImport.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import MarkdownContent from '@/components/classroom/MarkdownContent.vue'
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
 import {
   exercises,
@@ -230,6 +231,7 @@ async function imported(ids: string[]) {
         <Button
           variant="outline"
           :disabled="!exercise"
+          data-disabled-reason="请先选择一道练习"
           @click="router.push('/teacher/teach?exercise=' + exercise.id)">
           <Monitor />
           开始授课
@@ -275,12 +277,18 @@ async function imported(ids: string[]) {
               :checked="!!paged.length && checkedOnPage.length === paged.length"
               :indeterminate="!!checkedOnPage.length && checkedOnPage.length < paged.length"
               :disabled="!paged.length"
+              data-disabled-reason="当前页没有可选择的练习"
               aria-label="选择本页练习"
               @change="selectPage" />
             本页全选
           </label>
           <span class="muted" aria-live="polite">已选 {{ checkedIds.length }} 道</span>
-          <Button variant="plain" size="sm" :disabled="!checkedIds.length" @click="checkedIds = []">
+          <Button
+            variant="plain"
+            size="sm"
+            :disabled="!checkedIds.length"
+            data-disabled-reason="尚未选择练习"
+            @click="checkedIds = []">
             清空
           </Button>
           <Button
@@ -288,6 +296,9 @@ async function imported(ids: string[]) {
             size="sm"
             style="margin-left: auto"
             :disabled="!checkedIds.length || busy || batchBusy"
+            :data-disabled-reason="
+              busy || batchBusy ? '正在保存练习，请稍候' : '请先选择要批量编辑的练习'
+            "
             @click="openBatch">
             <Pencil />
             批量编辑
@@ -345,6 +356,7 @@ async function imported(ids: string[]) {
               class="icon-button"
               aria-label="练习向上移动"
               :disabled="busy || exercises.indexOf(exercise) === 0"
+              :data-disabled-reason="busy ? '正在保存练习，请稍候' : '已经是第一道练习'"
               @click="move(-1)">
               <ArrowUp :size="16" />
             </Button>
@@ -353,6 +365,7 @@ async function imported(ids: string[]) {
               class="icon-button"
               aria-label="练习向下移动"
               :disabled="busy || exercises.indexOf(exercise) === exercises.length - 1"
+              :data-disabled-reason="busy ? '正在保存练习，请稍候' : '已经是最后一道练习'"
               @click="move(1)">
               <ArrowDown :size="16" />
             </Button>
@@ -383,14 +396,8 @@ async function imported(ids: string[]) {
           <MarkdownContent :source="exercise.output" />
           <h3>样例</h3>
           <div class="sample-grid">
-            <div>
-              <span>输入</span>
-              <pre>{{ exercise.sampleInput || '（无输入）' }}</pre>
-            </div>
-            <div>
-              <span>输出</span>
-              <pre>{{ exercise.sampleOutput }}</pre>
-            </div>
+            <CodeBlock :source="exercise.sampleInput" label="样例输入" empty-text="无输入" />
+            <CodeBlock :source="exercise.sampleOutput" label="样例输出" />
           </div>
         </div>
         <div class="exercise-preview-actions">
@@ -402,6 +409,7 @@ async function imported(ids: string[]) {
             <Button
               variant="warning"
               :disabled="busy"
+              data-disabled-reason="正在保存练习，请稍候"
               @click="exercise.status === '已关闭' ? close() : (confirmClose = true)">
               <Archive />
               {{ exercise.status === '已关闭' ? '移回草稿' : '关闭练习' }}
@@ -411,6 +419,7 @@ async function imported(ids: string[]) {
             v-if="exercise.status !== '已发布'"
             variant="success"
             :disabled="busy"
+            data-disabled-reason="正在保存练习，请稍候"
             @click="publish">
             <Send />
             发布练习
@@ -419,6 +428,7 @@ async function imported(ids: string[]) {
             v-else
             :variant="activeClassroom.recommended === exercise.id ? 'outline' : 'default'"
             :disabled="busy || activeClassroom.recommended === exercise.id"
+            :data-disabled-reason="busy ? '正在保存练习，请稍候' : '这道练习已经是当前推荐练习'"
             @click="recommend">
             <Check v-if="activeClassroom.recommended === exercise.id" />
             <Star v-else />
@@ -452,7 +462,8 @@ async function imported(ids: string[]) {
         aria-label="批量修改知识点"
         maxlength="100"
         placeholder="输入知识点，留空则清空所选练习的知识点"
-        :disabled="!changeTopic" />
+        :disabled="!changeTopic"
+        data-disabled-reason="请先勾选修改知识点" />
       <Alert v-if="batchStatus === '草稿' || batchStatus === '已关闭'" type="warning">
         {{
           batchStatus === '草稿'
@@ -463,8 +474,19 @@ async function imported(ids: string[]) {
     </div>
     <Alert v-if="batchError" type="error" role="alert">{{ batchError }}</Alert>
     <div class="modal-actions">
-      <Button variant="outline" :disabled="batchBusy" @click="batchOpen = false">取消</Button>
-      <Button :disabled="batchBusy || (!batchStatus && !changeTopic)" @click="saveBatch">
+      <Button
+        variant="outline"
+        :disabled="batchBusy"
+        data-disabled-reason="正在保存批量修改，请稍候"
+        @click="batchOpen = false">
+        取消
+      </Button>
+      <Button
+        :disabled="batchBusy || (!batchStatus && !changeTopic)"
+        :data-disabled-reason="
+          batchBusy ? '正在保存批量修改，请稍候' : '请先选择要修改的状态或勾选修改知识点'
+        "
+        @click="saveBatch">
         {{ batchBusy ? '正在保存…' : `保存 ${batchTargets.length} 道练习` }}
       </Button>
     </div>
@@ -477,14 +499,8 @@ async function imported(ids: string[]) {
     <h3>输出说明</h3>
     <MarkdownContent :source="exercise.output" />
     <div class="sample-grid">
-      <div>
-        <span>样例输入</span>
-        <pre>{{ exercise.sampleInput }}</pre>
-      </div>
-      <div>
-        <span>样例输出</span>
-        <pre>{{ exercise.sampleOutput }}</pre>
-      </div>
+      <CodeBlock :source="exercise.sampleInput" label="样例输入" empty-text="无输入" />
+      <CodeBlock :source="exercise.sampleOutput" label="样例输出" />
     </div>
     <div class="initial-editor">
       <div class="code-toolbar">{{ exercise.filename }}</div>
@@ -499,8 +515,18 @@ async function imported(ids: string[]) {
     title="关闭这道练习？"
     description="学生仍可查看已有作品，但不能继续编辑、运行或提交。当前运行任务会停止，可重新发布以恢复教学。">
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="confirmClose = false">取消</Button>
-      <Button variant="warning" :disabled="busy" @click="close">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        data-disabled-reason="正在保存练习，请稍候"
+        @click="confirmClose = false">
+        取消
+      </Button>
+      <Button
+        variant="warning"
+        :disabled="busy"
+        data-disabled-reason="正在保存练习，请稍候"
+        @click="close">
         {{ busy ? '正在关闭…' : '确认关闭练习' }}
       </Button>
     </div>

@@ -13,6 +13,7 @@ import './density.css'
 import 'notivue/notification.css'
 import 'notivue/animations.css'
 import './alerts.css'
+import './code-block.css'
 
 initializeTheme()
 

@@ -393,6 +393,7 @@ onBeforeUnmount(() => {
             variant="plain"
             :aria-current="chapter.id === current.chapter.id ? 'step' : undefined"
             :disabled="loading"
+            data-disabled-reason="正在定位导览内容，请稍候"
             @click="jump(chapter.id)">
             {{ chapter.title }}
             <span>{{ chapter.steps.length }} 步</span>
@@ -404,6 +405,7 @@ onBeforeUnmount(() => {
             size="sm"
             :aria-expanded="contents"
             :disabled="loading"
+            data-disabled-reason="正在定位导览内容，请稍候"
             @click="contents = !contents">
             <List :size="15" />
             目录
@@ -413,12 +415,25 @@ onBeforeUnmount(() => {
             variant="outline"
             size="sm"
             :disabled="loading || spotlight.index === 0"
+            :data-disabled-reason="loading ? '正在定位导览内容，请稍候' : '已经是导览的第一步'"
             @click="move(-1)">
             <ArrowLeft :size="14" />
             上一步
           </Button>
-          <Button v-if="message" size="sm" :disabled="loading" @click="locate">重试定位</Button>
-          <Button v-else size="sm" :disabled="loading" @click="move(1)">
+          <Button
+            v-if="message"
+            size="sm"
+            :disabled="loading"
+            data-disabled-reason="正在定位导览内容，请稍候"
+            @click="locate">
+            重试定位
+          </Button>
+          <Button
+            v-else
+            size="sm"
+            :disabled="loading"
+            data-disabled-reason="正在定位导览内容，请稍候"
+            @click="move(1)">
             {{ spotlight.index === steps.length - 1 ? '完成导览' : '下一步' }}
             <ArrowRight :size="14" />
           </Button>

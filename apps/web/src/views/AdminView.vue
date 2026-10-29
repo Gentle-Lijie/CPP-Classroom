@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
@@ -256,6 +257,7 @@ function eventLabel(event: string) {
 }
 async function resolveRecovery() {
   if (busy.value || !closeRecovery.value) return
+  busyReason.value = '正在关闭恢复申请，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -318,6 +320,7 @@ function openReset(u: User) {
 }
 async function addUser() {
   if (busy.value) return
+  busyReason.value = '正在创建账号，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -345,6 +348,7 @@ async function addUser() {
 async function toggle() {
   const u = toggleUser.value
   if (!u || busy.value) return
+  busyReason.value = '正在更新账号状态，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -362,6 +366,7 @@ async function reset() {
   if (busy.value) return
   const u = resetTarget.value
   if (!u) return
+  busyReason.value = '正在重设账号密码，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -379,6 +384,7 @@ async function reset() {
 }
 async function backup() {
   if (busy.value) return
+  busyReason.value = '正在创建备份并验证恢复，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -392,6 +398,7 @@ async function backup() {
   }
 }
 useActionFeedback(error)
+const busyReason = ref('正在处理请求，请稍候')
 </script>
 <template>
   <div class="page-heading">
@@ -401,7 +408,11 @@ useActionFeedback(error)
       <!-- <p>管理员不默认拥有课堂作品读取权限。</p> -->
     </div>
     <div class="inline-items">
-      <Button variant="outline" :disabled="loading" @click="load">
+      <Button
+        variant="outline"
+        :disabled="loading"
+        :data-disabled-reason="'正在加载平台数据，请稍候'"
+        @click="load">
         <RefreshCw :size="15" />
         刷新
       </Button>
@@ -412,7 +423,14 @@ useActionFeedback(error)
     <span>{{ loadError }}</span>
 
     <template #actions>
-      <Button variant="plain" class="text-button" :disabled="loading" @click="load">重试</Button>
+      <Button
+        variant="plain"
+        class="text-button"
+        :disabled="loading"
+        :data-disabled-reason="'正在加载平台数据，请稍候'"
+        @click="load">
+        重试
+      </Button>
     </template>
   </Alert>
   <p v-if="loading" class="muted admin-loading" role="status">正在加载…</p>
@@ -552,6 +570,7 @@ useActionFeedback(error)
             size="sm"
             variant="outline"
             :disabled="busy"
+            :data-disabled-reason="busyReason"
             @click="resetRecovery(r)">
             核实后重设密码
           </Button>
@@ -559,6 +578,7 @@ useActionFeedback(error)
             size="sm"
             variant="ghost"
             :disabled="busy"
+            :data-disabled-reason="busyReason"
             @click="
               () => {
                 error = ''
@@ -622,7 +642,7 @@ useActionFeedback(error)
     <ContentPanel title="数据库备份" :icon="Database" class="admin-backup-panel">
       <p>备份保存在服务器本地。验证会使用独立的临时数据库，保留当前课堂、账号和作品数据。</p>
 
-      <Button :disabled="busy" @click="backup">
+      <Button :disabled="busy" :data-disabled-reason="busyReason" @click="backup">
         <Database :size="15" />
         {{ busy ? '备份与恢复验证中…' : '创建并验证备份' }}
       </Button>
@@ -644,7 +664,10 @@ useActionFeedback(error)
             <strong>{{ eventLabel(a.event) }}</strong>
             <p>{{ a.actor_name ?? '系统' }} · {{ new Date(a.created_at).toLocaleString() }}</p>
             <Disclosure title="查看操作对象与详情">
-              <pre>{{ JSON.stringify(a.details, null, 2) }}</pre>
+              <CodeBlock
+                :source="JSON.stringify(a.details, null, 2)"
+                language="json"
+                label="JSON" />
             </Disclosure>
           </div>
         </div>
@@ -705,10 +728,15 @@ useActionFeedback(error)
       </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="create = false">
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="busy"
+          :data-disabled-reason="busyReason"
+          @click="create = false">
           取消
         </Button>
-        <Button type="submit" :disabled="busy">
+        <Button type="submit" :disabled="busy" :data-disabled-reason="busyReason">
           {{ busy ? '正在创建…' : '创建账号并生成凭据' }}
         </Button>
       </div>
@@ -743,10 +771,15 @@ useActionFeedback(error)
       </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="resetUser = ''">
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="busy"
+          :data-disabled-reason="busyReason"
+          @click="resetUser = ''">
           取消
         </Button>
-        <Button type="submit" variant="warning" :disabled="busy">
+        <Button type="submit" variant="warning" :disabled="busy" :data-disabled-reason="busyReason">
           <KeyRound />
           {{ busy ? '正在重设…' : '保存并生成新凭据' }}
         </Button>
@@ -766,10 +799,17 @@ useActionFeedback(error)
     <p class="body-copy">{{ toggleUser?.name }} · {{ toggleUser?.username }}</p>
 
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="toggleUser = undefined">取消</Button>
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="toggleUser = undefined">
+        取消
+      </Button>
       <Button
         :variant="toggleUser?.disabled ? 'success' : 'destructive'"
         :disabled="busy"
+        :data-disabled-reason="busyReason"
         @click="toggle">
         {{ busy ? '处理中…' : toggleUser?.disabled ? '确认启用' : '确认停用' }}
       </Button>
@@ -795,10 +835,18 @@ useActionFeedback(error)
       </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="closeRecovery = undefined">
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="busy"
+          :data-disabled-reason="busyReason"
+          @click="closeRecovery = undefined">
           取消
         </Button>
-        <Button type="submit" :disabled="busy || !closeReason.trim()">
+        <Button
+          type="submit"
+          :disabled="busy || !closeReason.trim()"
+          :data-disabled-reason="busy ? busyReason : '请先填写关闭申请的处理原因'">
           {{ busy ? '处理中…' : '确认关闭申请' }}
         </Button>
       </div>
@@ -821,7 +869,10 @@ useActionFeedback(error)
         为保护课堂作品，管理员诊断不展示学生源代码、编译输出或程序输出。请根据失败原因与任务指标检查平台服务健康；课堂内容由授课教师核对。
       </Alert>
       <Disclosure title="任务指标">
-        <pre>{{ JSON.stringify(taskDetail.metrics ?? {}, null, 2) }}</pre>
+        <CodeBlock
+          :source="JSON.stringify(taskDetail.metrics ?? {}, null, 2)"
+          language="json"
+          label="JSON" />
       </Disclosure>
       <Button as-child variant="outline">
         <RouterLink to="/admin/settings">检查平台服务与执行节点</RouterLink>

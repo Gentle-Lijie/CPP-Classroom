@@ -32,6 +32,7 @@ import Modal from '@/components/classroom/Modal.vue'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
 import RunOutput from '@/components/classroom/RunOutput.vue'
 import MarkdownContent from '@/components/classroom/MarkdownContent.vue'
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import LocalDirectoryPanel from '@/components/classroom/LocalDirectoryPanel.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { compilerLabel } from '@/lib/display'
@@ -155,6 +156,16 @@ const readonly = computed(
     conflict.value ||
     switching.value,
 )
+const readonlyReason = computed(() => {
+  if (loading.value) return '正在读取练习，请稍候'
+  if (loadError.value) return '练习读取失败，请重试后再操作'
+  if (viewing.value) return '当前正在查看历史快照，请先返回编辑器'
+  if (activeClassroom.value.status !== '进行中') return '课堂未在进行中，暂时不能操作'
+  if (exercise.value?.status !== '已发布') return '当前练习未发布或已关闭'
+  if (conflict.value) return '代码存在版本冲突，请先处理冲突'
+  if (switching.value) return '正在切换练习，请稍候'
+  return ''
+})
 const runtime = computed(() => run.value?.status === '运行中／可输入')
 const active = () => !!run.value && ['排队', '编译中', '运行中／可输入'].includes(run.value.status)
 let generation = 0,
@@ -627,6 +638,13 @@ useActionFeedback(actionError)
             :model-value="selected"
             aria-label="选择练习"
             :disabled="loading || switching || runningRequest"
+            :data-disabled-reason="
+              loading
+                ? '正在读取练习，请稍候'
+                : switching
+                  ? '正在切换练习，请稍候'
+                  : '正在创建运行任务，请稍候'
+            "
             @update:model-value="changeExercise">
             <SelectOption
               v-for="e in exercises.filter((e) => e.status === '已发布' || e.id === selected)"
@@ -688,6 +706,7 @@ useActionFeedback(actionError)
           variant="outline"
           size="sm"
           :disabled="readonly"
+          :data-disabled-reason="readonlyReason"
           data-guide="help"
           @click="openHelp">
           <Hand />
@@ -697,6 +716,7 @@ useActionFeedback(actionError)
           variant="outline"
           size="sm"
           :disabled="readonly || (submitted && activeClassroom.settings?.allowResubmit === false)"
+          :data-disabled-reason="readonly ? readonlyReason : '本次作品已提交，教师未允许重复提交'"
           data-guide="submit"
           @click="openSubmit">
           <Send />
@@ -707,6 +727,7 @@ useActionFeedback(actionError)
           variant="destructive"
           size="sm"
           :disabled="stopping"
+          data-disabled-reason="正在停止程序，请稍候"
           data-guide="stop"
           @click="stop">
           <Square />
@@ -714,6 +735,15 @@ useActionFeedback(actionError)
         </Button>
         <Button
           :disabled="readonly || runningRequest || active() || !!otherRun"
+          :data-disabled-reason="
+            readonly
+              ? readonlyReason
+              : runningRequest
+                ? '正在创建运行任务，请稍候'
+                : active()
+                  ? '当前程序尚未结束，请等待或停止运行'
+                  : '其他练习或课堂仍有运行任务，请先停止运行'
+          "
           size="sm"
           data-guide="run"
           @click="startRun">
@@ -814,14 +844,8 @@ useActionFeedback(actionError)
           <MarkdownContent :source="exercise.output" />
           <h3>样例</h3>
           <div class="sample-grid stacked">
-            <div>
-              <span>输入</span>
-              <pre>{{ exercise.sampleInput }}</pre>
-            </div>
-            <div>
-              <span>输出</span>
-              <pre>{{ exercise.sampleOutput }}</pre>
-            </div>
+            <CodeBlock :source="exercise.sampleInput" label="样例输入" empty-text="无输入" />
+            <CodeBlock :source="exercise.sampleOutput" label="样例输出" />
           </div>
         </div>
         <div v-else class="workspace-history">
@@ -910,6 +934,7 @@ useActionFeedback(actionError)
                   variant="plain"
                   class="text-button"
                   :disabled="readonly"
+                  :data-disabled-reason="readonlyReason"
                   @click="
                     () => {
                       code = undo ?? code
@@ -925,6 +950,7 @@ useActionFeedback(actionError)
                   class="icon-button"
                   aria-label="重置初始代码"
                   :disabled="readonly"
+                  :data-disabled-reason="readonlyReason"
                   @click="reset = true">
                   <RotateCcw :size="14" />
                 </Button>
@@ -968,6 +994,7 @@ useActionFeedback(actionError)
                     variant="plain"
                     class="text-button ml-auto"
                     :disabled="!!viewing"
+                    data-disabled-reason="历史快照的输入不可修改，请先返回编辑器"
                     data-guide="fill-sample"
                     @click="
                       () => {
@@ -984,7 +1011,12 @@ useActionFeedback(actionError)
                   aria-label="标准输入"
                   placeholder="运行前填写标准输入…"
                   :readonly="isArchived" />
-                <pre v-else class="snapshot-input">{{ viewing.input }}</pre>
+                <CodeBlock
+                  v-else
+                  class="snapshot-input"
+                  :source="viewing.input"
+                  label="当次输入"
+                  empty-text="无预填输入" />
                 <div class="stdin-note">
                   <span v-if="viewing">本次运行使用的固定输入</span>
                   <label
@@ -992,7 +1024,10 @@ useActionFeedback(actionError)
                     data-guide="interactive-toggle"
                     class="inline-items"
                     title="运行后可逐行发送输入，最长 60 秒">
-                    <Checkbox v-model="interactive" :disabled="active()" />
+                    <Checkbox
+                      v-model="interactive"
+                      :disabled="active()"
+                      data-disabled-reason="程序运行期间不能切换输入模式，请等待或停止运行" />
                     运行时输入
                   </label>
                 </div>
@@ -1064,11 +1099,16 @@ useActionFeedback(actionError)
           type="button"
           variant="outline"
           :disabled="helping"
+          data-disabled-reason="正在发送求助，请稍候"
           data-guide="help-cancel"
           @click="help = false">
           取消
         </Button>
-        <Button data-guide="help-send" type="submit" :disabled="helping || !helpText.trim()">
+        <Button
+          data-guide="help-send"
+          type="submit"
+          :disabled="helping || !helpText.trim()"
+          :data-disabled-reason="helping ? '正在发送求助，请稍候' : '请先填写求助内容'">
           <Hand />
           {{ helping ? '发送中…' : helpSent ? '更新求助' : '发起求助' }}
         </Button>
@@ -1092,11 +1132,16 @@ useActionFeedback(actionError)
       <Button
         variant="outline"
         :disabled="submitting"
+        data-disabled-reason="正在提交作品，请稍候"
         data-guide="submit-cancel"
         @click="submit = false">
         继续修改
       </Button>
-      <Button :disabled="submitting" data-guide="submit-confirm" @click="doSubmit">
+      <Button
+        :disabled="submitting"
+        data-disabled-reason="正在提交作品，请稍候"
+        data-guide="submit-confirm"
+        @click="doSubmit">
         <Send />
         {{ submitting ? '提交中…' : '确认提交' }}
       </Button>
@@ -1122,6 +1167,7 @@ useActionFeedback(actionError)
       <Button
         variant="outline"
         :disabled="stopping"
+        data-disabled-reason="正在停止程序，请稍候"
         data-guide="switch-cancel"
         @click="pendingExercise = ''">
         留在当前练习
@@ -1129,6 +1175,7 @@ useActionFeedback(actionError)
       <Button
         variant="destructive"
         :disabled="stopping"
+        data-disabled-reason="正在停止程序，请稍候"
         data-guide="switch-confirm"
         @click="stopAndSwitch">
         {{ stopping ? '等待程序停止…' : '停止并切换' }}

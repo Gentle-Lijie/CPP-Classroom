@@ -405,7 +405,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
-  margin-top: auto;
+  margin-top: 0;
 }
 .slide-samples > div {
   background: var(--ui-surface);
@@ -566,7 +566,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 15px;
-  padding: 22px 30px;
+  padding: 12px 30px;
   background: var(--ui-page);
   border-bottom: 1px solid var(--ui-line);
 }
@@ -803,9 +803,6 @@
   .teaching-stage {
     padding-top: 40px;
     padding-bottom: 30px;
-  }
-  .teaching-slide {
-    max-height: 810px;
   }
 }
 @media (max-width: 1100px) {

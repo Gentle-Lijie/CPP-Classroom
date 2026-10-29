@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
 import { FileUpload } from '@/components/ui/file-upload'
@@ -286,11 +287,19 @@ useActionFeedback(error)
         </p>
       </div>
       <div class="heading-actions">
-        <Button variant="outline" :disabled="busy || readingMarkdown" @click="save(false)">
+        <Button
+          variant="outline"
+          :disabled="busy || readingMarkdown"
+          :data-disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
+          @click="save(false)">
           <Save />
           {{ draft.status === '已发布' ? '保存更改' : '保存草稿' }}
         </Button>
-        <Button variant="success" :disabled="busy || readingMarkdown" @click="save(true)">
+        <Button
+          variant="success"
+          :disabled="busy || readingMarkdown"
+          :data-disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
+          @click="save(true)">
           <Send />
           {{ busy ? '保存中…' : '保存并发布' }}
         </Button>
@@ -308,14 +317,26 @@ useActionFeedback(error)
       <FileUpload
         accept=".md,.markdown"
         :disabled="busy || readingMarkdown"
+        :disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
         @change="importMarkdown">
         {{ readingMarkdown ? '正在解析…' : '导入 Markdown' }}
       </FileUpload>
-      <Button variant="outline" size="sm" :disabled="busy" @click="downloadDraft">
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="busy"
+        data-disabled-reason="正在保存题目，请稍候"
+        @click="downloadDraft">
         <Download />
         下载题目备份
       </Button>
-      <FileUpload accept=".json" :disabled="busy" @change="importDraft">导入备份</FileUpload>
+      <FileUpload
+        accept=".json"
+        :disabled="busy"
+        disabled-reason="正在保存题目，请稍候"
+        @change="importDraft">
+        导入备份
+      </FileUpload>
       <span>未保存修改自动备份在本机浏览器</span>
     </div>
 
@@ -424,9 +445,11 @@ useActionFeedback(error)
             <strong>{{ label }}</strong>
             <span v-if="draft[key]" class="muted">将覆盖已有内容</span>
           </label>
-          <pre v-if="['sampleInput', 'sampleOutput', 'code', 'filename'].includes(key)">{{
-            markdownImport.fields[key]
-          }}</pre>
+          <CodeBlock
+            v-if="['sampleInput', 'sampleOutput', 'code', 'filename'].includes(key)"
+            :source="markdownImport.fields[key] ?? ''"
+            :language="key === 'code' ? 'cpp' : 'text'"
+            :label="label" />
           <MarkdownContent v-else :source="markdownImport.fields[key] ?? ''" />
         </section>
       </div>
@@ -434,6 +457,11 @@ useActionFeedback(error)
         <Button variant="outline" @click="markdownImport = undefined">取消</Button>
         <Button
           :disabled="!!markdownImport.errors.length || !importFields.length"
+          :data-disabled-reason="
+            markdownImport.errors.length
+              ? '导入文件存在错误，请先修正文件后重新导入'
+              : '没有可填充的字段，请先选择导入字段'
+          "
           @click="applyMarkdown">
           确认填充（{{ importFields.length }} 个字段）
         </Button>
@@ -460,11 +488,11 @@ useActionFeedback(error)
     <div class="conflict-comparison">
       <section>
         <h3>本地修改</h3>
-        <pre>{{ JSON.stringify(draft, null, 2) }}</pre>
+        <CodeBlock :source="JSON.stringify(draft, null, 2)" language="json" label="JSON" />
       </section>
       <section>
         <h3>服务器最新版本</h3>
-        <pre>{{ JSON.stringify(conflict, null, 2) }}</pre>
+        <CodeBlock :source="JSON.stringify(conflict, null, 2)" language="json" label="JSON" />
       </section>
     </div>
     <div class="modal-actions">

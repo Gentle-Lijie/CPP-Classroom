@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { Alert } from '@/components/ui/alert'
 import { computed, reactive, ref, watch } from 'vue'
 import {
@@ -202,12 +203,10 @@ watch(
           <p>{{ session.exerciseId === 'sum' ? '输出 a + b 的结果。' : '输出 Hello, 名字!。' }}</p>
           <h3>样例</h3>
           <div class="mock-sample">
-            <span>输入</span>
-            <pre>{{ exercise.input }}</pre>
+            <CodeBlock :source="exercise.input" language="text" label="样例输入" />
           </div>
           <div class="mock-sample">
-            <span>输出</span>
-            <pre>{{ exercise.output }}</pre>
+            <CodeBlock :source="exercise.output" language="text" label="样例输出" />
           </div>
           <Alert type="info">教师可查看本课堂的代码与运行记录，为你提供辅导。</Alert>
         </div>
@@ -278,11 +277,14 @@ watch(
               spellcheck="false" />
             <div v-else class="mock-input-transcript">
               <span>已发送的输入</span>
-              <pre>{{ session.interactiveInput }}</pre>
+              <CodeBlock :source="session.interactiveInput" language="text" label="已发送输入" />
               <small>发送会在每一行末尾加上换行符。</small>
             </div>
             <label class="mock-interactive-label">
-              <Checkbox :model-value="scene === 'interactive'" disabled />
+              <Checkbox
+                :model-value="scene === 'interactive'"
+                data-disabled-reason="此开关由当前模拟场景决定，请切换导览场景"
+                disabled />
               运行时输入
             </label>
             <Button
@@ -310,7 +312,11 @@ watch(
               <span class="status" :class="errorShown ? 'red' : 'positive'">
                 {{ resultStatus }}
               </span>
-              <pre :class="{ 'mock-diagnostic-log': errorShown }">{{ result }}</pre>
+              <CodeBlock
+                :class="{ 'mock-diagnostic-log': errorShown }"
+                :source="result"
+                language="text"
+                label="运行输出" />
               <Alert
                 v-if="scene === 'diagnostics'"
                 :type="session.errorFixed ? 'success' : 'warning'"
@@ -332,13 +338,21 @@ watch(
                 v-model="line"
                 aria-label="模拟运行时输入"
                 placeholder="输入一个整数…"
-                :disabled="session.interactiveClosed" />
-              <Button type="submit" size="sm" :disabled="session.interactiveClosed">发送</Button>
+                :disabled="session.interactiveClosed"
+                data-disabled-reason="本次模拟运行已结束，请重新运行后操作" />
+              <Button
+                type="submit"
+                size="sm"
+                :disabled="session.interactiveClosed"
+                data-disabled-reason="本次模拟运行已结束，请重新运行后操作">
+                发送
+              </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 :disabled="session.interactiveClosed"
+                data-disabled-reason="本次模拟运行已结束，请重新运行后操作"
                 @click="closeMockInput(session)">
                 EOF
               </Button>
@@ -347,6 +361,7 @@ watch(
                 variant="outline"
                 size="sm"
                 :disabled="session.interactiveClosed"
+                data-disabled-reason="本次模拟运行已结束，请重新运行后操作"
                 @click="stopMockRunning">
                 <Square :size="12" />
                 停止
@@ -428,11 +443,11 @@ watch(
       <div class="mock-versions">
         <div>
           <h3>编辑器草稿</h3>
-          <pre>{{ session.editorCode }}</pre>
+          <CodeBlock :source="session.editorCode" language="cpp" label="代码" />
         </div>
         <div>
           <h3>磁盘文件</h3>
-          <pre>{{ session.diskCode }}</pre>
+          <CodeBlock :source="session.diskCode" language="cpp" label="代码" />
         </div>
       </div>
       <div class="mock-conflict-actions">

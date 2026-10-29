@@ -91,6 +91,9 @@ function begin(chapter?: GuideChapter) {
         <Button
           variant="outline"
           :disabled="!available(chapter)"
+          :data-disabled-reason="
+            !demo.classroomId ? '请先选择课堂' : '请先在课堂中准备可访问的练习'
+          "
           :aria-label="`开始${chapter.title}导览`"
           @click="begin(chapter)">
           开始

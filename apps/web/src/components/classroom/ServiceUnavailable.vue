@@ -28,7 +28,11 @@ defineEmits<{ retry: [] }>()
           <br />
           请检查网络连接，或稍后再试。
         </p>
-        <Button class="service-retry" :disabled="busy" @click="$emit('retry')">
+        <Button
+          class="service-retry"
+          :disabled="busy"
+          data-disabled-reason="正在重新连接服务，请稍候"
+          @click="$emit('retry')">
           <RefreshCw :size="16" :class="{ 'animate-spin': busy }" />
           <span>{{ busy ? '正在连接…' : '重新连接' }}</span>
         </Button>

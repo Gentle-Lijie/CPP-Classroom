@@ -9,6 +9,7 @@ import { studentGuideActive } from '@/lib/spotlight'
 import SpotlightGuide from '@/components/classroom/SpotlightGuide.vue'
 import ResolutionNotice from '@/components/classroom/ResolutionNotice.vue'
 import AppShell from '@/components/classroom/AppShell.vue'
+import DisabledButtonHint from '@/components/ui/button/DisabledButtonHint.vue'
 import { demo, currentUser, refresh, clearSession, notify, bootstrapError } from '@/data/demo'
 import { api, ApiError } from '@/lib/api'
 const route = useRoute()
@@ -65,4 +66,5 @@ async function retryBootstrap() {
   <SpotlightGuide />
   <ResolutionNotice />
   <Notification />
+  <DisabledButtonHint />
 </template>

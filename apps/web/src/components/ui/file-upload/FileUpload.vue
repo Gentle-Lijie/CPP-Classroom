@@ -2,13 +2,18 @@
 import { ref } from 'vue'
 import { Upload } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-defineProps<{ accept?: string; disabled?: boolean; multiple?: boolean }>()
+defineProps<{ accept?: string; disabled?: boolean; disabledReason?: string; multiple?: boolean }>()
 const emit = defineEmits<{ change: [event: Event] }>()
 const input = ref<HTMLInputElement>()
 </script>
 <template>
   <span class="ui-file-upload">
-    <Button type="button" variant="outline" :disabled="disabled" @click="input?.click()">
+    <Button
+      type="button"
+      variant="outline"
+      :disabled="disabled"
+      :data-disabled-reason="disabledReason"
+      @click="input?.click()">
       <Upload :size="16" />
       <slot>选择文件</slot>
     </Button>

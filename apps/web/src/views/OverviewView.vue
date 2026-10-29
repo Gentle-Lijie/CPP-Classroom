@@ -174,15 +174,31 @@ async function regenerateInvite() {
       <Button
         variant="outline"
         :disabled="!exercises.length"
+        :data-disabled-reason="'请先添加练习，再开始授课'"
         @click="router.push('/teacher/teach')">
         <Monitor />
         开始授课
       </Button>
-      <Button variant="outline" :disabled="busy" @click="exportClass">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="
+          regenerate ? '正在重新生成课堂码，请稍候' : '正在导出课堂作品，请稍候'
+        "
+        @click="exportClass">
         <Download />
         导出作品
       </Button>
-      <Button :disabled="!inviteAvailable" @click="invite = true">
+      <Button
+        :disabled="!inviteAvailable"
+        :data-disabled-reason="
+          activeClassroom.status === '已归档'
+            ? '课堂已归档，无法邀请新成员'
+            : activeClassroom.status === '已关闭'
+              ? '课堂已关闭，无法邀请新成员'
+              : '课堂已关闭新成员加入，请先在课堂设置中开启'
+        "
+        @click="invite = true">
         <UserPlus />
         邀请学生
       </Button>
@@ -453,7 +469,11 @@ async function regenerateInvite() {
     <div class="invite-code">{{ demo.inviteCode }}</div>
     <div class="copy-row">
       <Input :value="`${origin}/join?code=${demo.inviteCode}`" readonly aria-label="邀请链接" />
-      <Button variant="outline" :disabled="inviteExpired" @click="copyInvite">
+      <Button
+        variant="outline"
+        :disabled="inviteExpired"
+        :data-disabled-reason="'邀请链接已过期，请重新生成课堂码'"
+        @click="copyInvite">
         <Check v-if="copied" />
         <Copy v-else />
         {{ copied ? '已复制' : '复制链接' }}
@@ -470,8 +490,22 @@ async function regenerateInvite() {
     title="使旧邀请链接失效？"
     description="重新生成后需要把新课堂码交付给尚未加入的学生，已有成员不受影响。">
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="regenerate = false">取消</Button>
-      <Button variant="warning" :disabled="busy" @click="regenerateInvite">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="
+          regenerate ? '正在重新生成课堂码，请稍候' : '正在导出课堂作品，请稍候'
+        "
+        @click="regenerate = false">
+        取消
+      </Button>
+      <Button
+        variant="warning"
+        :disabled="busy"
+        :data-disabled-reason="
+          regenerate ? '正在重新生成课堂码，请稍候' : '正在导出课堂作品，请稍候'
+        "
+        @click="regenerateInvite">
         {{ busy ? '正在更新…' : '确认重新生成' }}
       </Button>
     </div>

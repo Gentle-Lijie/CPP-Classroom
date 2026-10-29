@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { Alert } from '@/components/ui/alert'
 import { exerciseSourceFilename } from '@classroom/contracts'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
@@ -316,7 +317,16 @@ function closeWindow() {
         </div>
       </div>
       <div class="inline-items">
-        <Button :disabled="projecting || loading || !!error" @click="project">
+        <Button
+          :disabled="projecting || loading || !!error"
+          :data-disabled-reason="
+            projecting
+              ? '正在准备投屏，请稍候'
+              : loading
+                ? '正在读取学生作品，请稍候'
+                : '学生作品读取失败，请重试后再投屏'
+          "
+          @click="project">
           <Monitor />
           {{ projecting ? '准备投屏…' : '投屏讲解' }}
         </Button>
@@ -325,6 +335,7 @@ function closeWindow() {
             variant="plain"
             class="icon-button"
             :disabled="index === 0"
+            data-disabled-reason="已经是第一位学生"
             aria-label="上一位学生"
             @click="navigate(-1)">
             <ChevronLeft :size="18" />
@@ -334,6 +345,7 @@ function closeWindow() {
             variant="plain"
             class="icon-button"
             :disabled="index === students.length - 1"
+            data-disabled-reason="已经是最后一位学生"
             aria-label="下一位学生"
             @click="navigate(1)">
             <ChevronRight :size="18" />
@@ -422,11 +434,10 @@ function closeWindow() {
         </div>
         <div class="detail-io">
           <section class="detail-input">
-            <div class="code-toolbar">
-              输入
-              <span class="muted">stdin</span>
-            </div>
-            <pre>{{ (viewing ?? latestRun)?.input }}</pre>
+            <CodeBlock
+              :source="(viewing ?? latestRun)?.input ?? ''"
+              label="当次输入"
+              empty-text="无预填输入" />
           </section>
           <RunOutput
             v-if="viewing?.kind !== 'submission'"
@@ -458,7 +469,12 @@ function closeWindow() {
           <span class="muted text-xs">
             关联练习：{{ exercise.title }} · {{ formatTime(currentHelp.created_at) }}
           </span>
-          <Button class="w-full" variant="success" :disabled="resolving" @click="resolveHelp">
+          <Button
+            class="w-full"
+            variant="success"
+            :disabled="resolving"
+            data-disabled-reason="正在处理求助，请稍候"
+            @click="resolveHelp">
             <CircleCheck />
             {{ resolving ? '处理中…' : '解决此求助' }}
           </Button>

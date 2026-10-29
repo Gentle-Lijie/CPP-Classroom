@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from './CodeBlock.vue'
 import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { computed, ref, watch } from 'vue'
@@ -17,6 +18,7 @@ const tab = ref('运行输出'),
   line = ref(''),
   cleared = ref(false),
   busy = ref(false)
+const busyReason = ref('')
 const value = computed(() =>
   !props.run
     ? ''
@@ -58,6 +60,7 @@ async function copy() {
 }
 async function send() {
   if (busy.value || !props.sendInput) return
+  busyReason.value = '正在发送输入，请稍候'
   busy.value = true
   try {
     if (await props.sendInput(line.value)) line.value = ''
@@ -67,6 +70,7 @@ async function send() {
 }
 async function eof() {
   if (busy.value || !props.closeInput) return
+  busyReason.value = '正在关闭标准输入，请稍候'
   busy.value = true
   try {
     await props.closeInput()
@@ -117,6 +121,7 @@ async function eof() {
           class="icon-button"
           aria-label="复制可见输出"
           :disabled="!run || cleared"
+          :data-disabled-reason="!run ? '尚无运行记录' : '输出已清空，请先恢复显示输出'"
           @click="copy">
           <Copy :size="14" />
         </Button>
@@ -125,6 +130,7 @@ async function eof() {
           class="icon-button"
           :aria-label="cleared ? '恢复显示输出' : '清空可见输出（保留记录）'"
           :disabled="!run"
+          data-disabled-reason="尚无运行记录"
           data-guide="clear-output"
           @click="cleared = !cleared">
           <RotateCcw v-if="cleared" :size="14" />
@@ -138,17 +144,18 @@ async function eof() {
         <span v-if="run.id" :title="run.id">{{ run.id.slice(0, 8) }} · 快照</span>
         <span>{{ formatTime(run.time) }}</span>
       </div>
-      <pre
+      <CodeBlock
         v-if="!cleared"
+        :source="value ?? ''"
+        :toolbar="false"
         :class="{ 'diagnostic-text': tab === '编译诊断' && run.status === '编译失败' }"
-        >{{
-          value ||
-          (tab === '编译诊断'
+        :empty-text="
+          tab === '编译诊断'
             ? '没有编译诊断。'
             : run.status === '编译失败'
               ? '编译失败，程序未执行。请查看编译诊断。'
-              : '暂无标准输出。')
-        }}</pre>
+              : '暂无标准输出。'
+        " />
       <p v-else class="muted">已隐藏输出，点击恢复按钮可重新显示，原始记录保留。</p>
       <div class="output-exit">
         <span>
@@ -175,8 +182,14 @@ async function eof() {
         aria-label="运行时输入"
         placeholder="输入一行文本…"
         :disabled="busy"
+        :data-disabled-reason="busyReason"
         maxlength="4095" />
-      <Button data-guide="send-input" type="submit" size="sm" :disabled="busy">
+      <Button
+        data-guide="send-input"
+        type="submit"
+        size="sm"
+        :disabled="busy"
+        :data-disabled-reason="busyReason">
         {{ busy ? '发送中…' : '发送' }}
       </Button>
       <Button
@@ -184,6 +197,7 @@ async function eof() {
         variant="outline"
         size="sm"
         :disabled="busy"
+        :data-disabled-reason="busyReason"
         title="关闭标准输入，之后不能继续发送文本"
         data-guide="send-eof"
         @click="eof">

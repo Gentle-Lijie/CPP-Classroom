@@ -71,7 +71,8 @@ useActionFeedback(error)
           required
           maxlength="200"
           autocomplete="current-password"
-          :disabled="busy" />
+          :disabled="busy"
+          data-disabled-reason="正在更新密码，请稍候" />
       </label>
       <label>
         新密码
@@ -81,7 +82,8 @@ useActionFeedback(error)
           required
           maxlength="200"
           autocomplete="new-password"
-          :disabled="busy" />
+          :disabled="busy"
+          data-disabled-reason="正在更新密码，请稍候" />
       </label>
       <label>
         确认新密码
@@ -91,7 +93,8 @@ useActionFeedback(error)
           required
           maxlength="200"
           autocomplete="new-password"
-          :disabled="busy" />
+          :disabled="busy"
+          data-disabled-reason="正在更新密码，请稍候" />
       </label>
       <Button
         variant="plain"
@@ -109,11 +112,16 @@ useActionFeedback(error)
           type="button"
           variant="outline"
           :disabled="busy"
+          data-disabled-reason="正在更新密码，请稍候"
           data-guide="password-cancel"
           @click="open = false">
           取消
         </Button>
-        <Button data-guide="password-save" type="submit" :disabled="busy">
+        <Button
+          data-guide="password-save"
+          type="submit"
+          :disabled="busy"
+          data-disabled-reason="正在更新密码，请稍候">
           <KeyRound />
           {{ busy ? '正在更新…' : '更新密码' }}
         </Button>

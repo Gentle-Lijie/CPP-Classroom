@@ -31,7 +31,7 @@ import {
   X,
   Menu,
   KeyRound,
-//   RefreshCw,
+  //   RefreshCw,
   Check,
   Ellipsis,
 } from '@lucide/vue'
@@ -42,7 +42,7 @@ import {
   currentUser,
   logout,
   reportError,
-//   refresh,
+  //   refresh,
   selectClass,
 } from '@/data/demo'
 import { connectionState } from '@/lib/api'
@@ -182,6 +182,7 @@ async function signOut() {
             class="class-switch"
             aria-label="切换课堂"
             :disabled="switchingClass"
+            data-disabled-reason="正在切换课堂，请稍候"
             :aria-busy="switchingClass">
             <span class="class-icon"><GraduationCap :size="19" /></span>
             <span>
@@ -278,7 +279,12 @@ async function signOut() {
               <KeyRound :size="14" />
               账号与密码
             </Button>
-            <Button variant="plain" data-guide="sign-out" :disabled="signingOut" @click="signOut">
+            <Button
+              variant="plain"
+              data-guide="sign-out"
+              :disabled="signingOut"
+              data-disabled-reason="正在退出登录，请稍候"
+              @click="signOut">
               <LogOut :size="14" />
               {{ signingOut ? '退出中…' : '退出登录' }}
             </Button>
@@ -335,8 +341,6 @@ async function signOut() {
         role="alert"
         type="warning">
         <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span>
-
-        
       </Alert>
       <main class="page-content"><slot /></main>
     </div>

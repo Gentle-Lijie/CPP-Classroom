@@ -14,6 +14,7 @@ defineProps<{
   max?: number | string
   step?: number | string
   disabled?: boolean
+  disabledReason?: string
   required?: boolean
   name?: string
 }>()
@@ -37,8 +38,16 @@ const error = ref('')
         @invalid.prevent="error = '请填写有效数值'"
         @input="error = ''" />
       <span class="ui-number-actions">
-        <NumberFieldIncrement aria-label="增加数值"><Plus :size="12" /></NumberFieldIncrement>
-        <NumberFieldDecrement aria-label="减少数值"><Minus :size="12" /></NumberFieldDecrement>
+        <NumberFieldIncrement
+          aria-label="增加数值"
+          :data-disabled-reason="disabled ? disabledReason : `已达到最大值 ${max}`">
+          <Plus :size="12" />
+        </NumberFieldIncrement>
+        <NumberFieldDecrement
+          aria-label="减少数值"
+          :data-disabled-reason="disabled ? disabledReason : `已达到最小值 ${min}`">
+          <Minus :size="12" />
+        </NumberFieldDecrement>
       </span>
     </NumberFieldRoot>
     <small v-if="error" class="ui-field-error">{{ error }}</small>

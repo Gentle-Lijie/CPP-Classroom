@@ -67,10 +67,12 @@ function clearFilters() {
       </div>
       <div class="inline-items">
         <ThemeToggle />
-        <RouterLink to="/teacher/teach" target="_blank">
-          授课页
-          <ArrowUpRight :size="13" />
-        </RouterLink>
+        <Button as-child variant="outline" size="sm">
+          <RouterLink to="/teacher/teach" target="_blank">
+            授课页
+            <ArrowUpRight :size="13" />
+          </RouterLink>
+        </Button>
         <span class="demo-tag">课堂实时名册</span>
         <Button variant="outline" size="sm" @click="close">
           <X />

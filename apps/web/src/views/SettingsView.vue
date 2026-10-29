@@ -149,6 +149,7 @@ async function save(status = form.state, confirmed = false) {
     confirmState.value = status
     return false
   }
+  busyReason.value = '正在保存课堂设置，请稍候'
   busy.value = true
   try {
     await updateClass({
@@ -185,6 +186,7 @@ async function copy() {
 }
 async function regenerateInvite() {
   if (busy.value) return
+  busyReason.value = '正在重新生成课堂码，请稍候'
   busy.value = true
   try {
     const data = await api<{ inviteCode: string; inviteExpiresAt?: string }>(
@@ -207,6 +209,7 @@ async function archiveClass() {
   if (await save('已归档', true)) archive.value = false
 }
 useActionFeedback(error)
+const busyReason = ref('正在处理请求，请稍候')
 </script>
 <template>
   <div class="settings-page">
@@ -215,7 +218,10 @@ useActionFeedback(error)
         <div class="heading-meta">课堂管理</div>
         <h1>课堂设置</h1>
       </div>
-      <Button :disabled="busy || !dirty" @click="save()">
+      <Button
+        :disabled="busy || !dirty"
+        :data-disabled-reason="busy ? busyReason : '设置没有更改，无需保存'"
+        @click="save()">
         <Save />
         {{ busy ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}
       </Button>
@@ -252,7 +258,10 @@ useActionFeedback(error)
           </label>
           <label>
             课堂状态
-            <Select v-model="form.state" :disabled="busy || activeClassroom.status === '已归档'">
+            <Select
+              v-model="form.state"
+              :disabled="busy || activeClassroom.status === '已归档'"
+              :data-disabled-reason="busy ? busyReason : '课堂已归档，请先恢复课堂教学'">
               <SelectOption>未开始</SelectOption>
               <SelectOption>进行中</SelectOption>
               <SelectOption>已关闭</SelectOption>
@@ -294,7 +303,12 @@ useActionFeedback(error)
               inviteExpires
             }}。重新生成后原课堂码失效。
           </p>
-          <Button variant="outline" class="self-start" :disabled="busy" @click="regenerate = true">
+          <Button
+            variant="outline"
+            class="self-start"
+            :disabled="busy"
+            :data-disabled-reason="busyReason"
+            @click="regenerate = true">
             <RefreshCw />
             重新生成
           </Button>
@@ -384,6 +398,7 @@ useActionFeedback(error)
             variant="destructive"
             class="self-start"
             :disabled="busy || activeClassroom.status === '已归档'"
+            :data-disabled-reason="busy ? busyReason : '课堂已归档，请先恢复课堂教学'"
             @click="archive = true">
             {{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}
           </Button>
@@ -399,8 +414,18 @@ useActionFeedback(error)
       归档后不再接受新成员、编辑与提交，正在运行的程序会停止。请先按需导出课堂作品。
     </p>
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="archive = false">继续教学</Button>
-      <Button variant="destructive" :disabled="busy" @click="archiveClass">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="archive = false">
+        继续教学
+      </Button>
+      <Button
+        variant="destructive"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="archiveClass">
         {{ busy ? '正在归档…' : '确认归档' }}
       </Button>
     </div>
@@ -410,8 +435,18 @@ useActionFeedback(error)
     title="重新生成课堂码？"
     description="旧课堂码与邀请链接会立即失效。已有成员不受影响，请将新邀请交付给尚未加入的学生。">
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="regenerate = false">取消</Button>
-      <Button variant="warning" :disabled="busy" @click="regenerateInvite">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="regenerate = false">
+        取消
+      </Button>
+      <Button
+        variant="warning"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="regenerateInvite">
         {{ busy ? '正在更新…' : '确认重新生成' }}
       </Button>
     </div>
@@ -431,10 +466,17 @@ useActionFeedback(error)
     title="恢复课堂教学？"
     description="课堂将回到进行中，成员可按课堂策略继续编辑、运行与提交。">
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="reopen = false">取消</Button>
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="reopen = false">
+        取消
+      </Button>
       <Button
         variant="success"
         :disabled="busy"
+        :data-disabled-reason="busyReason"
         @click="
           async () => {
             if (await save('进行中', true)) reopen = false
@@ -450,10 +492,17 @@ useActionFeedback(error)
     :description="`课堂将设为${confirmState}，学生只能查看作品，正在执行的程序会停止。`"
     @update:open="!$event && (confirmState = '')">
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="confirmState = ''">取消</Button>
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="confirmState = ''">
+        取消
+      </Button>
       <Button
         variant="warning"
         :disabled="busy"
+        :data-disabled-reason="busyReason"
         @click="
           async () => {
             if (await save(confirmState, true)) confirmState = ''

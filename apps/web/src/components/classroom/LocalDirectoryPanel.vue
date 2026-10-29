@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { computed, ref } from 'vue'
 import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent } from 'reka-ui'
 import { FolderOpen, FolderCheck, Unplug, Download, RefreshCw } from '@lucide/vue'
@@ -89,6 +90,9 @@ defineExpose({ flush: local.flush })
               variant="outline"
               size="sm"
               :disabled="readonly || busy"
+              :data-disabled-reason="
+                readonly ? '当前练习只读，无法连接工作目录' : '正在读写本地文件，请稍候'
+              "
               data-guide="directory-connect"
               @click="local.connect">
               <RefreshCw v-if="needsPermission" />
@@ -100,6 +104,7 @@ defineExpose({ flush: local.flush })
               variant="plain"
               class="icon-button"
               :disabled="busy"
+              data-disabled-reason="正在读写本地文件，请稍候"
               aria-label="断开本地目录"
               @click="local.disconnect">
               <Unplug :size="15" />
@@ -123,11 +128,11 @@ defineExpose({ flush: local.flush })
       <div class="file-conflict-comparison">
         <div>
           <h3>编辑器草稿</h3>
-          <pre>{{ code.slice(0, 6000) || '（空文件）' }}</pre>
+          <CodeBlock :source="code" language="cpp" label="代码" />
         </div>
         <div>
           <h3>磁盘文件</h3>
-          <pre>{{ conflict.disk.slice(0, 6000) || '（空文件）' }}</pre>
+          <CodeBlock :source="conflict.disk" language="cpp" label="代码" />
         </div>
       </div>
       <p class="form-hint">预览最多显示各版本前 6,000 个字符；选择版本会处理完整文件。</p>
@@ -135,6 +140,7 @@ defineExpose({ flush: local.flush })
         <Button
           variant="ghost"
           :disabled="busy"
+          data-disabled-reason="正在读写本地文件，请稍候"
           data-guide="disk-backup"
           @click="download('backup-' + filename, code)">
           <Download />
@@ -143,11 +149,20 @@ defineExpose({ flush: local.flush })
         <Button
           variant="outline"
           :disabled="busy || readonly"
+          :data-disabled-reason="
+            busy ? '正在读写本地文件，请稍候' : '当前练习只读，无法修改文件或草稿'
+          "
           data-guide="disk-use-editor"
           @click="local.useEditor">
           用草稿覆盖磁盘
         </Button>
-        <Button :disabled="busy || readonly" data-guide="disk-use-disk" @click="local.useDisk">
+        <Button
+          :disabled="busy || readonly"
+          :data-disabled-reason="
+            busy ? '正在读写本地文件，请稍候' : '当前练习只读，无法修改文件或草稿'
+          "
+          data-guide="disk-use-disk"
+          @click="local.useDisk">
           读取磁盘文件
         </Button>
       </div>

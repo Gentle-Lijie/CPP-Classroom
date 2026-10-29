@@ -39,7 +39,10 @@ function clear() {
     wide
     @update:open="emit('update:open', $event)">
     <div class="credential-actions">
-      <Button :disabled="!credentials.length" @click="emit('export')">
+      <Button
+        :disabled="!credentials.length"
+        data-disabled-reason="当前没有可操作的账号凭据"
+        @click="emit('export')">
         <Download />
         导出账号密码 CSV
       </Button>
@@ -88,7 +91,11 @@ function clear() {
       账号可能用于多个课堂。已有账号的原密码不在此表；需要重新交付时请按名册权限重置，历史或其他教师创建的账号由管理员协助恢复。
     </p> -->
     <div class="modal-actions">
-      <Button variant="outline" :disabled="!credentials.length" @click="confirmClear = true">
+      <Button
+        variant="outline"
+        :disabled="!credentials.length"
+        data-disabled-reason="当前没有可操作的账号凭据"
+        @click="confirmClear = true">
         <Trash2 />
         清除本页凭据
       </Button>

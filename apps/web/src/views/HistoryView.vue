@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { Alert } from '@/components/ui/alert'
 import { Select, SelectOption } from '@/components/ui/select'
 import { ref, watch } from 'vue'
@@ -66,13 +67,19 @@ void load()
       <h1>运行历史</h1>
     </div>
     <div class="heading-actions">
-      <Button variant="outline" :disabled="loading" data-guide="history-refresh" @click="load">
+      <Button
+        variant="outline"
+        :disabled="loading"
+        data-disabled-reason="正在读取运行记录，请稍候"
+        data-guide="history-refresh"
+        @click="load">
         <RefreshCw />
         刷新
       </Button>
       <Button
         data-guide="history-download"
         :disabled="!run"
+        data-disabled-reason="暂无可下载的运行快照，请先选择一条运行记录"
         variant="outline"
         @click="run && download(run.id + '-' + run.filename, run.code)">
         <Download />
@@ -179,8 +186,7 @@ void load()
         </div>
         <div class="detail-io">
           <section class="detail-input">
-            <div class="code-toolbar">当次输入</div>
-            <pre>{{ run.input || '（无预填输入）' }}</pre>
+            <CodeBlock :source="run.input" label="当次输入" empty-text="无预填输入" />
           </section>
           <RunOutput :key="run.id" :run="run" readonly-context />
         </div>

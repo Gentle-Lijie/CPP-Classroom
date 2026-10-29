@@ -158,6 +158,13 @@ useActionFeedback(error)
           <Button
             variant="outline"
             :disabled="!!entering || c.membershipStatus === 'pending' || (student && !c.exercises)"
+            :data-disabled-reason="
+              entering
+                ? '正在进入课堂，请稍候'
+                : c.membershipStatus === 'pending'
+                  ? '加入申请正在等待教师审批'
+                  : '课堂暂无可用练习，请等待教师发布'
+            "
             data-guide="class-enter"
             @click="enter(c.id)">
             {{
@@ -229,7 +236,9 @@ useActionFeedback(error)
 
       <div class="modal-actions">
         <Button type="button" variant="outline" @click="create = false">取消</Button>
-        <Button type="submit" :disabled="busy">{{ busy ? '正在创建…' : '创建课堂' }}</Button>
+        <Button type="submit" :disabled="busy" :data-disabled-reason="'正在创建课堂，请稍候'">
+          {{ busy ? '正在创建…' : '创建课堂' }}
+        </Button>
       </div>
     </Form>
   </Modal>

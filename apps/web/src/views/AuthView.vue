@@ -186,7 +186,16 @@ int main() {
             大写锁定已开启，请核对密码大小写。
           </Alert>
 
-          <Button type="submit" :disabled="busy">
+          <Button
+            type="submit"
+            :disabled="busy"
+            :data-disabled-reason="
+              mode === 'login'
+                ? '正在登录，请稍候'
+                : mode === 'join'
+                  ? '正在提交加入课堂申请，请稍候'
+                  : '正在提交账号恢复申请，请稍候'
+            ">
             {{
               busy
                 ? '处理中…'

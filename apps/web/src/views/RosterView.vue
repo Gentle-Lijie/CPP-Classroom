@@ -260,6 +260,7 @@ async function save() {
     account.username = customUsername
   }
   if (password.value) account.password = password.value
+  busyReason.value = '正在添加学生，请稍候'
   busy.value = true
   try {
     const result = await addMember(name.value.trim(), number.value.trim(), classId, account)
@@ -283,6 +284,7 @@ async function decide(id: string, status: string) {
   if (busy.value) return
   const classId = demo.classroomId,
     wasRemoved = members.value.find((m) => m.id === id)?.membership === 'removed'
+  busyReason.value = '正在更新课堂成员状态，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -315,6 +317,7 @@ async function importRows() {
     return
   }
   const classId = demo.classroomId
+  busyReason.value = '正在导入学生名单，请稍候'
   busy.value = true
   importResults.value = []
   try {
@@ -344,6 +347,7 @@ async function readFile(event: Event) {
   const input = event.target as HTMLInputElement,
     file = input.files?.[0]
   if (!file || busy.value) return
+  busyReason.value = '正在读取名单文件，请稍候'
   busy.value = true
   readingFile.value = true
   csv.value = ''
@@ -415,6 +419,7 @@ async function resetPasswords() {
   if (busy.value) return
   const classId = demo.classroomId,
     ids = [...resetTargets.value]
+  busyReason.value = '正在重置学生密码，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -439,6 +444,7 @@ async function removeStudent() {
   if (busy.value || !remove.value) return
   const classId = demo.classroomId,
     target = remove.value
+  busyReason.value = '正在移除课堂成员，请稍候'
   busy.value = true
   error.value = ''
   try {
@@ -469,6 +475,7 @@ function openImport() {
   importing.value = true
 }
 useActionFeedback(error)
+const busyReason = ref('正在处理请求，请稍候')
 </script>
 <template>
   <div class="page-heading">
@@ -543,7 +550,12 @@ useActionFeedback(error)
         <span class="muted text-xs">
           {{ loading ? '加载中…' : updatedAt ? '更新于 ' + updatedAt : '尚未加载' }}
         </span>
-        <Button variant="outline" size="sm" :disabled="loading || busy" @click="loadMembers()">
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="loading || busy"
+          :data-disabled-reason="loading ? '正在加载学生名册，请稍候' : busyReason"
+          @click="loadMembers()">
           <RefreshCw />
           刷新
         </Button>
@@ -551,6 +563,9 @@ useActionFeedback(error)
           variant="outline"
           size="sm"
           :disabled="loading || !!loadError"
+          :data-disabled-reason="
+            loading ? '正在加载学生名册，请稍候' : '名册加载失败，请先刷新后再导出'
+          "
           @click="exportRoster">
           <Download />
           导出名册
@@ -586,6 +601,7 @@ useActionFeedback(error)
               <Checkbox
                 aria-label="选择本页学生"
                 :disabled="busy || !selectablePage.length"
+                :data-disabled-reason="busy ? busyReason : '本页没有可由你重置密码的学生'"
                 :checked="allPageSelected"
                 @change="selectPage" />
             </th>
@@ -602,6 +618,13 @@ useActionFeedback(error)
               <Checkbox
                 v-model="selected"
                 :disabled="busy || !m.canResetPassword"
+                :data-disabled-reason="
+                  busy
+                    ? busyReason
+                    : m.disabled
+                      ? '账号已停用，请联系管理员启用'
+                      : '仅创建该账号的教师或管理员可以重置密码'
+                "
                 :value="m.id"
                 :aria-label="'选择' + m.name" />
             </td>
@@ -635,6 +658,7 @@ useActionFeedback(error)
                   size="sm"
                   variant="success"
                   :disabled="busy"
+                  :data-disabled-reason="busyReason"
                   @click="decide(m.id, 'active')">
                   <Check />
                   批准
@@ -643,6 +667,7 @@ useActionFeedback(error)
                   size="sm"
                   variant="outline"
                   :disabled="busy"
+                  :data-disabled-reason="busyReason"
                   @click="decide(m.id, 'removed')">
                   拒绝
                 </Button>
@@ -652,6 +677,9 @@ useActionFeedback(error)
                   size="sm"
                   variant="outline"
                   :disabled="busy || m.disabled"
+                  :data-disabled-reason="
+                    busy ? busyReason : '账号已停用，请联系管理员启用后再恢复课堂访问'
+                  "
                   @click="decide(m.id, 'active')">
                   恢复课堂访问
                 </Button>
@@ -663,6 +691,7 @@ useActionFeedback(error)
                   variant="plain"
                   class="text-button"
                   :disabled="busy"
+                  :data-disabled-reason="busyReason"
                   @click="openReset([m.id])">
                   <KeyRound :size="14" />
                   重置密码
@@ -674,6 +703,7 @@ useActionFeedback(error)
                   variant="plain"
                   class="text-button danger-text"
                   :disabled="busy"
+                  :data-disabled-reason="busyReason"
                   @click="
                     () => {
                       error = ''
@@ -740,8 +770,17 @@ useActionFeedback(error)
       </label>
 
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="add = false">取消</Button>
-        <Button type="submit" :disabled="busy">{{ busy ? '正在添加…' : '添加学生' }}</Button>
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="busy"
+          :data-disabled-reason="busyReason"
+          @click="add = false">
+          取消
+        </Button>
+        <Button type="submit" :disabled="busy" :data-disabled-reason="busyReason">
+          {{ busy ? '正在添加…' : '添加学生' }}
+        </Button>
       </div>
     </Form>
   </Modal>
@@ -756,6 +795,7 @@ useActionFeedback(error)
           variant="outline"
           type="button"
           :disabled="downloadingTemplate"
+          :data-disabled-reason="'正在生成 Excel 模板，请稍候'"
           @click="downloadExcelTemplate">
           <FileDown />
           {{ downloadingTemplate ? '正在生成…' : '下载 Excel 模板' }}
@@ -767,7 +807,11 @@ useActionFeedback(error)
           <FileDown />
           CSV 模板（GB2312）
         </Button>
-        <FileUpload accept=".xlsx,.csv,.tsv,.txt" :disabled="busy" @change="readFile">
+        <FileUpload
+          accept=".xlsx,.csv,.tsv,.txt"
+          :disabled="busy"
+          :data-disabled-reason="busyReason"
+          @change="readFile">
           选择名单文件
         </FileUpload>
       </div>
@@ -780,6 +824,7 @@ useActionFeedback(error)
         <Textarea
           v-model="csv"
           :disabled="busy"
+          :data-disabled-reason="busyReason"
           rows="7"
           required
           placeholder="姓名,学号&#10;刘亦安,2026013&#10;方可欣,2026014" />
@@ -803,10 +848,18 @@ useActionFeedback(error)
         已有账号不会修改密码。部分失败时保留成功结果与凭据，重试只处理失败行。
       </p>
       <div class="modal-actions">
-        <Button type="button" variant="outline" :disabled="busy" @click="importing = false">
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="busy"
+          :data-disabled-reason="busyReason"
+          @click="importing = false">
           关闭
         </Button>
-        <Button type="submit" :disabled="busy || !csv.trim()">
+        <Button
+          type="submit"
+          :disabled="busy || !csv.trim()"
+          :data-disabled-reason="busy ? busyReason : '请先选择名单文件或填写名单内容'">
           <Upload />
           {{
             readingFile
@@ -832,8 +885,18 @@ useActionFeedback(error)
     <Alert type="warning">请确认学生已保存学习进度。重置成功后可复制、下载新凭据。</Alert>
 
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="resetting = false">取消</Button>
-      <Button variant="warning" :disabled="busy || !resetTargets.length" @click="resetPasswords">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="resetting = false">
+        取消
+      </Button>
+      <Button
+        variant="warning"
+        :disabled="busy || !resetTargets.length"
+        :data-disabled-reason="busy ? busyReason : '请先选择需要重置密码的学生'"
+        @click="resetPasswords">
         <KeyRound />
         {{ busy ? '正在重置…' : '确认重置并生成凭据' }}
       </Button>
@@ -846,8 +909,18 @@ useActionFeedback(error)
     description="撤销该学生的课堂访问权限，保留历史作品。不删除账号或其他课堂成员关系。"
     @update:open="!$event && (remove = undefined)">
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="remove = undefined">取消</Button>
-      <Button variant="destructive" :disabled="busy" @click="removeStudent">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="remove = undefined">
+        取消
+      </Button>
+      <Button
+        variant="destructive"
+        :disabled="busy"
+        :data-disabled-reason="busyReason"
+        @click="removeStudent">
         {{ busy ? '正在移除…' : '确认移除' }}
       </Button>
     </div>

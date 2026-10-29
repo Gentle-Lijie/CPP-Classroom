@@ -51,7 +51,7 @@ export class RunsController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    role(user, 'student')
+    role(user, 'student', 'teacher')
     const data = parse(
       z.object({
         exerciseId: z.uuid(),
@@ -70,7 +70,10 @@ export class RunsController {
       // A revoker either precedes this check, or waits until the new run is visible
       // to its stop-request scan. Lock classrooms first, like classroom mutations.
       const classroom = (
-        await client.query('select status,settings from classrooms where id=$1 for share', [id])
+        await client.query(
+          'select status,settings,owner_id from classrooms where id=$1 for share',
+          [id],
+        )
       ).rows[0]
       const exercise = (
         await client.query(
@@ -78,20 +81,25 @@ export class RunsController {
           [id, e.id],
         )
       ).rows[0]
-      const membership = (
-        await client.query(
-          'select status from memberships where classroom_id=$1 and user_id=$2 for share',
-          [id, user.id],
-        )
-      ).rows[0]
+      const membership =
+        user.role === 'student'
+          ? (
+              await client.query(
+                'select status from memberships where classroom_id=$1 and user_id=$2 for share',
+                [id, user.id],
+              )
+            ).rows[0]
+          : undefined
       const account = (
         await client.query('select disabled,role from users where id=$1 for update', [user.id])
       ).rows[0]
       if (
         !account ||
         account.disabled ||
-        account.role !== 'student' ||
-        membership?.status !== 'active'
+        account.role !== user.role ||
+        (user.role === 'teacher'
+          ? classroom?.owner_id !== user.id
+          : membership?.status !== 'active')
       )
         throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
       if (

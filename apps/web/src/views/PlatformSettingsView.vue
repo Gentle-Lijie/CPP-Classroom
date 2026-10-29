@@ -174,7 +174,12 @@ useActionFeedback(saveError)
     </div>
     <ContentPanel title="服务状态" :icon="Activity" class="runtime-health-panel">
       <template #actions>
-        <Button variant="outline" size="sm" :disabled="checking" @click="check">
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="checking"
+          :data-disabled-reason="'正在检查服务连接，请稍候'"
+          @click="check">
           <RefreshCw :class="{ 'probe-spinning': checking }" />
           {{ checking ? '检查中…' : '刷新状态' }}
         </Button>
@@ -215,7 +220,16 @@ useActionFeedback(saveError)
     <div class="runtime-settings-layout">
       <ContentPanel title="运行环境与限额" class="runtime-form-panel">
         <Form id="runtime-settings-form" class="runtime-settings-form" @submit.prevent="save">
-          <fieldset :disabled="loading || saving || !!loadError" class="runtime-fields">
+          <fieldset
+            :disabled="loading || saving || !!loadError"
+            :data-disabled-reason="
+              loading
+                ? '正在加载平台配置，请稍候'
+                : saving
+                  ? '正在保存平台配置，请稍候'
+                  : '配置加载失败，请先重新加载'
+            "
+            class="runtime-fields">
             <label class="runtime-profile">
               C++ 标准
               <Select v-model="form.compilerProfile">
@@ -267,7 +281,16 @@ useActionFeedback(saveError)
           <Button
             type="submit"
             form="runtime-settings-form"
-            :disabled="loading || saving || !!loadError || !dirty">
+            :disabled="loading || saving || !!loadError || !dirty"
+            :data-disabled-reason="
+              loading
+                ? '正在加载平台配置，请稍候'
+                : saving
+                  ? '正在保存平台配置，请稍候'
+                  : loadError
+                    ? '配置加载失败，请先重新加载'
+                    : '配置没有更改，无需保存'
+            ">
             <Save :size="15" />
             {{ saving ? '保存中…' : '保存更改' }}
           </Button>

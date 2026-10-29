@@ -233,6 +233,29 @@
 .ui-button-plain:disabled {
   cursor: not-allowed;
 }
+/* Keep disabled actions hoverable without changing their native disabled behavior. */
+button:disabled {
+  pointer-events: auto;
+}
+button:disabled > * {
+  pointer-events: none;
+}
+.disabled-button-hint {
+  position: fixed;
+  z-index: 10020;
+  max-width: min(340px, calc(100vw - 16px));
+  padding: 8px 12px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 6px;
+  background: var(--ui-page);
+  color: var(--ui-ink);
+  box-shadow: 0 4px 16px var(--ui-shadow);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
 .compact-select .ui-select-trigger {
   height: 30px;
   min-height: 30px;
@@ -276,7 +299,6 @@
 :root.dark
   :is(
     .auth-code-art pre,
-    .markdown-content pre,
     .code-preview,
     .snapshot-input,
     .source-preview,

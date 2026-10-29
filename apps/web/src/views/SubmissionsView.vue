@@ -206,7 +206,11 @@ useActionFeedback(exportError)
       <div class="heading-meta">课堂作品</div>
       <h1>提交与导出</h1>
     </div>
-    <Button variant="outline" :disabled="loading" @click="load">
+    <Button
+      variant="outline"
+      :disabled="loading"
+      :data-disabled-reason="'正在加载提交记录，请稍候'"
+      @click="load">
       <RefreshCw :class="{ 'animate-spin': loading }" />
       {{ loading ? '正在刷新…' : '刷新提交' }}
     </Button>
@@ -222,7 +226,10 @@ useActionFeedback(exportError)
     <div class="export-controls">
       <label>
         作品范围
-        <Select v-model="kind" :disabled="exporting">
+        <Select
+          v-model="kind"
+          :disabled="exporting"
+          :data-disabled-reason="'正在准备作品导出，请稍候'">
           <SelectOption value="all">当前草稿 + 主动提交</SelectOption>
           <SelectOption value="drafts">仅当前草稿</SelectOption>
           <SelectOption value="submissions">仅主动提交</SelectOption>
@@ -230,17 +237,26 @@ useActionFeedback(exportError)
       </label>
       <label>
         文件格式
-        <Select v-model="format" :disabled="exporting">
+        <Select
+          v-model="format"
+          :disabled="exporting"
+          :data-disabled-reason="'正在准备作品导出，请稍候'">
           <SelectOption value="zip">ZIP 源文件包</SelectOption>
           <SelectOption value="csv">CSV 作品清单</SelectOption>
           <SelectOption value="json">JSON 完整备份</SelectOption>
         </Select>
       </label>
       <label v-if="format === 'json'" class="inline-items">
-        <Checkbox v-model="includeRuns" :disabled="exporting" />
+        <Checkbox
+          v-model="includeRuns"
+          :disabled="exporting"
+          :data-disabled-reason="'正在准备作品导出，请稍候'" />
         包含运行上下文
       </label>
-      <Button :disabled="exporting" @click="exportWorks">
+      <Button
+        :disabled="exporting"
+        :data-disabled-reason="'正在准备作品导出，请稍候'"
+        @click="exportWorks">
         <Download />
         {{
           exporting
@@ -308,6 +324,9 @@ useActionFeedback(exportError)
                 :checked="pageSelected"
                 :indeterminate="somePageSelected && !pageSelected"
                 :disabled="loading || !submissions.length"
+                :data-disabled-reason="
+                  loading ? '正在加载提交记录，请稍候' : '本页没有可选择的提交记录'
+                "
                 @change="togglePage" />
             </th>
             <th>学生</th>

@@ -91,7 +91,11 @@ async function fullscreen() {
 <template>
   <main v-if="snapshot" class="projection-page">
     <header class="projection-header">
-      <Button variant="outline" :disabled="busy" @click="end">
+      <Button
+        variant="outline"
+        :disabled="busy"
+        data-disabled-reason="正在撤销投屏，请稍候"
+        @click="end">
         <ArrowLeft />
         {{ busy ? '正在撤销…' : '结束并撤销投屏' }}
       </Button>
@@ -104,6 +108,7 @@ async function fullscreen() {
         <Button
           variant="outline"
           :disabled="size <= 16"
+          data-disabled-reason="字号已达到最小值 16 px"
           aria-label="缩小投屏代码字号"
           @click="size = Math.max(16, size - 2)">
           <Minus />
@@ -112,6 +117,7 @@ async function fullscreen() {
         <Button
           variant="outline"
           :disabled="size >= 38"
+          data-disabled-reason="字号已达到最大值 38 px"
           aria-label="放大投屏代码字号"
           @click="size = Math.min(38, size + 2)">
           <Plus />
