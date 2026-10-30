@@ -1,4 +1,5 @@
-import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto'
+import { randomBytes, scrypt, timingSafeEqual, createHash } from 'node:crypto'
+import { promisify } from 'node:util'
 import {
   Body,
   Controller,
@@ -18,15 +19,16 @@ import { z } from 'zod'
 import { DatabaseService } from '../database.service.js'
 import { actor, parse, text, passwordInput, type Actor, type AuthRequest } from './common.js'
 
-export function passwordHash(password: string) {
+const deriveKey = promisify(scrypt)
+export async function passwordHash(password: string) {
   const salt = randomBytes(16).toString('hex')
-  return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`
+  return `${salt}:${((await deriveKey(password, salt, 64)) as Buffer).toString('hex')}`
 }
-export function verifyPassword(password: string, hash: string) {
+export async function verifyPassword(password: string, hash: string) {
   const [salt, value] = hash.split(':')
   if (!salt || !value) return false
   const expected = Buffer.from(value, 'hex')
-  const actual = scryptSync(password, salt, 64)
+  const actual = (await deriveKey(password, salt, 64)) as Buffer
   return expected.length === actual.length && timingSafeEqual(expected, actual)
 }
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
@@ -43,8 +45,14 @@ export class AuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<AuthRequest>()
     // Browser mutations must originate from the same host. JSON APIs reject simple cross-site forms.
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-      if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host)
-        throw new UnauthorizedException('请求来源不匹配')
+      if (req.headers.origin) {
+        try {
+          if (new URL(req.headers.origin).host !== req.headers.host)
+            throw new UnauthorizedException('请求来源不匹配')
+        } catch {
+          throw new UnauthorizedException('请求来源不匹配')
+        }
+      }
       if (req.headers['sec-fetch-site'] === 'cross-site')
         throw new UnauthorizedException('跨站请求被拒绝')
       if (req.headers['content-type']?.split(';')[0] !== 'application/json')
@@ -80,7 +88,16 @@ export class AuthController {
   ) {
     const data = parse(z.object({ username: text(80), password: passwordInput }), body)
     const db = this.database.database.pool
-    const key = digest(`${req.ip}:${data.username}`)
+    // Count every attempt from this address before doing expensive password work.
+    // Keep the narrower counter as a second guard against attacks on one account.
+    const ipKey = digest(`login-ip:${req.ip}`)
+    const ipAttempt = await db.query(
+      `insert into login_attempts(key,count) values($1,1) on conflict(key) do update set count=case when login_attempts.since<now()-interval '15 minutes' then 1 else login_attempts.count+1 end, since=case when login_attempts.since<now()-interval '15 minutes' then now() else login_attempts.since end returning count`,
+      [ipKey],
+    )
+    if (ipAttempt.rows[0].count > 500)
+      throw new HttpException('登录尝试过多，请 15 分钟后重试', 429)
+    const key = digest(`login-user:${req.ip}:${data.username}`)
     const attempt = await db.query(
       `insert into login_attempts(key,count) values($1,1) on conflict(key) do update set count=case when login_attempts.since<now()-interval '15 minutes' then 1 else login_attempts.count+1 end, since=case when login_attempts.since<now()-interval '15 minutes' then now() else login_attempts.since end returning count`,
       [key],
@@ -98,7 +115,7 @@ export class AuthController {
         ])
       ).rows[0]
       if (
-        !verifyPassword(data.password, user?.password_hash ?? 'dummy:' + '00'.repeat(64)) ||
+        !(await verifyPassword(data.password, user?.password_hash ?? 'dummy:' + '00'.repeat(64))) ||
         !user
       )
         throw new UnauthorizedException('账号或密码不正确')
@@ -112,7 +129,7 @@ export class AuthController {
       await client.query('commit')
       authenticated = { user, token }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -153,10 +170,10 @@ export class AuthController {
           actor(req).id,
         ])
       ).rows[0]
-      if (!verifyPassword(data.current, user.password_hash))
+      if (!(await verifyPassword(data.current, user.password_hash)))
         throw new ConflictException('当前密码不正确')
       await client.query('update users set password_hash=$1 where id=$2', [
-        passwordHash(data.password),
+        await passwordHash(data.password),
         actor(req).id,
       ])
       await client.query('delete from sessions where user_id=$1', [actor(req).id])
@@ -171,7 +188,7 @@ export class AuthController {
       await client.query('commit')
       return { ok: true }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()

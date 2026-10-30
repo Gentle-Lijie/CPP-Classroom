@@ -5,6 +5,7 @@ import {
   DialogOverlay,
   DialogContent,
   DialogTitle,
+  DialogDescription,
   DialogClose,
 } from 'reka-ui'
 import { spotlight } from '@/lib/spotlight'
@@ -33,11 +34,15 @@ defineEmits<{ 'update:open': [value: boolean] }>()
         class="modal-content"
         :class="{ wide }"
         :aria-busy="busy"
+        v-bind="description ? {} : { 'aria-describedby': undefined }"
         @escape-key-down="(busy || !dismissible || spotlight.active) && $event.preventDefault()"
         @interact-outside="(busy || !dismissible || spotlight.active) && $event.preventDefault()">
         <div class="modal-heading">
           <div>
             <DialogTitle class="modal-title">{{ title }}</DialogTitle>
+            <DialogDescription v-if="description" class="muted">
+              {{ description }}
+            </DialogDescription>
           </div>
           <DialogClose
             class="icon-button"

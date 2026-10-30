@@ -71,6 +71,13 @@
       "when": 1793297570980,
       "tag": "0009_lucky_liz_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793329631981,
+      "tag": "0010_dizzy_reptil",
+      "breakpoints": true
     }
   ]
 }

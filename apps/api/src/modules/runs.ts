@@ -160,7 +160,7 @@ export class RunsController {
       await client.query('commit')
       return runDto(r)
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -258,7 +258,7 @@ export class RunsController {
       await client.query('commit')
       return { ok: true }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()

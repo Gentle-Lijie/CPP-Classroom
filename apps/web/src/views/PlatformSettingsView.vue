@@ -24,7 +24,7 @@ import { confirmAction } from '@/lib/confirm'
 import { api } from '@/lib/api'
 import { notify, executionSettings } from '@/data/demo'
 import { probePlatform, type ProbeResult, type ProbeState } from '@/lib/platform-health'
-import { executionDefaults, executionLimits } from '@classroom/contracts'
+import { executionDefaults, executionLimits, wallClockLimitMs } from '@classroom/contracts'
 
 const form = reactive({ ...executionDefaults, goJudgeUrl: '', goJudgeTimeoutMs: 2000 })
 const loading = ref(true),
@@ -316,18 +316,18 @@ useActionFeedback(saveError)
             <dl>
               <div>
                 <dt>编译阶段</dt>
-                <dd>20 秒</dd>
+                <dd>{{ wallClockLimitMs(form.compileTimeMs) / 1000 }} 秒</dd>
               </div>
               <div>
                 <dt>非交互运行</dt>
-                <dd>5 秒</dd>
+                <dd>{{ wallClockLimitMs(form.runTimeMs) / 1000 }} 秒</dd>
               </div>
               <div>
                 <dt>交互运行</dt>
-                <dd>60 秒</dd>
+                <dd>{{ wallClockLimitMs(form.runTimeMs, true) / 1000 }} 秒</dd>
               </div>
             </dl>
-            <!-- <p>墙钟时间包含程序等待输入的时间，与 CPU 时间分别限制。</p> -->
+            <p>包含等待输入的实际耗时，按当前 CPU 时间自动计算；保存后对后续任务生效。</p>
           </div>
         </ContentPanel>
         <Alert type="info" :icon="ShieldCheck">

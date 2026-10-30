@@ -50,7 +50,7 @@ describe('account recovery authorization and atomicity', () => {
     const updated = query.mock.calls.find((call) =>
       call[0].startsWith('update users'),
     ) as unknown as [string, unknown[]]
-    expect(verifyPassword(result[0]!.password, String(updated[1][1]))).toBe(true)
+    expect(await verifyPassword(result[0]!.password, String(updated[1][1]))).toBe(true)
     const audit = query.mock.calls.find((call) =>
       call[0].startsWith('insert into audit_events'),
     ) as unknown as [string, unknown[]]
@@ -99,7 +99,7 @@ describe('account recovery authorization and atomicity', () => {
     const current = '  existing password  '
     const query = vi.fn(async (sql: string) => ({
       rows: sql.startsWith('select password_hash')
-        ? [{ password_hash: passwordHash(current) }]
+        ? [{ password_hash: await passwordHash(current) }]
         : [],
       rowCount: 1,
     }))
@@ -113,8 +113,8 @@ describe('account recovery authorization and atomicity', () => {
     const update = query.mock.calls.find((call) =>
       call[0].startsWith('update users'),
     ) as unknown as [string, unknown[]]
-    expect(verifyPassword('123456', String(update[1][0]))).toBe(true)
-    expect(verifyPassword(current, String(update[1][0]))).toBe(false)
+    expect(await verifyPassword('123456', String(update[1][0]))).toBe(true)
+    expect(await verifyPassword(current, String(update[1][0]))).toBe(false)
     await expect(controller.password({ current, password: '' }, req())).rejects.toThrow()
     expect(query.mock.calls.some((call) => call[0] === 'commit')).toBe(true)
   })
@@ -235,7 +235,7 @@ describe('adding a single student with optional credentials', () => {
     expect(result).toMatchObject({ username: 'liu2026', created: true, password: '班级共享密码' })
     const insert = query.mock.calls.find(([sql]) => sql.startsWith('insert into users'))!
     expect(insert[1][0]).toBe('liu2026')
-    expect(verifyPassword('班级共享密码', String(insert[1][3]))).toBe(true)
+    expect(await verifyPassword('班级共享密码', String(insert[1][3]))).toBe(true)
   })
   it('rejects a requested username that already belongs to another account', async () => {
     const query = memberQueries({ taken: { rows: [1], rowCount: 1 } })
@@ -308,6 +308,6 @@ describe('adding a single student with optional credentials', () => {
       /^student\.11111111-1111-4111-8111-111111111111\.[0-9a-f]{24}$/,
     )
     expect(result.password).toBeTruthy()
-    expect(verifyPassword(result.password!, String(insert[1][3]))).toBe(true)
+    expect(await verifyPassword(result.password!, String(insert[1][3]))).toBe(true)
   })
 })

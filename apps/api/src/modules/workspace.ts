@@ -113,7 +113,7 @@ export class WorkspaceController {
       await client.query('commit')
       return updated.rows[0]
     } catch (error) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw error
     } finally {
       client.release()

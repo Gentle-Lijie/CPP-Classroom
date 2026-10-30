@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { passwordHash, verifyPassword } from './auth.js'
 
 describe('password storage', () => {
-  it('salts independent hashes and rejects wrong or malformed credentials', () => {
-    const hash = passwordHash('a-long-password')
+  it('salts independent hashes and rejects wrong or malformed credentials', async () => {
+    const hash = await passwordHash('a-long-password')
     expect(hash).not.toContain('a-long-password')
-    expect(hash).not.toBe(passwordHash('a-long-password'))
-    expect(verifyPassword('a-long-password', hash)).toBe(true)
-    expect(verifyPassword('wrong-password', hash)).toBe(false)
-    expect(verifyPassword('a-long-password', 'invalid')).toBe(false)
+    expect(hash).not.toBe(await passwordHash('a-long-password'))
+    expect(await verifyPassword('a-long-password', hash)).toBe(true)
+    expect(await verifyPassword('wrong-password', hash)).toBe(false)
+    expect(await verifyPassword('a-long-password', 'invalid')).toBe(false)
   })
 })

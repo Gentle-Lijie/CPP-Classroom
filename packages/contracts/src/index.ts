@@ -87,6 +87,12 @@ export const executionDefaults = {
   executionConcurrency: 16,
 }
 
+/** Allow wall time above the CPU budget, with a longer window for interactive input. */
+export function wallClockLimitMs(cpuTimeMs: number, interactive = false) {
+  const limit = Math.max(2 * cpuTimeMs, cpuTimeMs + 1000)
+  return interactive ? Math.max(60000, limit) : limit
+}
+
 export interface ExecutionConfig {
   compileTimeMs: number
   compileMemoryMb: number

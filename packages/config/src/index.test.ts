@@ -12,6 +12,9 @@ describe('environment validation', () => {
   it('rejects incorrect database protocols and invalid ports', () => {
     expect(environmentSchema.safeParse({ DATABASE_URL: 'https://example.com' }).success).toBe(false)
     expect(environmentSchema.safeParse({ ...baseline, API_PORT: 70000 }).success).toBe(false)
+    const malformed = 'postgres://classroom:secretpw@127.0.0.1:5432a/classroom'
+    expect(() => environmentSchema.safeParse({ DATABASE_URL: malformed })).not.toThrow()
+    expect(environmentSchema.safeParse({ DATABASE_URL: malformed }).success).toBe(false)
   })
   it('rejects a non-HTTP execution endpoint and an unlimited health-check timeout', () => {
     expect(

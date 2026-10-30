@@ -6,8 +6,12 @@ const databaseUrl = z
   .string()
   .url()
   .refine((value) => {
-    const protocol = new URL(value).protocol
-    return protocol === 'postgres:' || protocol === 'postgresql:'
+    try {
+      const protocol = new URL(value).protocol
+      return protocol === 'postgres:' || protocol === 'postgresql:'
+    } catch {
+      return false
+    }
   }, 'DATABASE_URL 必须使用 PostgreSQL 协议')
 
 export const environmentSchema = z.object({

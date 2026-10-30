@@ -560,7 +560,15 @@ async function switchTo(id: string, nextLanguage?: SourceLanguage) {
   if (switching.value || loading.value || runningRequest.value) return
   switching.value = true
   try {
-    if ((await directoryPanel.value?.flush()) === false || (dirty.value && !(await saveNow()))) {
+    if ((await directoryPanel.value?.flush()) === false) {
+      notify('当前修改尚未保存，请先处理保存问题', 'error')
+      return
+    }
+    if (dirty.value && isArchived.value) {
+      if (!(await confirmAction('课堂或练习已只读，未同步修改无法上传。下载本机代码备份后切换？')))
+        return
+      download('未同步-' + (exercise.value?.filename ?? 'source.cpp'), code.value)
+    } else if (dirty.value && !(await saveNow())) {
       notify('当前修改尚未保存，请先处理保存问题', 'error')
       return
     }

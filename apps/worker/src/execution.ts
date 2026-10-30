@@ -1,4 +1,4 @@
-import { executionDefaults } from '@classroom/contracts'
+import { executionDefaults, wallClockLimitMs } from '@classroom/contracts'
 import { setTimeout as delay } from 'node:timers/promises'
 import { StringDecoder } from 'node:string_decoder'
 import WebSocket from 'ws'
@@ -116,7 +116,10 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
       const response = await fetch(`${base}/run`, {
         method: 'POST',
         headers,
-        signal: AbortSignal.any([abort.signal, AbortSignal.timeout(25000)]),
+        signal: AbortSignal.any([
+          abort.signal,
+          AbortSignal.timeout(Math.max(25000, wallClockLimitMs(settings.compileTimeMs) + 5000)),
+        ]),
         body: JSON.stringify({
           cmd: [
             {
@@ -133,7 +136,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
               env,
               files: [{ content: '' }, { name: 'stdout', max: MiB }, { name: 'stderr', max: MiB }],
               cpuLimit: settings.compileTimeMs * 1e6,
-              clockLimit: 20e9,
+              clockLimit: wallClockLimitMs(settings.compileTimeMs) * 1e6,
               memoryLimit: settings.compileMemoryMb * MiB,
               stackLimit: 64 * MiB,
               procLimit: 64,
@@ -205,7 +208,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
                       { streamOut: true, max: settings.outputLimitKb * 1024 },
                     ],
                     cpuLimit: settings.runTimeMs * 1e6,
-                    clockLimit: run.interactive ? 60e9 : 5e9,
+                    clockLimit: wallClockLimitMs(settings.runTimeMs, run.interactive) * 1e6,
                     memoryLimit: settings.runMemoryMb * MiB,
                     stackLimit: 64 * MiB,
                     procLimit: 32,
@@ -306,9 +309,14 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
   }
 }
 
-export function startExecutionQueue(pool: Pool, environment: Environment) {
+export function startExecutionQueue(
+  pool: Pool,
+  environment: Environment,
+  runTask: typeof execute = execute,
+) {
   let closing = false
   let scanning = false
+  let scanPromise: Promise<void> | undefined
   const tasks = new Set<Promise<void>>()
   const runIds = new Set<string>()
   const scan = async () => {
@@ -351,7 +359,7 @@ export function startExecutionQueue(pool: Pool, environment: Environment) {
           client.release()
         }
         if (!r) break
-        const task = execute(pool, environment, r).catch(() =>
+        const task = runTask(pool, environment, r).catch(() =>
           console.error('运行结果写入失败；由过期任务检测恢复'),
         )
         tasks.add(task)
@@ -366,13 +374,17 @@ export function startExecutionQueue(pool: Pool, environment: Environment) {
       scanning = false
     }
   }
-  const timer = setInterval(() => {
-    void scan().catch(() => console.error('执行队列暂时不可用'))
-  }, 250)
-  void scan().catch(() => console.error('执行队列暂时不可用'))
+  const scheduleScan = () => {
+    if (scanning || closing) return
+    scanPromise = scan().catch(() => console.error('执行队列暂时不可用'))
+  }
+  const timer = setInterval(scheduleScan, 250)
+  scheduleScan()
   return async () => {
     closing = true
     clearInterval(timer)
+    // A claim already in progress must finish before taking the shutdown snapshot.
+    await scanPromise
     await pool.query(
       'update runs set stop_requested=true where id=any($1::uuid[]) and status=any($2)',
       [[...runIds], active],

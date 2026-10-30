@@ -95,7 +95,14 @@ export class AdminController {
       await client.query('begin')
       const result = await client.query(
         'insert into users(username,name,number,role,password_hash,created_by) values($1,$2,$3,$4,$5,$6) returning id',
-        [data.username, data.name, data.number, data.role, passwordHash(data.password), user.id],
+        [
+          data.username,
+          data.name,
+          data.number,
+          data.role,
+          await passwordHash(data.password),
+          user.id,
+        ],
       )
       await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
         'user.created',
@@ -138,7 +145,7 @@ export class AdminController {
       if (!target) throw new NotFoundException('账号不存在')
       await client.query(
         'update users set disabled=coalesce($2,disabled),password_hash=coalesce($3,password_hash) where id=$1',
-        [id, data.disabled, data.password ? passwordHash(data.password) : null],
+        [id, data.disabled, data.password ? await passwordHash(data.password) : null],
       )
       if (data.password || data.disabled === true) {
         await client.query('delete from sessions where user_id=$1', [id])

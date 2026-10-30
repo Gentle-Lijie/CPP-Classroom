@@ -36,24 +36,35 @@ export const users = pgTable('users', {
   disabled: boolean('disabled').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
-export const sessions = pgTable('sessions', {
-  token: text('token').primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-})
+export const sessions = pgTable(
+  'sessions',
+  {
+    token: text('token').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('sessions_user_id_idx').on(table.userId),
+    index('sessions_expires_at_idx').on(table.expiresAt),
+  ],
+)
 export const recoveryRequests = pgTable('recovery_requests', {
   id: uuid('id').defaultRandom().primaryKey(),
   username: text('username').notNull(),
   resolved: boolean('resolved').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
-export const loginAttempts = pgTable('login_attempts', {
-  key: text('key').primaryKey(),
-  count: integer('count').notNull().default(0),
-  since: timestamp('since', { withTimezone: true }).defaultNow().notNull(),
-})
+export const loginAttempts = pgTable(
+  'login_attempts',
+  {
+    key: text('key').primaryKey(),
+    count: integer('count').notNull().default(0),
+    since: timestamp('since', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('login_attempts_since_idx').on(table.since)],
+)
 
 export const classrooms = pgTable('classrooms', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -184,51 +195,78 @@ export const runInputs = pgTable('run_inputs', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
-export const helpRequests = pgTable('help_requests', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  classroomId: uuid('classroom_id')
-    .notNull()
-    .references(() => classrooms.id),
-  exerciseId: uuid('exercise_id')
-    .notNull()
-    .references(() => exercises.id),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
-  message: text('message').notNull(),
-  resolved: boolean('resolved').notNull().default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-export const submissions = pgTable('submissions', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  classroomId: uuid('classroom_id')
-    .notNull()
-    .references(() => classrooms.id),
-  exerciseId: uuid('exercise_id')
-    .notNull()
-    .references(() => exercises.id),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
-  code: text('code').notNull(),
-  filename: text('filename').notNull(),
-  revision: integer('revision').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-export const projections = pgTable('projections', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  classroomId: uuid('classroom_id')
-    .notNull()
-    .references(() => classrooms.id),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  snapshot: jsonb('snapshot').$type<Record<string, unknown>>().notNull(),
-  revoked: boolean('revoked').notNull().default(false),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-})
+export const helpRequests = pgTable(
+  'help_requests',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    classroomId: uuid('classroom_id')
+      .notNull()
+      .references(() => classrooms.id),
+    exerciseId: uuid('exercise_id')
+      .notNull()
+      .references(() => exercises.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
+    message: text('message').notNull(),
+    resolved: boolean('resolved').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('help_requests_overview_idx').on(
+      table.classroomId,
+      table.userId,
+      table.resolved,
+      table.createdAt,
+    ),
+  ],
+)
+export const submissions = pgTable(
+  'submissions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    classroomId: uuid('classroom_id')
+      .notNull()
+      .references(() => classrooms.id),
+    exerciseId: uuid('exercise_id')
+      .notNull()
+      .references(() => exercises.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
+    code: text('code').notNull(),
+    filename: text('filename').notNull(),
+    revision: integer('revision').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('submissions_overview_idx').on(
+      table.classroomId,
+      table.userId,
+      table.exerciseId,
+      table.language,
+      table.createdAt,
+    ),
+  ],
+)
+export const projections = pgTable(
+  'projections',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    classroomId: uuid('classroom_id')
+      .notNull()
+      .references(() => classrooms.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    snapshot: jsonb('snapshot').$type<Record<string, unknown>>().notNull(),
+    revoked: boolean('revoked').notNull().default(false),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [index('projections_expires_at_idx').on(table.expiresAt)],
+)
 export const platformSettings = pgTable('platform_settings', {
   id: text('id').primaryKey(),
   value: jsonb('value').$type<Record<string, unknown>>().notNull(),

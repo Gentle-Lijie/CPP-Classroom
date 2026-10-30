@@ -275,7 +275,7 @@ export class ClassroomController {
       await client.query('commit')
       return { id: c.id, status: member?.status ?? 'pending' }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -346,7 +346,7 @@ export class ClassroomController {
       ])
       await client.query('commit')
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -442,7 +442,7 @@ export class ClassroomController {
               data.username ?? username,
               data.name,
               data.number,
-              passwordHash(data.password ?? password),
+              await passwordHash(data.password ?? password),
               teacher.id,
             ],
           )
@@ -468,7 +468,7 @@ export class ClassroomController {
         ...(created ? { password: data.password ?? password } : {}),
       }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -502,7 +502,7 @@ export class ClassroomController {
         const password = randomBytes(12).toString('base64url')
         await client.query('update users set password_hash=$2 where id=$1', [
           user.id,
-          passwordHash(password),
+          await passwordHash(password),
         ])
         credentials.push({ ...user, password })
       }
@@ -519,7 +519,7 @@ export class ClassroomController {
       await client.query('commit')
       return credentials
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -599,7 +599,7 @@ export class ClassroomController {
       await client.query('commit')
       return { ok: true }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -671,7 +671,7 @@ export class ClassroomController {
       await client.query('commit')
       return result
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       if ((e as { code: string }).code === '23505') throw new ConflictException('文件名已存在')
       throw e
     } finally {
@@ -755,7 +755,7 @@ export class ClassroomController {
       await client.query('commit')
       return { ids }
     } catch (error) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       if ((error as { code: string }).code === '23505')
         throw new ConflictException('文件名已存在，本批次未导入，请核对后重试')
       throw error
@@ -795,7 +795,7 @@ export class ClassroomController {
       await client.query('commit')
       return { ok: true }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -872,7 +872,7 @@ export class ClassroomController {
       await client.query('commit')
       return { ids }
     } catch (error) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw error
     } finally {
       client.release()
@@ -942,7 +942,7 @@ export class ClassroomController {
       await client.query('commit')
       return result.rows[0]
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       if ((e as { code: string }).code === '23505') throw new ConflictException('文件名已存在')
       throw e
     } finally {
@@ -980,7 +980,7 @@ export class ClassroomController {
       await client.query('commit')
       return { ok: true }
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()

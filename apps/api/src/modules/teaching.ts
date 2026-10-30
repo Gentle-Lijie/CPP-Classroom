@@ -90,7 +90,7 @@ export class TeachingController {
       await client.query('commit')
       return result.rows[0]
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -194,7 +194,7 @@ export class TeachingController {
       await client.query('commit')
       return result.rows[0]
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()
@@ -335,7 +335,7 @@ export class TeachingController {
       await this.service.audit(user, 'classroom.exported', { classroomId: id, filters: data })
       return result
     } catch (e) {
-      await client.query('rollback')
+      await client.query('rollback').catch(() => {})
       throw e
     } finally {
       client.release()

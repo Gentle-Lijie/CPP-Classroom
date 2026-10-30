@@ -11,6 +11,14 @@ describe('Markdown exercise import', () => {
     expect(result.errors).toEqual([])
     expect(parseExerciseMarkdown('# 问候练习\n语言：ruby').errors.length).toBeGreaterThan(0)
   })
+  it('extracts a Python starter from prose and repeated code sections', () => {
+    const result = parseExerciseMarkdown(
+      '# 题\n## 初始代码\n参考如下：\n```python\nprint(1)\n```\n## 初始代码\n```python\nprint(2)\n```',
+    )
+    expect(result.language).toBe('python')
+    expect(result.fields.code).toBe('print(1)\n\nprint(2)')
+    expect(result.warnings).toHaveLength(2)
+  })
   it('splits a Chinese exercise and preserves code, whitespace, and fenced headings', () => {
     const result = parseExerciseMarkdown(
       [

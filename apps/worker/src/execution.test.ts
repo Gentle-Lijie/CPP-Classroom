@@ -27,6 +27,7 @@ interface Command {
   args: string[]
   copyIn?: Record<string, { content?: string; fileId?: string }>
   cpuLimit: number
+  clockLimit: number
   memoryLimit: number
   files: unknown[]
 }
@@ -198,12 +199,15 @@ describe('native go-judge language execution', () => {
       runtime_profile: 'gcc13-cpp20',
       filename: 'main.cpp',
       code: 'int main() {}',
+      execution_config: { ...executionDefaults, compileTimeMs: 20000, runTimeMs: 10000 },
     })
     expect(judge.requests[0]?.body?.cmd[0]?.args).toContain('-std=c++20')
     expect(judge.command()).toMatchObject({
       args: ['/w/program'],
       copyIn: { program: { fileId: 'program-cache' } },
+      clockLimit: 20e9,
     })
+    expect(judge.requests[0]?.body?.cmd[0]?.clockLimit).toBe(40e9)
     expect(judge.requests.at(-1)?.path).toBe('/file/program-cache')
     expect(db.result()?.metrics.compiler).toBe('GCC 13 / C++20')
   })

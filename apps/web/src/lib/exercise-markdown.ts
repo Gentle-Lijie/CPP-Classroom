@@ -75,13 +75,6 @@ function fieldForHeading(heading: string): ExerciseField | undefined {
   const name = headingName(heading)
   return exerciseFields.find(({ key }) => aliases[key].includes(name))?.key
 }
-function unwrapCode(source: string) {
-  const tokens = markdown.parse(source, {})
-  return tokens.length === 1 && ['fence', 'code_block'].includes(tokens[0]!.type)
-    ? tokens[0]!.content.replace(/\n$/, '')
-    : source
-}
-
 /** Parse heading sections from source line maps so fenced headings stay literal. */
 export function parseExerciseMarkdown(source: string): MarkdownImport {
   const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
@@ -100,11 +93,27 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
   function append(field: ExerciseField, raw: string) {
     const value = raw.trim()
     if (!value) return
-    const content = ['sampleInput', 'sampleOutput', 'code'].includes(field)
-      ? unwrapCode(value)
-      : ['title', 'topic', 'filename'].includes(field)
-        ? value.replace(/^`([^`\n]+)`$/, '$1')
-        : value
+    let content = value
+    if (['sampleInput', 'sampleOutput', 'code'].includes(field)) {
+      const sections = markdown.parse(value, {})
+      const blocks = sections.filter((token) => ['fence', 'code_block'].includes(token.type))
+      if (blocks.length) {
+        content = blocks.map((token) => token.content.replace(/\n$/, '')).join('\n\n')
+        if (sections.some((token) => token.type === 'paragraph_open'))
+          warnings.push(
+            `「${exerciseFields.find((item) => item.key === field)!.label}」中的说明文字已略过，仅导入代码块，请核对。`,
+          )
+        if (field === 'code' && !language) {
+          const info = blocks
+            .find((token) => token.type === 'fence')
+            ?.info.trim()
+            .toLowerCase()
+          if (info && ['python', 'py', 'python3'].includes(info)) language = 'python'
+          else if (info && ['cpp', 'c++', 'c++17', 'c++20'].includes(info)) language = 'cpp'
+        }
+      }
+    } else if (['title', 'topic', 'filename'].includes(field))
+      content = value.replace(/^`([^`\n]+)`$/, '$1')
     if (fields[field] !== undefined) {
       if (field !== 'description')
         warnings.push(
@@ -196,12 +205,6 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
       errors.push(`${label}超过 ${limit} 字符，请拆分或缩短后重新上传。`)
   }
   language ??= /\.py$/i.test(fields.filename ?? '') ? 'python' : undefined
-  if (!language && fields.code) {
-    const initial = tokens.find(
-      (token) => token.type === 'fence' && token.content.trim() === fields.code?.trim(),
-    )
-    if (initial && /^(python|py|python3)$/i.test(initial.info.trim())) language = 'python'
-  }
   if (fields.filename && !validSourceFilename(fields.filename, language))
     errors.push(
       '源文件名格式无效，请使用 C++ 的 .cpp、.cc、.cxx 或 Python 的 .py 文件名后重新上传。',

@@ -298,7 +298,13 @@ async function switchExercise(id: string, nextLanguage?: SourceLanguage) {
     return
   switching.value = true
   try {
-    if (!(await persist())) {
+    if (
+      dirty.value &&
+      (activeClassroom.value.status !== '进行中' || exercise.value?.status !== '已发布')
+    ) {
+      if (!(await confirmAction('当前练习已只读，示范修改无法上传。下载代码备份后切换？'))) return
+      download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
+    } else if (!(await persist())) {
       notify('示范代码尚未同步，请先重试或下载备份', 'error')
       return
     }
@@ -456,12 +462,18 @@ onBeforeRouteLeave(async (to) => {
     (!(await confirmAction('程序仍在运行，停止运行并离开授课？')) || !(await stopRun()))
   )
     return false
-  if (dirty.value && activeClassroom.value.status !== '进行中') {
-    if (!(await confirmAction('课堂已只读，示范修改无法上传。下载代码备份后离开？'))) return false
+  if (
+    dirty.value &&
+    (activeClassroom.value.status !== '进行中' || exercise.value?.status !== '已发布')
+  ) {
+    if (!(await confirmAction('课堂或练习已只读，示范修改无法上传。下载代码备份后离开？')))
+      return false
     download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
     return true
   }
-  return persist()
+  const saved = await persist()
+  if (!saved) notify('示范代码尚未同步，请重试保存或下载备份', 'error')
+  return saved
 })
 async function toggleFullscreen() {
   try {

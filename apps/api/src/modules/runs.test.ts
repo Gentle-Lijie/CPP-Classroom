@@ -139,6 +139,107 @@ describe('teacher demonstration runs', () => {
   )
 })
 
+describe('run access and interactive input', () => {
+  const runId = '44444444-4444-4444-8444-444444444444'
+  function controller(
+    options: { owner?: string; status?: string; eof?: boolean; bytes?: number } = {},
+  ) {
+    const access = vi.fn()
+    const run = {
+      id: runId,
+      user_id: options.owner ?? userId,
+      status: options.status ?? '运行中／可输入',
+      interactive: true,
+      eof: options.eof ?? false,
+    }
+    const query = vi.fn(async (sql: string, _values?: unknown[]) => {
+      if (sql.startsWith('select * from runs')) return { rows: [run] }
+      if (sql.startsWith('select count(*)')) return { rows: [{ n: 1 }] }
+      return { rows: [] }
+    })
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('select * from runs')) return { rows: [run] }
+        if (sql.startsWith('select coalesce')) return { rows: [{ n: options.bytes ?? 0 }] }
+        return { rows: [] }
+      }),
+      release: vi.fn(),
+    }
+    return {
+      controller: new RunsController({
+        access,
+        pool: { query, connect: async () => client },
+      } as unknown as ClassroomService),
+      access,
+      query,
+      client,
+      req: { actor: { id: userId, role: 'teacher' } } as AuthRequest,
+    }
+  }
+
+  it('commits a valid input and EOF, and stops an owned queued run', async () => {
+    const mock = controller()
+    await expect(
+      mock.controller.input(classId, runId, { text: 'hello', eof: true }, mock.req),
+    ).resolves.toEqual({ ok: true })
+    expect(
+      mock.client.query.mock.calls.some(([sql]) => sql.startsWith('insert into run_inputs')),
+    ).toBe(true)
+    expect(
+      mock.client.query.mock.calls.some(([sql]) => sql.startsWith('update runs set eof=true')),
+    ).toBe(true)
+    expect(mock.client.query.mock.calls.at(-1)?.[0]).toBe('commit')
+    await expect(mock.controller.stop(classId, runId, mock.req)).resolves.toEqual({ ok: true })
+    expect(
+      mock.query.mock.calls.some(([sql]) =>
+        sql.includes("status=case when status='排队' then '已停止'"),
+      ),
+    ).toBe(true)
+  })
+
+  it('rejects input after EOF and over 64 KiB while rolling back and releasing', async () => {
+    for (const options of [{ eof: true }, { bytes: 65536 }, { status: '运行完成' }]) {
+      const mock = controller(options)
+      await expect(
+        mock.controller.input(classId, runId, { text: 'x' }, mock.req),
+      ).rejects.toBeInstanceOf(ConflictException)
+      expect(mock.client.query.mock.calls.at(-1)?.[0]).toBe('rollback')
+      expect(mock.client.release).toHaveBeenCalledOnce()
+    }
+  })
+
+  it('restricts control to the owner but permits a teacher to read a student run', async () => {
+    const mock = controller({ owner: 'someone-else' })
+    await expect(mock.controller.stop(classId, runId, mock.req)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    )
+    await expect(mock.controller.get(classId, runId, mock.req)).resolves.toMatchObject({
+      id: runId,
+    })
+    expect(mock.access).toHaveBeenCalledWith(mock.req.actor, classId, true)
+  })
+
+  it('keeps list filters aligned with SQL placeholders', async () => {
+    const mock = controller()
+    await mock.controller.list(
+      classId,
+      undefined,
+      exerciseId,
+      '2',
+      '10',
+      'true',
+      undefined,
+      'all',
+      'python',
+      mock.req,
+    )
+    const select = mock.query.mock.calls.find(([sql]) =>
+      sql.includes('order by created_at desc,id desc limit'),
+    )
+    expect(select?.[1]).toEqual([classId, userId, exerciseId, true, null, true, 'python', 10, 10])
+  })
+})
+
 describe('language and environment snapshots', () => {
   it('reads the Python draft and freezes controlled settings, ignoring request profiles', async () => {
     const mock = setup({

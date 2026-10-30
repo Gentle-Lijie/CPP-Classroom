@@ -155,7 +155,7 @@ function keepBackup() {
     if (dirty.value) localStorage.setItem(backupKey, JSON.stringify(draft))
     else localStorage.removeItem(backupKey)
   } catch {
-    /* A manual download remains available when browser storage is full. */
+    notify('本机备份不可用，请及时下载或保存题目', 'error')
   }
 }
 watch(
