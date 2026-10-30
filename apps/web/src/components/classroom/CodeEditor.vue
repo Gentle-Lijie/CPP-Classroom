@@ -11,6 +11,10 @@ import { RefreshCw } from '@lucide/vue'
 import { resolvedTheme } from '@/lib/theme'
 import { lightEditorTheme, monokaiEditorTheme } from '@/lib/editor-themes'
 import { validSourceFilename } from '@/lib/source-file'
+import {
+  languageServicePreferred,
+  setLanguageServicePreferred,
+} from '@/lib/language-service-preference'
 import type { BrowserClangd, ClangdStatus } from '@/lib/browser-clangd'
 const props = withDefaults(
   defineProps<{
@@ -33,6 +37,7 @@ let disposed = false
 let applyingValue = false
 let monacoApi: typeof import('monaco-editor/esm/vs/editor/editor.api.js') | undefined
 const languageEnabled = ref(false)
+const languagePreferred = ref(languageServicePreferred(props.language))
 const languagePending = ref(false)
 const languageStatusId = useId()
 const languageStatus = ref<ClangdStatus>()
@@ -121,6 +126,8 @@ async function startLanguageService() {
   }
 }
 function toggleLanguageService(enabled: boolean) {
+  languagePreferred.value = enabled
+  setLanguageServicePreferred(props.language, enabled)
   if (enabled) void startLanguageService()
   else stopLanguageService()
 }
@@ -243,6 +250,7 @@ async function initializeEditor() {
       if (!applyingValue) emit('update:modelValue', currentEditor.getValue())
     })
     markError()
+    if (!props.readonly && languagePreferred.value) void startLanguageService()
   } catch (error) {
     editorError.value = error instanceof Error ? error.message : '编辑器资源加载失败'
     const failedModel = editor?.getModel()
@@ -273,10 +281,10 @@ watch(resolvedTheme, (theme) => {
   monacoApi?.editor.setTheme(theme === 'dark' ? 'classroom-monokai' : 'classroom-light')
 })
 watch(
-  () => [props.filename, props.language],
-  () => {
+  () => [props.filename, props.language] as const,
+  ([, language], [, previousLanguage]) => {
+    if (language !== previousLanguage) languagePreferred.value = languageServicePreferred(language)
     if (!editor || !monacoApi || disposed) return
-    const restartLanguage = languageEnabled.value || languagePending.value
     stopLanguageService()
     const previous = editor.getModel()
     errorDecoration?.clear()
@@ -286,7 +294,7 @@ watch(
     editor.updateOptions({ detectIndentation: props.language !== 'python', insertSpaces: true })
     editor.getModel()?.updateOptions({ tabSize: 4, insertSpaces: true })
     markError()
-    if (restartLanguage) void startLanguageService()
+    if (!props.readonly && languagePreferred.value) void startLanguageService()
   },
 )
 watch(() => props.errorLine, markError)
@@ -300,7 +308,7 @@ watch(
     editor?.updateOptions({ readOnly })
     if (readOnly) {
       stopLanguageService()
-    }
+    } else if (languagePreferred.value) void startLanguageService()
   },
 )
 onBeforeUnmount(() => {
@@ -341,16 +349,12 @@ onBeforeUnmount(() => {
     <div v-if="!readonly" class="editor-language-bar">
       <label
         class="editor-language-toggle"
-        title="仅为当前编辑器启用补全和诊断。首次开启需下载语言服务资源，分析在浏览器内完成。">
+        title="此语言的开关状态保存在本机浏览器。首次开启需下载语言服务资源，分析在浏览器内完成。">
         <Switch
-          :model-value="languageEnabled"
-          :disabled="editorLoading || !!editorError || languagePending"
+          :model-value="languagePreferred"
+          :disabled="editorLoading || !!editorError"
           :data-disabled-reason="
-            editorLoading
-              ? '编辑器正在加载，请稍候'
-              : editorError
-                ? '编辑器加载失败，请重试后开启语言服务'
-                : '语言服务正在切换，请稍候'
+            editorLoading ? '编辑器正在加载，请稍候' : '编辑器加载失败，请重试后开启语言服务'
           "
           :aria-busy="languagePending"
           :aria-label="`${languageServiceLabel} 语言服务`"
