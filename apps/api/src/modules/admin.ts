@@ -338,6 +338,27 @@ export class AdminController {
       )
     ).rows
   }
+  @Get('runners/usage') async runnerUsage(@Req() req: AuthRequest) {
+    this.admin(req)
+    const result = await this.service.pool.query(`
+      select n.id,n.name,n.capacity,n.enabled,
+        (select count(*)::int from runs r where r.runner_id=n.id and r.status in ('编译中','运行中／可输入')) as "activeCount",
+        coalesce(history.total,0)::int as "totalCalls",
+        coalesce(history.points,'[]'::jsonb) as points
+      from runner_nodes n
+      cross join lateral (
+        select sum(bucket.calls)::int as total,
+          jsonb_agg(jsonb_build_object('at',bucket.hour,'calls',bucket.calls) order by bucket.hour) as points
+        from (
+          select hours.hour, count(r.id)::int as calls
+          from generate_series(date_trunc('hour',now()) - interval '23 hours',date_trunc('hour',now()),interval '1 hour') as hours(hour)
+          left join runs r on r.runner_id=n.id and r.created_at>=hours.hour and r.created_at<hours.hour+interval '1 hour'
+          group by hours.hour
+        ) bucket
+      ) history
+      order by n.created_at,n.id`)
+    return result.rows
+  }
   @Post('runners/test') async testRunner(@Req() req: AuthRequest, @Body() body: unknown) {
     this.admin(req)
     const data = parse(

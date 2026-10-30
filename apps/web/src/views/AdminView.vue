@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import RunnerUsage from '@/components/classroom/RunnerUsage.vue'
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
@@ -11,22 +11,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { computed, ref, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
-import {
-  Server,
-  Database,
-  ArrowUpRight,
-  RefreshCw,
-  Search,
-  Download,
-  KeyRound,
-  Eye,
-  EyeOff,
-} from '@lucide/vue'
+import { Database, RefreshCw, Search, Download, KeyRound, Eye, EyeOff } from '@lucide/vue'
 import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { api } from '@/lib/api'
 import { csvDocument } from '@/lib/csv'
-import { notify, download, currentUser, executionSettings } from '@/data/demo'
+import { notify, download, currentUser } from '@/data/demo'
 import Modal from '@/components/classroom/Modal.vue'
 import CredentialDialog from '@/components/classroom/CredentialDialog.vue'
 const route = useRoute()
@@ -79,6 +69,10 @@ const closeRecovery = ref<Recovery>(),
   closeReason = ref(''),
   resetTarget = ref<User>()
 const metrics = ref({ classrooms: 0, online: 0, queued: 0, failed: 0 })
+const runnerUsage = ref<InstanceType<typeof RunnerUsage>>()
+async function refreshOverview() {
+  await Promise.all([load(), runnerUsage.value?.refresh()])
+}
 const create = ref(false),
   name = ref(''),
   account = ref(''),
@@ -413,7 +407,7 @@ const busyReason = ref('正在处理请求，请稍候')
         variant="outline"
         :disabled="loading"
         :data-disabled-reason="'正在加载平台数据，请稍候'"
-        @click="load">
+        @click="refreshOverview">
         <RefreshCw :size="15" />
         刷新
       </Button>
@@ -448,46 +442,7 @@ const busyReason = ref('正在处理请求，请稍候')
         <div class="stat-number">{{ value }}</div>
       </div>
     </div>
-    <ContentPanel title="服务与执行环境" :icon="Server">
-      <!-- description="以下为平台配置目标；实际节点连接与服务健康请在平台配置中检查。" -->
-      <template #actions>
-        <Button variant="outline" size="sm" as-child>
-          <RouterLink to="/admin/settings">
-            管理配置
-            <ArrowUpRight :size="14" />
-          </RouterLink>
-        </Button>
-      </template>
-      <dl class="admin-environment-summary">
-        <div>
-          <dt>Python</dt>
-          <dd class="inline-items">
-            CPython 3 · 标准库
-            <PythonBeta />
-          </dd>
-        </div>
-        <div>
-          <dt>编译环境</dt>
-          <dd>
-            GCC（配置目标）
-            <span>
-              / {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}
-            </span>
-          </dd>
-        </div>
-        <div>
-          <dt>并行任务</dt>
-          <dd>
-            {{ executionSettings.executionConcurrency }}
-            <span>个执行槽</span>
-          </dd>
-        </div>
-        <div>
-          <dt>执行节点</dt>
-          <dd>独立 Linux 节点</dd>
-        </div>
-      </dl>
-    </ContentPanel>
+    <RunnerUsage ref="runnerUsage" />
   </template>
   <section v-else-if="section === 'teachers'" class="panel panel-fill">
     <div class="table-controls">
@@ -961,34 +916,6 @@ const busyReason = ref('正在处理请求，请稍候')
   max-width: 160px;
 }
 
-.admin-environment-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  margin: 0;
-}
-.admin-environment-summary div + div {
-  border-left: 1px solid var(--ui-line);
-  padding-left: 24px;
-}
-.admin-environment-summary dt {
-  color: var(--ui-muted);
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-.admin-environment-summary dd {
-  margin: 0;
-  color: var(--ui-ink);
-  font-size: 20px;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.5;
-}
-.admin-environment-summary dd span {
-  font-size: 14px;
-  color: var(--ui-secondary);
-  font-weight: 400;
-}
 .admin-backup-panel {
   margin-bottom: 24px;
 }
@@ -1005,18 +932,6 @@ const busyReason = ref('正在处理请求，请稍候')
   color: var(--ui-secondary);
 }
 @media (max-width: 760px) {
-  .admin-environment-summary {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
-  .admin-environment-summary div + div {
-    border-left: 0;
-    border-top: 1px solid var(--ui-line);
-    padding: 16px 0 0;
-  }
-  .admin-environment-summary dd {
-    font-size: 18px;
-  }
   .admin-recovery-content {
     padding: 20px;
   }

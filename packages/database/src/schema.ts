@@ -192,6 +192,7 @@ export const runs = pgTable(
   },
   (t) => [
     index('runs_queue_idx').on(t.status, t.createdAt),
+    index('runs_runner_usage_idx').on(t.runnerId, t.createdAt),
     index('runs_history_idx').on(t.classroomId, t.userId, t.createdAt),
   ],
 )
