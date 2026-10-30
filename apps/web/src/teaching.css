@@ -375,9 +375,6 @@
   color: var(--ui-muted);
   font-size: 14px;
 }
-.slide-description {
-  max-width: 1020px;
-}
 .slide-description .markdown-content {
   font-size: clamp(15px, 1.45vw, 23px);
   line-height: 1.9;

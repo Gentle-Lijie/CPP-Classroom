@@ -667,6 +667,7 @@ onBeforeUnmount(() => {
           id="teaching-problem"
           as="section"
           class="teaching-problem"
+          :style="{ overflow: 'auto' }"
           :default-size="mode === '对照' ? 40 : 100"
           :min-size="25">
           <div class="slide-title-row">
