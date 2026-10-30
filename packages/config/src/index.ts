@@ -22,6 +22,7 @@ export const environmentSchema = z.object({
   GO_JUDGE_URL: z.union([z.literal(''), z.url({ protocol: /^https?$/ })]).default(''),
   GO_JUDGE_AUTH_TOKEN: z.string().default(''),
   GO_JUDGE_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(2000),
+  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(128).optional(),
 })
 
 export type Environment = z.infer<typeof environmentSchema>

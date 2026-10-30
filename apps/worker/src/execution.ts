@@ -126,9 +126,12 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
               args: [
                 '/usr/bin/g++',
                 runtime.profile === 'gcc13-cpp20' ? '-std=c++20' : '-std=c++17',
-                '-O0',
-                '-Wall',
-                '-Wextra',
+                `-${['O0', 'O1', 'O2', 'O3'].includes(settings.optimization ?? '') ? settings.optimization : 'O0'}`,
+                ...(settings.warnings === false ? [] : ['-Wall', '-Wextra']),
+                ...(settings.macros ?? '')
+                  .split(/\s+/)
+                  .filter((m) => /^[A-Za-z_]\w*(?:=[A-Za-z0-9_.+-]+)?$/.test(m))
+                  .map((m) => `-D${m}`),
                 run.filename,
                 '-o',
                 'program',
@@ -199,7 +202,13 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
                   {
                     args:
                       runtime.language === 'python'
-                        ? [...pythonArguments, `/w/${run.filename}`]
+                        ? [
+                            ...pythonArguments,
+                            ...(['O', 'OO'].includes(settings.optimization ?? '')
+                              ? [`-${settings.optimization}`]
+                              : []),
+                            `/w/${run.filename}`,
+                          ]
                         : ['/w/program'],
                     env,
                     files: [
@@ -335,9 +344,11 @@ export function startExecutionQueue(
         ...(await pool.query("select value from platform_settings where id='execution'")).rows[0]
           ?.value,
       } as typeof executionDefaults
-      while (tasks.size < settings.executionConcurrency && !closing) {
+      const localConcurrency = environment.WORKER_CONCURRENCY ?? settings.executionConcurrency
+      while (tasks.size < localConcurrency && !closing) {
         const client = await pool.connect()
         let r: Run | undefined
+        let selectedEnvironment = environment
         try {
           await client.query('begin')
           await client.query('select pg_advisory_xact_lock(782132)')
@@ -345,11 +356,31 @@ export function startExecutionQueue(
             await client.query('select count(*)::int as n from runs where status=any($1)', [active])
           ).rows[0].n
           if (count < settings.executionConcurrency) {
-            r = (
+            const nodes = (
               await client.query(
-                `update runs set status=case when language='python' then '运行中／可输入' else '编译中' end,updated_at=now() where id=(select id from runs where status='排队' and not stop_requested order by created_at for update skip locked limit 1) returning *`,
+                `select n.id,n.url,n.auth_token,n.capacity,n.enabled,
+                  (select count(*)::int from runs r where r.runner_id=n.id and r.status=any($1)) as active_count
+                 from runner_nodes n order by n.created_at,n.id`,
+                [active],
               )
-            ).rows[0] as Run | undefined
+            ).rows
+            const node = nodes
+              .filter((n) => n.enabled && n.active_count < n.capacity)
+              .sort((a, b) => a.active_count / a.capacity - b.active_count / b.capacity)[0]
+            if (node || (nodes.length === 0 && environment.GO_JUDGE_URL)) {
+              if (node)
+                selectedEnvironment = {
+                  ...environment,
+                  GO_JUDGE_URL: node.url,
+                  GO_JUDGE_AUTH_TOKEN: node.auth_token,
+                }
+              r = (
+                await client.query(
+                  `update runs set runner_id=$1,status=case when language='python' then '运行中／可输入' else '编译中' end,updated_at=now() where id=(select id from runs where status='排队' and not stop_requested order by created_at for update skip locked limit 1) returning *`,
+                  [node?.id ?? null],
+                )
+              ).rows[0] as Run | undefined
+            }
           }
           await client.query('commit')
         } catch (e) {
@@ -359,7 +390,7 @@ export function startExecutionQueue(
           client.release()
         }
         if (!r) break
-        const task = runTask(pool, environment, r).catch(() =>
+        const task = runTask(pool, selectedEnvironment, r).catch(() =>
           console.error('运行结果写入失败；由过期任务检测恢复'),
         )
         tasks.add(task)

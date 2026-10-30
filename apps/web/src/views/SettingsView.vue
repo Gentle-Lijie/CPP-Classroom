@@ -12,6 +12,8 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Save, Copy, RefreshCw, ShieldCheck, Archive, Settings2, ChevronRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import type { SourceLanguage } from '@classroom/contracts'
 import {
   activeClassroom,
   demo,
@@ -23,6 +25,8 @@ import {
 } from '@/data/demo'
 import { api } from '@/lib/api'
 import { onBeforeRouteLeave } from 'vue-router'
+const environmentLanguage = ref<SourceLanguage>('cpp')
+const languageEnvironment = computed(() => executionSettings.languages[environmentLanguage.value])
 const form = reactive({
   name: activeClassroom.value.name,
   description: activeClassroom.value.description,
@@ -319,31 +323,62 @@ const busyReason = ref('正在处理请求，请稍候')
             <h2>统一编程环境</h2>
           </div>
           <Alert type="info">编译标准与运行限制由平台管理员统一配置。</Alert>
-          <p>GCC · {{ executionSettings.compilerProfile === 'gcc13-cpp20' ? 'C++20' : 'C++17' }}</p>
+          <div class="filter-tabs" role="tablist" aria-label="编程语言">
+            <Button
+              variant="plain"
+              type="button"
+              role="tab"
+              :aria-selected="environmentLanguage === 'cpp'"
+              :class="{ selected: environmentLanguage === 'cpp' }"
+              @click="environmentLanguage = 'cpp'">
+              C++
+            </Button>
+            <Button
+              variant="plain"
+              type="button"
+              role="tab"
+              :aria-selected="environmentLanguage === 'python'"
+              :class="{ selected: environmentLanguage === 'python' }"
+              @click="environmentLanguage = 'python'">
+              Python
+              <PythonBeta />
+            </Button>
+          </div>
+          <p>
+            {{
+              environmentLanguage === 'cpp'
+                ? executionSettings.languages.cpp.compilerProfile === 'gcc13-cpp20'
+                  ? 'GCC · C++20'
+                  : 'GCC · C++17'
+                : 'CPython 3 · 标准库'
+            }}
+          </p>
           <div class="environment-grid">
             <div>
               <span>项目类型</span>
-              <strong>每题一个 C++ 源文件</strong>
+              <strong>
+                每题一个 {{ environmentLanguage === 'cpp' ? 'C++' : 'Python' }} 源文件
+              </strong>
             </div>
             <div>
               <span>运行时间</span>
-              <strong>{{ executionSettings.runTimeMs }} ms</strong>
+              <strong>{{ languageEnvironment.runTimeMs }} ms</strong>
             </div>
             <div>
               <span>内存上限</span>
-              <strong>{{ executionSettings.runMemoryMb }} MiB</strong>
+              <strong>{{ languageEnvironment.runMemoryMb }} MiB</strong>
             </div>
             <div>
               <span>输出上限</span>
-              <strong>{{ executionSettings.outputLimitKb }} KiB</strong>
+              <strong>{{ languageEnvironment.outputLimitKb }} KiB</strong>
             </div>
-            <div>
+            <div v-if="environmentLanguage === 'cpp'">
               <span>编译时间</span>
-              <strong>{{ executionSettings.compileTimeMs }} ms</strong>
+              <strong>{{ executionSettings.languages.cpp.compileTimeMs }} ms</strong>
             </div>
-            <div>
+            <div v-if="environmentLanguage === 'cpp'">
               <span>编译内存</span>
-              <strong>{{ executionSettings.compileMemoryMb }} MiB</strong>
+              <strong>{{ executionSettings.languages.cpp.compileMemoryMb }} MiB</strong>
             </div>
           </div>
         </div>

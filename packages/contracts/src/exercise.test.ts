@@ -3,6 +3,7 @@ import {
   exerciseSourceFilename,
   exerciseStarterCode,
   executionSnapshot,
+  languageSettings,
   validSourceFilename,
 } from './index.js'
 
@@ -55,5 +56,22 @@ describe('multi-language exercise sources', () => {
     expect(
       executionSnapshot('python', { compilerProfile: '/bin/sh', runMemoryMb: Infinity }),
     ).toMatchObject({ runtimeProfile: 'cpython3-stdlib', executionConfig: { runMemoryMb: 256 } })
+  })
+  it('upgrades legacy settings and snapshots each language independently', () => {
+    const languages = languageSettings({ runTimeMs: 3500, compilerProfile: 'gcc13-cpp20' })
+    expect(languages.python.runTimeMs).toBe(3500)
+    languages.cpp.runTimeMs = 4100
+    languages.cpp.optimization = 'O2'
+    languages.cpp.macros = 'DEBUG LEVEL=2'
+    languages.python.runTimeMs = 1200
+    languages.python.optimization = 'O'
+    expect(executionSnapshot('cpp', { languages })).toMatchObject({
+      runtimeProfile: 'gcc13-cpp20',
+      executionConfig: { runTimeMs: 4100, optimization: 'O2', macros: 'DEBUG LEVEL=2' },
+    })
+    expect(executionSnapshot('python', { languages })).toMatchObject({
+      runtimeProfile: 'cpython3-stdlib',
+      executionConfig: { runTimeMs: 1200, optimization: 'O' },
+    })
   })
 })

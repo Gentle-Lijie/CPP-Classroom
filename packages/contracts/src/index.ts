@@ -87,6 +87,61 @@ export const executionDefaults = {
   executionConcurrency: 16,
 }
 
+export const languageExecutionDefaults = {
+  cpp: {
+    compilerProfile: 'gcc13-cpp17' as 'gcc13-cpp17' | 'gcc13-cpp20',
+    compileTimeMs: 10000,
+    compileMemoryMb: 512,
+    runTimeMs: 2000,
+    runMemoryMb: 256,
+    outputLimitKb: 1024,
+    optimization: 'O0' as 'O0' | 'O1' | 'O2' | 'O3',
+    warnings: true,
+    macros: '',
+  },
+  python: {
+    runTimeMs: 2000,
+    runMemoryMb: 256,
+    outputLimitKb: 1024,
+    optimization: 'none' as 'none' | 'O' | 'OO',
+  },
+}
+export type LanguageExecutionSettings = typeof languageExecutionDefaults
+
+/** Upgrade legacy shared limits in memory without changing persisted data. */
+export function languageSettings(
+  settings: Record<string, unknown> = {},
+): LanguageExecutionSettings {
+  const saved =
+    settings.languages && typeof settings.languages === 'object'
+      ? (settings.languages as Partial<LanguageExecutionSettings>)
+      : {}
+  const shared = Object.fromEntries(
+    [
+      'compileTimeMs',
+      'compileMemoryMb',
+      'runTimeMs',
+      'runMemoryMb',
+      'outputLimitKb',
+      'compilerProfile',
+    ]
+      .filter((key) => settings[key] !== undefined)
+      .map((key) => [key, settings[key]]),
+  )
+  return {
+    cpp: { ...languageExecutionDefaults.cpp, ...shared, ...saved.cpp },
+    python: {
+      ...languageExecutionDefaults.python,
+      ...Object.fromEntries(
+        ['runTimeMs', 'runMemoryMb', 'outputLimitKb']
+          .filter((key) => settings[key] !== undefined)
+          .map((key) => [key, settings[key]]),
+      ),
+      ...saved.python,
+    },
+  }
+}
+
 /** Allow wall time above the CPU budget, with a longer window for interactive input. */
 export function wallClockLimitMs(cpuTimeMs: number, interactive = false) {
   const limit = Math.max(2 * cpuTimeMs, cpuTimeMs + 1000)
@@ -99,6 +154,9 @@ export interface ExecutionConfig {
   runTimeMs: number
   runMemoryMb: number
   outputLimitKb: number
+  optimization?: 'O0' | 'O1' | 'O2' | 'O3' | 'none' | 'O' | 'OO'
+  warnings?: boolean
+  macros?: string
 }
 
 /** Only controlled profiles and numeric limits enter a run snapshot. */
@@ -106,6 +164,8 @@ export function executionSnapshot(
   language: SourceLanguage,
   settings: Record<string, unknown> = {},
 ): { runtimeProfile: RuntimeProfile; executionConfig: ExecutionConfig } {
+  const configured = settings.languages && typeof settings.languages === 'object'
+  const selected = configured ? languageSettings(settings)[language] : settings
   const limits = {
     compileTimeMs: [1000, 20000],
     compileMemoryMb: [128, 1024],
@@ -114,19 +174,41 @@ export function executionSnapshot(
     outputLimitKb: [16, 2048],
   } as const
   const executionConfig = {} as ExecutionConfig
-  for (const name of Object.keys(limits) as (keyof ExecutionConfig)[]) {
-    const value = settings[name]
+  for (const name of Object.keys(limits) as (keyof typeof limits)[]) {
+    const value = selected[name as keyof typeof selected]
     const [min, max] = limits[name]
     executionConfig[name] =
       typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
         ? value
         : executionDefaults[name]
   }
+  if (configured) {
+    if (language === 'cpp') {
+      const cpp = languageSettings(settings).cpp
+      executionConfig.optimization = ['O0', 'O1', 'O2', 'O3'].includes(cpp.optimization)
+        ? cpp.optimization
+        : 'O0'
+      executionConfig.warnings = typeof cpp.warnings === 'boolean' ? cpp.warnings : true
+      executionConfig.macros =
+        typeof cpp.macros === 'string' &&
+        /^(?:[A-Za-z_]\w*(?:=[A-Za-z0-9_.+-]+)?(?:\s+|$))*$/.test(cpp.macros) &&
+        cpp.macros.length <= 1000
+          ? cpp.macros
+          : ''
+    } else {
+      const python = languageSettings(settings).python
+      executionConfig.optimization = ['none', 'O', 'OO'].includes(python.optimization)
+        ? python.optimization
+        : 'none'
+    }
+  }
   return {
     runtimeProfile:
       language === 'python'
         ? defaultRuntimeProfiles.python
-        : settings.compilerProfile === 'gcc13-cpp20'
+        : (configured
+              ? languageSettings(settings).cpp.compilerProfile
+              : settings.compilerProfile) === 'gcc13-cpp20'
           ? 'gcc13-cpp20'
           : 'gcc13-cpp17',
     executionConfig,

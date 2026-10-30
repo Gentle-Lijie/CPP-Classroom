@@ -212,6 +212,33 @@ describe('native go-judge language execution', () => {
     expect(db.result()?.metrics.compiler).toBe('GCC 13 / C++20')
   })
 
+  it('applies the snapshotted C++ options and Python optimization', async () => {
+    const cppJudge = await fakeJudge()
+    await execute(fakePool().pool, cppJudge.environment, {
+      ...pythonRun,
+      language: 'cpp',
+      runtime_profile: 'gcc13-cpp17',
+      filename: 'main.cpp',
+      execution_config: { optimization: 'O2', warnings: false, macros: 'DEBUG LEVEL=2' },
+    })
+    expect(cppJudge.requests[0]?.body?.cmd[0]?.args).toEqual([
+      '/usr/bin/g++',
+      '-std=c++17',
+      '-O2',
+      '-DDEBUG',
+      '-DLEVEL=2',
+      'main.cpp',
+      '-o',
+      'program',
+    ])
+    const pyJudge = await fakeJudge()
+    await execute(fakePool().pool, pyJudge.environment, {
+      ...pythonRun,
+      execution_config: { optimization: 'OO' },
+    })
+    expect(pyJudge.command()?.args).toEqual([...pythonArguments, '-OO', '/w/练习.py'])
+  })
+
   it.each(['SyntaxError: invalid syntax', 'ValueError: invalid literal for int()'])(
     'retains Python stderr: %s',
     async (error) => {

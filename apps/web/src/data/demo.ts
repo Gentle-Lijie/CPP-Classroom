@@ -1,9 +1,9 @@
 import { computed, reactive, ref } from 'vue'
 import { api, ApiError, connectionState } from '@/lib/api'
-import { executionDefaults, type SourceLanguage } from '@classroom/contracts'
+import { executionDefaults, languageSettings, type SourceLanguage } from '@classroom/contracts'
 import { clearNotifications, notify } from '@/lib/notifications'
 export { notify } from '@/lib/notifications'
-export const executionSettings = reactive({ ...executionDefaults })
+export const executionSettings = reactive({ ...executionDefaults, languages: languageSettings() })
 export const starterCode =
   '#include <iostream>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n'
 export const errorCode = starterCode

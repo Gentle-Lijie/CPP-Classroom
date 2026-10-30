@@ -22,4 +22,15 @@ describe('environment validation', () => {
     ).toBe(false)
     expect(environmentSchema.safeParse({ ...baseline, GO_JUDGE_TIMEOUT_MS: 0 }).success).toBe(false)
   })
+  it('validates the optional per-worker capacity', () => {
+    expect(
+      environmentSchema.parse({ ...baseline, WORKER_CONCURRENCY: '4' }).WORKER_CONCURRENCY,
+    ).toBe(4)
+    expect(environmentSchema.safeParse({ ...baseline, WORKER_CONCURRENCY: '0' }).success).toBe(
+      false,
+    )
+    expect(environmentSchema.safeParse({ ...baseline, WORKER_CONCURRENCY: '1.5' }).success).toBe(
+      false,
+    )
+  })
 })

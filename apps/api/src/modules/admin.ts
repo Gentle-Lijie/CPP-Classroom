@@ -20,8 +20,22 @@ import { passwordHash } from './auth.js'
 import { actor, parse, role, text, passwordInput, type AuthRequest } from './common.js'
 import { ENVIRONMENT } from '../environment.js'
 import type { Environment } from '@classroom/config'
-import { executionDefaults, executionLimits } from '@classroom/contracts'
+import { executionDefaults, executionLimits, languageSettings } from '@classroom/contracts'
 const executeFile = promisify(execFile)
+const runnerUrl = z
+  .url({ protocol: /^https?$/ })
+  .max(500)
+  .refine((value) => {
+    const url = new URL(value)
+    return !url.username && !url.password && !url.search && !url.hash
+  }, '节点地址不能包含凭据、查询参数或片段')
+const runnerNode = z.object({
+  name: text(100),
+  url: runnerUrl,
+  token: z.string().max(4096).optional(),
+  capacity: z.number().int().min(1).max(128),
+  enabled: z.boolean(),
+})
 const settings = z.object({
   compilerProfile: z.enum(['gcc13-cpp17', 'gcc13-cpp20']),
   compileTimeMs: z.number().int().min(1000).max(20000),
@@ -30,6 +44,30 @@ const settings = z.object({
   runMemoryMb: z.number().int().min(16).max(512),
   outputLimitKb: z.number().int().min(16).max(2048),
   executionConcurrency: z.number().int().min(1).max(executionLimits.maxConcurrentRuns),
+  languages: z
+    .object({
+      cpp: z.object({
+        compilerProfile: z.enum(['gcc13-cpp17', 'gcc13-cpp20']),
+        compileTimeMs: z.number().int().min(1000).max(20000),
+        compileMemoryMb: z.number().int().min(128).max(1024),
+        runTimeMs: z.number().int().min(100).max(10000),
+        runMemoryMb: z.number().int().min(16).max(512),
+        outputLimitKb: z.number().int().min(16).max(2048),
+        optimization: z.enum(['O0', 'O1', 'O2', 'O3']),
+        warnings: z.boolean(),
+        macros: z
+          .string()
+          .max(1000)
+          .regex(/^(?:[A-Za-z_]\w*(?:=[A-Za-z0-9_.+-]+)?(?:\s+|$))*$/),
+      }),
+      python: z.object({
+        runTimeMs: z.number().int().min(100).max(10000),
+        runMemoryMb: z.number().int().min(16).max(512),
+        outputLimitKb: z.number().int().min(16).max(2048),
+        optimization: z.enum(['none', 'O', 'OO']),
+      }),
+    })
+    .optional(),
 })
 @Controller('admin')
 export class AdminController {
@@ -285,9 +323,110 @@ export class AdminController {
     return {
       ...executionDefaults,
       ...saved,
+      languages: languageSettings(saved),
       goJudgeUrl: this.environment.GO_JUDGE_URL,
       goJudgeTimeoutMs: this.environment.GO_JUDGE_TIMEOUT_MS,
     }
+  }
+  @Get('runners') async runners(@Req() req: AuthRequest) {
+    this.admin(req)
+    return (
+      await this.service.pool.query(
+        `select n.id,n.name,n.url,n.capacity,n.enabled,(n.auth_token <> '') as "hasToken",
+         (select count(*)::int from runs r where r.runner_id=n.id and r.status in ('编译中','运行中／可输入')) as "activeCount"
+         from runner_nodes n order by n.created_at,n.id`,
+      )
+    ).rows
+  }
+  @Post('runners/test') async testRunner(@Req() req: AuthRequest, @Body() body: unknown) {
+    this.admin(req)
+    const data = parse(
+      z.object({ url: runnerUrl, token: z.string().max(4096).optional(), id: z.uuid().optional() }),
+      body,
+    )
+    const url = data.url.replace(/\/$/, '')
+    let token = data.token ?? ''
+    if (data.id && data.token === undefined) {
+      const saved = (
+        await this.service.pool.query('select url,auth_token from runner_nodes where id=$1', [
+          data.id,
+        ])
+      ).rows[0]
+      if (!saved) throw new NotFoundException('执行节点不存在')
+      if (saved.url.replace(/\/$/, '') !== url)
+        throw new ConflictException('节点地址已更改，请重新填写令牌后测试')
+      token = saved.auth_token
+    }
+    const start = performance.now()
+    try {
+      const response = await fetch(`${url}/run`, {
+        method: 'POST',
+        redirect: 'error',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: AbortSignal.timeout(Math.max(10000, this.environment.GO_JUDGE_TIMEOUT_MS || 2000)),
+        body: JSON.stringify({
+          cmd: [
+            {
+              args: ['/usr/bin/true'],
+              env: ['PATH=/usr/bin:/bin'],
+              files: [
+                { content: '' },
+                { name: 'stdout', max: 1024 },
+                { name: 'stderr', max: 1024 },
+              ],
+              cpuLimit: 1e9,
+              clockLimit: 3e9,
+              memoryLimit: 64 * 1024 * 1024,
+              procLimit: 4,
+            },
+          ],
+        }),
+      })
+      if (!response.ok) return { ok: false, message: '节点请求失败，请检查地址和认证令牌。' }
+      const results = (await response.json()) as { status?: string; exitStatus?: number }[]
+      if (
+        !Array.isArray(results) ||
+        results[0]?.status !== 'Accepted' ||
+        results[0]?.exitStatus !== 0
+      )
+        return { ok: false, message: '节点已连接，但沙箱测试未通过。' }
+      return {
+        ok: true,
+        message: '连接和沙箱测试通过。',
+        latencyMs: Math.round(performance.now() - start),
+      }
+    } catch {
+      return { ok: false, message: '无法连接节点，请检查地址、网络和认证令牌。' }
+    }
+  }
+  @Post('runners') async createRunner(@Req() req: AuthRequest, @Body() body: unknown) {
+    const user = this.admin(req)
+    const data = parse(runnerNode, body)
+    const result = await this.service.pool.query(
+      'insert into runner_nodes(name,url,auth_token,capacity,enabled) values($1,$2,$3,$4,$5) returning id',
+      [data.name, data.url.replace(/\/$/, ''), data.token ?? '', data.capacity, data.enabled],
+    )
+    await this.service.audit(user, 'runner.created', { id: result.rows[0].id, name: data.name })
+    return { id: result.rows[0].id }
+  }
+  @Patch('runners/:id') async updateRunner(
+    @Req() req: AuthRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const user = this.admin(req)
+    parse(z.uuid(), id)
+    const data = parse(runnerNode, body)
+    const result = await this.service.pool.query(
+      'update runner_nodes set name=$2,url=$3,auth_token=coalesce($4,auth_token),capacity=$5,enabled=$6 where id=$1 returning id',
+      [id, data.name, data.url.replace(/\/$/, ''), data.token ?? null, data.capacity, data.enabled],
+    )
+    if (!result.rows.length) throw new NotFoundException('执行节点不存在')
+    await this.service.audit(user, 'runner.updated', { id, name: data.name, enabled: data.enabled })
+    return { id }
   }
   @Post('settings') async saveSettings(@Req() req: AuthRequest, @Body() body: unknown) {
     const user = this.admin(req)

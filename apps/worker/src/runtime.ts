@@ -1,4 +1,4 @@
-import { executionDefaults } from '@classroom/contracts'
+import { executionDefaults, type ExecutionConfig } from '@classroom/contracts'
 
 export interface JudgeResult {
   status: string
@@ -15,7 +15,7 @@ export interface RuntimeSnapshot {
   language?: string
   runtime_profile?: string | null
   compiler_profile?: string | null
-  execution_config?: Partial<typeof executionDefaults> | null
+  execution_config?: Partial<ExecutionConfig> | null
 }
 
 export const MiB = 1024 * 1024

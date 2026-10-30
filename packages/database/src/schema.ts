@@ -146,6 +146,16 @@ export const drafts = pgTable(
   ],
 )
 
+export const runnerNodes = pgTable('runner_nodes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  url: text('url').notNull(),
+  authToken: text('auth_token').notNull(),
+  capacity: integer('capacity').notNull(),
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const runs = pgTable(
   'runs',
   {
@@ -165,6 +175,7 @@ export const runs = pgTable(
     compilerProfile: text('compiler_profile'),
     runtimeProfile: text('runtime_profile'),
     executionConfig: jsonb('execution_config').$type<Record<string, number>>(),
+    runnerId: uuid('runner_id').references(() => runnerNodes.id),
     revision: integer('revision').notNull(),
     input: text('input').notNull(),
     status: text('status').notNull().default('排队'),

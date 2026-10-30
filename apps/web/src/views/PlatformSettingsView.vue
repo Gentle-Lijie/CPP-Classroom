@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
-import { NumberInput } from '@/components/ui/number-input'
+import { NumberInputField } from '@/components/ui/number-input'
 import { Form } from '@/components/ui/form'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import {
@@ -14,27 +15,68 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
-  LockKeyhole,
   CircleAlert,
-  Check,
+  ChevronRight,
+  Settings2,
+  SlidersHorizontal,
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-import ContentPanel from '@/components/classroom/ContentPanel.vue'
+import PythonBeta from '@/components/classroom/PythonBeta.vue'
+import RunnerNodes from '@/components/classroom/RunnerNodes.vue'
 import { confirmAction } from '@/lib/confirm'
 import { api } from '@/lib/api'
 import { notify, executionSettings } from '@/data/demo'
 import { probePlatform, type ProbeResult, type ProbeState } from '@/lib/platform-health'
-import { executionDefaults, executionLimits, wallClockLimitMs } from '@classroom/contracts'
+import {
+  executionDefaults,
+  executionLimits,
+  wallClockLimitMs,
+  languageSettings,
+  type SourceLanguage,
+} from '@classroom/contracts'
 
-const form = reactive({ ...executionDefaults, goJudgeUrl: '', goJudgeTimeoutMs: 2000 })
+const form = reactive({
+  ...executionDefaults,
+  languages: languageSettings(),
+})
+const language = ref<SourceLanguage>('cpp')
+const activeLanguage = computed(() => form.languages[language.value])
+const command = computed(() =>
+  language.value === 'cpp'
+    ? [
+        '/usr/bin/g++',
+        form.languages.cpp.compilerProfile === 'gcc13-cpp20' ? '-std=c++20' : '-std=c++17',
+        `-${form.languages.cpp.optimization}`,
+        ...(form.languages.cpp.warnings ? ['-Wall', '-Wextra'] : []),
+        ...form.languages.cpp.macros
+          .split(/\s+/)
+          .filter(Boolean)
+          .map((m) => `-D${m}`),
+        '<源文件>',
+        '-o',
+        'program',
+      ].join(' ')
+    : [
+        '/usr/bin/python3',
+        '-I',
+        '-S',
+        '-B',
+        '-u',
+        '-X',
+        'utf8',
+        ...(form.languages.python.optimization === 'none'
+          ? []
+          : [`-${form.languages.python.optimization}`]),
+        '<源文件>',
+      ].join(' '),
+)
 const loading = ref(true),
   saving = ref(false),
   checking = ref(false)
 const loadError = ref(''),
   saveError = ref(''),
   savedSnapshot = ref('')
-const checkedAt = ref(''),
-  savedAt = ref('')
+const checkedAt = ref('')
 const states = reactive<Record<'api' | 'database' | 'runner', ProbeResult>>({
   api: { status: 'idle', message: '尚未检查连接。' },
   database: { status: 'idle', message: '尚未检查连接。' },
@@ -63,18 +105,9 @@ const groups = [
     ],
   },
   {
-    title: '并行与输出',
+    title: '输出限制',
     // description: '控制平台总并发和单次程序的输出量。',
-    fields: [
-      {
-        key: 'executionConcurrency',
-        name: '执行槽位',
-        unit: '个',
-        min: 1,
-        max: executionLimits.maxConcurrentRuns,
-      },
-      { key: 'outputLimitKb', name: '输出上限', unit: 'KiB', min: 16, max: 2048 },
-    ],
+    fields: [{ key: 'outputLimitKb', name: '输出上限', unit: 'KiB', min: 16, max: 2048 }],
   },
 ] as const
 const labels: Record<ProbeState, string> = {
@@ -86,12 +119,8 @@ const labels: Record<ProbeState, string> = {
 }
 function configuration() {
   return {
-    compilerProfile: form.compilerProfile,
-    compileTimeMs: form.compileTimeMs,
-    compileMemoryMb: form.compileMemoryMb,
-    runTimeMs: form.runTimeMs,
-    runMemoryMb: form.runMemoryMb,
-    outputLimitKb: form.outputLimitKb,
+    ...form.languages.cpp,
+    languages: JSON.parse(JSON.stringify(form.languages)) as typeof form.languages,
     executionConcurrency: form.executionConcurrency,
   }
 }
@@ -132,6 +161,11 @@ async function check() {
 }
 async function save() {
   if (loading.value || saving.value || loadError.value || !dirty.value) return
+  if (!/^(?:[A-Za-z_]\w*(?:=[A-Za-z0-9_.+-]+)?(?:\s+|$))*$/.test(form.languages.cpp.macros)) {
+    language.value = 'cpp'
+    saveError.value = '宏定义格式无效，请使用空格分隔的名称或 NAME=VALUE。'
+    return
+  }
   saving.value = true
   saveError.value = ''
   const value = configuration()
@@ -139,7 +173,6 @@ async function save() {
     await api('/admin/settings', 'POST', value)
     Object.assign(executionSettings, value)
     savedSnapshot.value = JSON.stringify(value)
-    savedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
     notify('运行配置已保存，后续开始的任务将使用新配置')
   } catch (error) {
     saveError.value = error instanceof Error ? error.message : '保存失败，请重试。'
@@ -147,9 +180,38 @@ async function save() {
     saving.value = false
   }
 }
+const sections = ['服务状态', '执行节点', '运行环境', '资源限额']
+const tab = ref(sections[0])
+const panelEl = ref<HTMLElement | null>(null)
+let spyRaf = 0
+function goTo(name: string) {
+  tab.value = name
+  document
+    .getElementById(`platform-section-${sections.indexOf(name)}`)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+function spy() {
+  spyRaf = 0
+  const panel = panelEl.value
+  if (!panel) return
+  const panelTop = panel.getBoundingClientRect().top
+  let current = sections[0]
+  for (let i = 0; i < sections.length; i++) {
+    const el = document.getElementById(`platform-section-${i}`)
+    if (el && el.getBoundingClientRect().top - panelTop <= 24) current = sections[i]
+  }
+  if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4)
+    current = sections[sections.length - 1]
+  tab.value = current
+}
+function onScroll() {
+  if (!spyRaf) spyRaf = requestAnimationFrame(spy)
+}
 onMounted(() => {
   void load()
   void check()
+  panelEl.value?.addEventListener('scroll', onScroll, { passive: true })
+  spy()
 })
 function beforeUnload(event: BeforeUnloadEvent) {
   if (!dirty.value && !saving.value) return
@@ -157,7 +219,11 @@ function beforeUnload(event: BeforeUnloadEvent) {
   event.returnValue = ''
 }
 window.addEventListener('beforeunload', beforeUnload)
-onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', beforeUnload)
+  panelEl.value?.removeEventListener('scroll', onScroll)
+  if (spyRaf) cancelAnimationFrame(spyRaf)
+})
 onBeforeRouteLeave(async () => {
   if (saving.value) return false
   return !dirty.value || (await confirmAction('平台配置尚未保存。确认放弃本次更改并离开？'))
@@ -165,214 +231,343 @@ onBeforeRouteLeave(async () => {
 useActionFeedback(saveError)
 </script>
 <template>
-  <div class="runtime-settings-page">
+  <div class="settings-page platform-settings-page">
     <div class="page-heading">
       <div>
         <div class="heading-meta">平台管理</div>
         <h1>平台配置</h1>
       </div>
+      <Button
+        type="submit"
+        form="platform-runtime-form"
+        :disabled="loading || saving || !!loadError || !dirty"
+        :data-disabled-reason="
+          loading
+            ? '正在加载平台配置'
+            : saving
+              ? '正在保存配置'
+              : loadError
+                ? '配置加载失败'
+                : '设置没有更改，无需保存'
+        ">
+        <Save />
+        {{ saving ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}
+      </Button>
     </div>
-    <ContentPanel title="服务状态" :icon="Activity" class="runtime-health-panel">
-      <template #actions>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="checking"
-          :data-disabled-reason="'正在检查服务连接，请稍候'"
-          @click="check">
-          <RefreshCw :class="{ 'probe-spinning': checking }" />
-          {{ checking ? '检查中…' : '刷新状态' }}
-        </Button>
-      </template>
-      <div class="runtime-service-grid" aria-live="polite">
-        <article v-for="service in services" :key="service.key" class="runtime-service">
-          <div class="runtime-service-top">
-            <span class="runtime-service-icon"><component :is="service.icon" :size="19" /></span>
-            <span class="runtime-service-state" :class="'is-' + states[service.key].status">
-              <i />
-              {{ labels[states[service.key].status] }}
-            </span>
-          </div>
-          <h3>
-            {{ service.title }}
-            <!-- <small>{{ service.subtitle }}</small> -->
-          </h3>
-          <p>{{ states[service.key].message }}</p>
-          <span v-if="states[service.key].latencyMs !== undefined" class="runtime-latency">
-            响应 {{ states[service.key].latencyMs }} ms
-          </span>
-        </article>
-      </div>
-      <template #footer>
-        <span class="runtime-check-time">
-          {{ checkedAt ? '最近检查 ' + checkedAt : '正在获取连接状态…' }}
-        </span>
-        <span class="runtime-check-time">连接正常仅代表服务可达</span>
-      </template>
-    </ContentPanel>
+    <Alert v-if="dirty" role="status" type="warning">
+      有尚未保存的运行配置，点击“保存设置”后生效。节点配置单独保存。
+    </Alert>
     <Alert v-if="loadError" role="alert" type="error" :icon="CircleAlert">
       <span>{{ loadError }}</span>
-
       <template #actions>
         <Button variant="outline" size="sm" @click="load">重试读取</Button>
       </template>
     </Alert>
-    <div class="runtime-settings-layout">
-      <ContentPanel title="运行环境与限额" class="runtime-form-panel">
-        <Form id="runtime-settings-form" class="runtime-settings-form" @submit.prevent="save">
-          <fieldset
-            :disabled="loading || saving || !!loadError"
-            :data-disabled-reason="
-              loading
-                ? '正在加载平台配置，请稍候'
-                : saving
-                  ? '正在保存平台配置，请稍候'
-                  : '配置加载失败，请先重新加载'
-            "
-            class="runtime-fields">
-            <label class="runtime-profile">
-              C++ 标准
-              <Select v-model="form.compilerProfile">
-                <SelectOption value="gcc13-cpp17">GCC 13.3 / C++17</SelectOption>
-                <SelectOption value="gcc13-cpp20">GCC 13.3 / C++20</SelectOption>
-              </Select>
-            </label>
-            <fieldset v-for="group in groups" :key="group.title" class="runtime-settings-group">
-              <legend>{{ group.title }}</legend>
-              <br />
-              <div class="runtime-settings-grid">
-                <label v-for="field in group.fields" :key="field.key">
-                  {{ field.name }}
-                  <span class="runtime-number-control">
-                    <NumberInput
-                      v-model.number="form[field.key]"
-                      required
-                      :min="field.min"
-                      :max="field.max"
-                      step="1"
-                      :aria-describedby="'range-' + field.key" />
-                    <span>{{ field.unit }}</span>
-                  </span>
-                  <small :id="'range-' + field.key">
-                    {{ field.min.toLocaleString() }}–{{ field.max.toLocaleString() }}
-                    {{ field.unit }}
-                  </small>
+    <div class="settings-layout platform-layout">
+      <nav class="settings-nav" aria-label="平台配置分区">
+        <Button
+          v-for="name in sections"
+          :key="name"
+          variant="plain"
+          :class="{ selected: tab === name }"
+          :aria-current="tab === name ? 'location' : undefined"
+          @click="goTo(name)">
+          {{ name }}
+          <ChevronRight :size="14" />
+        </Button>
+      </nav>
+      <section ref="panelEl" class="panel settings-panel platform-panel">
+        <div id="platform-section-0" class="platform-section">
+          <div class="section-heading">
+            <div>
+              <div class="settings-title">
+                <Activity :size="19" />
+                <h2>服务状态</h2>
+              </div>
+              <p class="section-description">查看平台服务与执行节点的连接情况。</p>
+            </div>
+            <Button variant="outline" size="sm" :disabled="checking" @click="check">
+              <RefreshCw :class="{ 'probe-spinning': checking }" />
+              {{ checking ? '检查中…' : '刷新状态' }}
+            </Button>
+          </div>
+          <div class="service-list" aria-live="polite">
+            <div v-for="service in services" :key="service.key" class="service-row">
+              <span class="service-icon"><component :is="service.icon" :size="18" /></span>
+              <div class="service-info">
+                <strong>{{ service.title }}</strong>
+                <small>{{ states[service.key].message }}</small>
+              </div>
+              <div class="service-result">
+                <span class="service-state" :class="'is-' + states[service.key].status">
+                  <i />
+                  {{ labels[states[service.key].status] }}
+                </span>
+                <small v-if="states[service.key].latencyMs !== undefined">
+                  {{ states[service.key].latencyMs }} ms
+                </small>
+              </div>
+            </div>
+          </div>
+          <p class="section-note">
+            {{ checkedAt ? '最近检查 ' + checkedAt + ' · ' : '' }}连接正常仅代表服务可达。
+          </p>
+        </div>
+        <RunnerNodes id="platform-section-1" class="platform-section" />
+        <Form id="platform-runtime-form" @submit="save">
+          <fieldset :disabled="loading || saving || !!loadError" class="runtime-fields">
+            <div id="platform-section-2" class="platform-section form-stack">
+              <div>
+                <div class="settings-title">
+                  <Settings2 :size="19" />
+                  <h2>运行环境</h2>
+                </div>
+                <p class="section-description">配置各语言的运行选项，保存后应用于后续任务。</p>
+              </div>
+              <div class="filter-tabs" role="tablist" aria-label="编程语言">
+                <Button
+                  v-for="item in [
+                    { id: 'cpp', label: 'C++' },
+                    { id: 'python', label: 'Python' },
+                  ] as const"
+                  :key="item.id"
+                  variant="plain"
+                  type="button"
+                  role="tab"
+                  :aria-selected="language === item.id"
+                  :class="{ selected: language === item.id }"
+                  @click="language = item.id">
+                  {{ item.label }}
+                  <PythonBeta v-if="item.id === 'python'" />
+                </Button>
+              </div>
+              <div class="field-grid">
+                <label v-if="language === 'cpp'">
+                  C++ 标准
+                  <Select v-model="form.languages.cpp.compilerProfile">
+                    <SelectOption value="gcc13-cpp17">GCC 13.3 / C++17</SelectOption>
+                    <SelectOption value="gcc13-cpp20">GCC 13.3 / C++20</SelectOption>
+                  </Select>
+                </label>
+                <label>
+                  {{ language === 'cpp' ? '优化等级' : 'Python 优化模式' }}
+                  <Select v-if="language === 'cpp'" v-model="form.languages.cpp.optimization">
+                    <SelectOption
+                      v-for="option in ['O0', 'O1', 'O2', 'O3']"
+                      :key="option"
+                      :value="option">
+                      {{ option }}
+                    </SelectOption>
+                  </Select>
+                  <Select v-else v-model="form.languages.python.optimization">
+                    <SelectOption value="none">默认</SelectOption>
+                    <SelectOption value="O">-O</SelectOption>
+                    <SelectOption value="OO">-OO</SelectOption>
+                  </Select>
                 </label>
               </div>
-            </fieldset>
+              <template v-if="language === 'cpp'">
+                <label>
+                  宏定义
+                  <Input
+                    v-model="form.languages.cpp.macros"
+                    placeholder="例如 DEBUG LEVEL=2"
+                    maxlength="1000" />
+                  <small>以空格或换行分隔宏名称或 NAME=VALUE。</small>
+                </label>
+                <label class="toggle-row">
+                  <span>
+                    <strong>启用编译警告</strong>
+                    <small>使用 -Wall 和 -Wextra 输出编译诊断。</small>
+                  </span>
+                  <Switch v-model="form.languages.cpp.warnings" />
+                </label>
+              </template>
+              <div class="command-block">
+                <span>{{ language === 'cpp' ? '编译指令' : '运行指令' }}</span>
+                <code>{{ command }}</code>
+                <small>执行程序与隔离参数由平台固定。</small>
+              </div>
+            </div>
+            <div id="platform-section-3" class="platform-section form-stack">
+              <div>
+                <div class="settings-title">
+                  <SlidersHorizontal :size="19" />
+                  <h2>资源限额</h2>
+                </div>
+                <p class="section-description">
+                  设置 {{ language === 'cpp' ? 'C++' : 'Python' }} 任务的资源上限及平台共享并发。
+                </p>
+              </div>
+              <div class="filter-tabs" role="tablist" aria-label="资源限额语言">
+                <Button
+                  v-for="item in [
+                    { id: 'cpp', label: 'C++' },
+                    { id: 'python', label: 'Python' },
+                  ] as const"
+                  :key="item.id"
+                  variant="plain"
+                  type="button"
+                  role="tab"
+                  :aria-selected="language === item.id"
+                  :class="{ selected: language === item.id }"
+                  @click="language = item.id">
+                  {{ item.label }}
+                  <PythonBeta v-if="item.id === 'python'" />
+                </Button>
+              </div>
+              <template v-for="group in groups" :key="group.title">
+                <div v-if="language === 'cpp' || group.title !== '编译阶段'" class="limit-group">
+                  <h3>{{ group.title }}</h3>
+                  <div class="field-grid">
+                    <NumberInputField
+                      v-for="field in group.fields"
+                      :key="field.key"
+                      v-model.number="
+                        (language === 'cpp'
+                          ? form.languages.cpp
+                          : (activeLanguage as typeof form.languages.cpp))[field.key]
+                      "
+                      :label="field.name"
+                      :hint="`${field.min}–${field.max} ${field.unit}`"
+                      :unit="field.unit"
+                      :min="field.min"
+                      :max="field.max"
+                      :step="1"
+                      required />
+                  </div>
+                </div>
+              </template>
+              <div class="limit-group">
+                <h3>平台共享</h3>
+                <div class="field-grid">
+                  <NumberInputField
+                    v-model.number="form.executionConcurrency"
+                    label="执行槽位"
+                    hint="所有语言共享"
+                    unit="个"
+                    :min="1"
+                    :max="executionLimits.maxConcurrentRuns"
+                    :step="1"
+                    required />
+                </div>
+              </div>
+              <div class="wall-clock">
+                <strong>墙钟时间上限</strong>
+                <span v-if="language === 'cpp'">
+                  编译 {{ wallClockLimitMs(form.languages.cpp.compileTimeMs) / 1000 }} 秒
+                </span>
+                <span>非交互运行 {{ wallClockLimitMs(activeLanguage.runTimeMs) / 1000 }} 秒</span>
+                <span>
+                  交互运行 {{ wallClockLimitMs(activeLanguage.runTimeMs, true) / 1000 }} 秒
+                </span>
+              </div>
+              <Alert type="info" :icon="ShieldCheck">
+                学生代码在独立评测节点运行；更改不会影响已经开始的任务。
+              </Alert>
+            </div>
           </fieldset>
         </Form>
-        <template #footer>
-          <span class="runtime-save-status" :class="{ pending: dirty }">
-            <i v-if="dirty" />
-            <Check v-else-if="savedAt" :size="14" />
-            {{
-              loading
-                ? '正在读取配置…'
-                : loadError
-                  ? '配置读取失败，暂不可保存'
-                  : dirty
-                    ? '有未保存的更改'
-                    : savedAt
-                      ? '已保存于 ' + savedAt
-                      : '配置已与服务器同步'
-            }}
-          </span>
-          <Button
-            type="submit"
-            form="runtime-settings-form"
-            :disabled="loading || saving || !!loadError || !dirty"
-            :data-disabled-reason="
-              loading
-                ? '正在加载平台配置，请稍候'
-                : saving
-                  ? '正在保存平台配置，请稍候'
-                  : loadError
-                    ? '配置加载失败，请先重新加载'
-                    : '配置没有更改，无需保存'
-            ">
-            <Save :size="15" />
-            {{ saving ? '保存中…' : '保存更改' }}
-          </Button>
-        </template>
-      </ContentPanel>
-      <aside class="runtime-settings-aside">
-        <ContentPanel title="评测节点" description="原生 Linux 执行服务" :icon="Server">
-          <label class="runtime-node-address">
-            连接地址
-            <span>
-              <LockKeyhole :size="13" />
-              由服务端管理
-            </span>
-            <Input
-              :value="form.goJudgeUrl"
-              readonly
-              :placeholder="
-                loading ? '读取中…' : loadError ? '无法读取节点地址' : '尚未配置节点'
-              " />
-          </label>
-          <div class="runtime-fixed-limits">
-            <h3>墙钟时间上限</h3>
-            <dl>
-              <div>
-                <dt>编译阶段</dt>
-                <dd>{{ wallClockLimitMs(form.compileTimeMs) / 1000 }} 秒</dd>
-              </div>
-              <div>
-                <dt>非交互运行</dt>
-                <dd>{{ wallClockLimitMs(form.runTimeMs) / 1000 }} 秒</dd>
-              </div>
-              <div>
-                <dt>交互运行</dt>
-                <dd>{{ wallClockLimitMs(form.runTimeMs, true) / 1000 }} 秒</dd>
-              </div>
-            </dl>
-            <p>包含等待输入的实际耗时，按当前 CPU 时间自动计算；保存后对后续任务生效。</p>
-          </div>
-        </ContentPanel>
-        <Alert type="info" :icon="ShieldCheck">
-          <div>
-            <strong>独立执行与资源隔离</strong>
-            <p>
-              学生代码在独立评测节点运行。配置保存后，对后续开始的任务生效，不会重启正在运行的任务。
-            </p>
-          </div>
-        </Alert>
-      </aside>
+      </section>
     </div>
   </div>
 </template>
 <style scoped>
-.runtime-settings-page {
-  max-width: 1180px;
-  margin: 0 auto;
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 128px);
 }
-.runtime-health-panel {
-  margin-bottom: 24px;
+.settings-page .page-heading {
+  margin-bottom: 20px;
 }
-.runtime-service-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+.platform-layout {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
 }
-.runtime-service + .runtime-service {
-  border-left: 1px solid var(--ui-line);
-  padding-left: 24px;
+.platform-panel {
+  align-self: stretch;
+  min-height: 300px;
+  overflow-y: auto;
 }
-.runtime-service-top {
+.platform-section {
+  scroll-margin-top: 20px;
+  min-width: 0;
+}
+.platform-panel > .platform-section + .platform-section,
+.runtime-fields > .platform-section {
+  border-top: 1px solid var(--ui-line);
+  margin-top: 30px;
+  padding-top: 30px;
+}
+.runtime-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.runtime-fields:disabled {
+  opacity: 0.6;
+}
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.section-description,
+.section-note {
+  color: var(--ui-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.section-note {
+  margin-top: 12px;
+}
+.service-list {
+  margin-top: 20px;
+}
+.service-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ui-line);
 }
-.runtime-service-icon {
+.service-icon {
+  display: flex;
   color: var(--ui-icon-slate);
-  display: inline-flex;
 }
-.runtime-service-state {
+.service-info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.service-info strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.service-info small,
+.service-result small {
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.service-result {
+  display: grid;
+  grid-template-columns: 84px 56px;
+  align-items: center;
+  gap: 10px;
+}
+.service-result small {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.service-state {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 3px 8px;
   border-radius: 4px;
@@ -381,253 +576,74 @@ useActionFeedback(saveError)
   font-size: 13px;
   white-space: nowrap;
 }
-.runtime-service-state i {
+.service-state i {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: currentColor;
 }
-.runtime-service-state.is-healthy {
+.service-state.is-healthy {
   color: var(--ui-success);
   background: var(--ui-success-bg);
 }
-.runtime-service-state.is-unavailable {
+.service-state.is-unavailable {
   color: var(--ui-error);
   background: var(--ui-error-bg);
 }
-.runtime-service-state.is-unconfigured {
+.service-state.is-unconfigured {
   color: var(--ui-warning);
   background: var(--ui-warning-bg);
 }
-.runtime-service-state.is-checking {
+.service-state.is-checking {
   color: var(--ui-action);
   background: var(--ui-selection);
 }
-.runtime-service h3 {
-  font-size: 16px;
-  font-weight: 600;
-}
-.runtime-service h3 small {
-  display: block;
-  font-weight: 400;
-  font-size: 13px;
-  color: var(--ui-muted);
-  margin-top: 3px;
-}
-.runtime-service p {
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--ui-secondary);
-  margin-top: 8px;
-  min-height: 32px;
-  overflow-wrap: anywhere;
-}
-.runtime-latency,
-.runtime-check-time {
-  font-size: 13px;
-  color: var(--ui-muted);
-  font-variant-numeric: tabular-nums;
-}
-.runtime-latency {
-  display: block;
-  margin-top: 6px;
-}
-.runtime-settings-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
-  align-items: start;
-  gap: 16px;
-}
-.runtime-settings-aside {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
-.runtime-fields {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-}
-.runtime-fields:disabled {
-  opacity: 0.6;
-}
-.runtime-profile,
-.runtime-settings-grid > label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--ui-text);
-}
-.runtime-profile {
-  padding-bottom: 16px;
-}
-.runtime-profile .ui-select-trigger {
-  width: 100%;
-  font-size: 15px;
-}
-.runtime-profile small,
-.runtime-settings-grid small {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--ui-muted);
-}
-.runtime-settings-group {
-  margin: 0;
-  border: 0;
-  border-top: 1px solid var(--ui-line);
-  padding: 14px 0 16px;
-  min-width: 0;
-}
-.runtime-settings-group:last-child {
-  padding-bottom: 0;
-}
-.runtime-settings-group legend {
-  float: left;
-  width: 100%;
-  padding: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ui-ink);
-}
-.runtime-settings-group > p {
-  clear: both;
-  font-size: 13px;
-  color: var(--ui-muted);
-  padding-top: 4px;
-  margin-bottom: 16px;
-}
-.runtime-settings-grid {
+.field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-.runtime-number-control {
-  display: block;
-  position: relative;
-}
-.runtime-number-control :deep(.ui-number-input) {
-  width: 100%;
-  font-size: 15px;
-  padding-right: 64px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-.runtime-number-control > span:not(.ui-number-field) {
-  position: absolute;
-  right: 34px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ui-muted);
-  font-size: 13px;
-  font-weight: 400;
-  pointer-events: none;
-}
-.runtime-save-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--ui-muted);
-}
-.runtime-save-status.pending {
-  color: var(--ui-warning);
-}
-.runtime-save-status i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.runtime-node-address {
+.field-grid > label {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
-  color: var(--ui-text);
 }
-.runtime-node-address > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.filter-tabs {
+  margin: 0;
+}
+.command-block {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.command-block code {
+  padding: 10px;
+  background: var(--ui-hover);
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.command-block small {
   color: var(--ui-muted);
-  font-size: 13px;
 }
-.runtime-node-address input {
-  width: 100%;
-  font-size: 13px;
-  background: var(--ui-surface);
-  color: var(--ui-secondary);
+.limit-group {
+  display: grid;
+  gap: 12px;
 }
-.runtime-fixed-limits {
-  border-top: 1px solid var(--ui-line);
-  padding-top: 18px;
-}
-.runtime-fixed-limits h3 {
+.limit-group h3 {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 12px;
 }
-.runtime-fixed-limits dl {
+.wall-clock {
   display: flex;
-  flex-direction: column;
-  gap: 9px;
-  margin: 0;
-  font-size: 14px;
-}
-.runtime-fixed-limits dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-.runtime-fixed-limits dt {
-  color: var(--ui-muted);
-}
-.runtime-fixed-limits dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-.runtime-fixed-limits p {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 14px;
+  background: var(--ui-hover);
+  color: var(--ui-secondary);
   font-size: 13px;
-  color: var(--ui-muted);
-  line-height: 1.8;
-  margin-top: 14px;
 }
-@media (max-width: 1100px) {
-  .runtime-settings-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .runtime-settings-aside {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-    align-items: start;
-  }
-}
-@media (max-width: 760px) {
-  .runtime-service-grid {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
-  .runtime-service + .runtime-service {
-    padding: 18px 0 0;
-    border-left: 0;
-    border-top: 1px solid var(--ui-line);
-  }
-  .runtime-service p {
-    min-height: 0;
-  }
-  .runtime-settings-layout {
-    gap: 16px;
-  }
-  .runtime-settings-aside,
-  .runtime-settings-grid {
-    grid-template-columns: 1fr;
-  }
-  .runtime-settings-grid {
-    gap: 16px;
-  }
+.wall-clock strong {
+  color: var(--ui-text);
 }
 </style>

@@ -27,7 +27,7 @@ const executionSettings = (
   await pool.query("select value from platform_settings where id='execution'")
 ).rows[0]?.value
 console.log(
-  `Worker 已就绪：原生 Linux C++ / Python（Beta）运行队列（${executionSettings?.executionConcurrency ?? executionDefaults.executionConcurrency} 槽，可动态调整）与基础设施自检。`,
+  `Worker 已就绪：运行队列全局上限 ${executionSettings?.executionConcurrency ?? executionDefaults.executionConcurrency}，本进程上限 ${environment.WORKER_CONCURRENCY ?? '跟随全局设置'}；基础设施自检已启用。`,
 )
 
 let stopping = false

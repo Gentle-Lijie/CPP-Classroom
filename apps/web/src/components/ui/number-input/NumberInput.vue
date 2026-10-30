@@ -27,6 +27,7 @@ const error = ref('')
       :min="min === undefined ? undefined : Number(min)"
       :max="max === undefined ? undefined : Number(max)"
       :step="Number(step ?? 1)"
+      :format-options="{ useGrouping: false }"
       :disabled="disabled"
       :name="name"
       class="ui-number-root">

@@ -135,7 +135,7 @@ defineExpose({ flush: local.flush })
           <CodeBlock :source="conflict.disk" language="cpp" label="代码" />
         </div>
       </div>
-      <p class="form-hint">预览最多显示各版本前 6,000 个字符；选择版本会处理完整文件。</p>
+      <p class="form-hint">预览最多显示各版本前 6000 个字符；选择版本会处理完整文件。</p>
       <div class="modal-actions file-conflict-actions">
         <Button
           variant="ghost"

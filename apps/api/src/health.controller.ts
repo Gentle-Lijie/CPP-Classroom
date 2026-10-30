@@ -1,5 +1,5 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common'
-import { executionDefaults } from '@classroom/contracts'
+import { executionDefaults, languageSettings } from '@classroom/contracts'
 import type { ReadinessResponse } from '@classroom/contracts'
 import { DatabaseService } from './database.service.js'
 import { RunnerService } from './runner.service.js'
@@ -21,6 +21,7 @@ export class HealthController {
     return {
       ...executionDefaults,
       ...saved,
+      languages: languageSettings(saved),
       compiler: 'GCC 13.3.0',
       engine: 'go-judge v1.13.3-classroom-eof.2',
     }
