@@ -36,9 +36,8 @@ h3 {
   letter-spacing: -0.025em;
 }
 .brand-symbol {
-  background: var(--ui-action);
-  color: var(--ui-page);
-  border-radius: 6px;
+  background: transparent;
+  object-fit: contain;
 }
 .brand-sub {
   color: var(--ui-muted);

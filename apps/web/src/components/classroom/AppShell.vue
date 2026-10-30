@@ -154,10 +154,10 @@ async function signOut() {
       @click="mobileOpen = false" />
     <aside class="sidebar" :class="{ 'mobile-open': mobileOpen }">
       <RouterLink to="/" class="brand">
-        <span class="brand-symbol"><CodeXml :size="23" /></span>
+        <img class="brand-symbol" src="/brand/icon.png" alt="" />
         <span>
-          码上课堂
-          <span class="brand-sub">C++ Classroom</span>
+          Codemia
+          <span class="brand-sub">编程课堂</span>
         </span>
       </RouterLink>
       <Button

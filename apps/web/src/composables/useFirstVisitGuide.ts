@@ -1,14 +1,20 @@
-import { nextTick, watch } from 'vue'
+import { nextTick, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { bootstrapError, currentUser } from '@/data/demo'
 import { guideVisits, isGuideRole, isGuideWorkspace } from '@/lib/guide-visit'
 import { spotlight } from '@/lib/spotlight'
 import { startUserGuide } from '@/lib/user-guide'
 
-export function useFirstVisitGuide() {
+export function useFirstVisitGuide(blocked: Readonly<Ref<boolean>>) {
   const route = useRoute()
   watch(
-    () => [currentUser.value?.id, currentUser.value?.role, route.path, bootstrapError.value],
+    () => [
+      currentUser.value?.id,
+      currentUser.value?.role,
+      route.path,
+      bootstrapError.value,
+      blocked.value,
+    ],
     async (_, __, onCleanup) => {
       let cancelled = false
       onCleanup(() => {
@@ -20,6 +26,7 @@ export function useFirstVisitGuide() {
       if (
         cancelled ||
         bootstrapError.value ||
+        blocked.value ||
         spotlight.active ||
         !user ||
         !isGuideRole(user.role) ||

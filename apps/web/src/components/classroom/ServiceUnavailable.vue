@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CodeXml, RefreshCw, Unplug } from '@lucide/vue'
+import { RefreshCw, Unplug } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import ThemeToggle from './ThemeToggle.vue'
 
@@ -11,8 +11,8 @@ defineEmits<{ retry: [] }>()
   <div class="service-page">
     <header class="service-header">
       <div class="service-brand">
-        <span class="service-brand-mark"><CodeXml :size="22" /></span>
-        <span>码上课堂</span>
+        <img class="service-brand-mark" src="/brand/icon.png" alt="" />
+        <span>Codemia</span>
       </div>
       <ThemeToggle />
     </header>
@@ -40,7 +40,7 @@ defineEmits<{ retry: [] }>()
       </section>
     </main>
 
-    <footer class="service-footer">码上课堂 · C++ Classroom</footer>
+    <footer class="service-footer">Codemia · 编程课堂</footer>
   </div>
 </template>
 
@@ -66,13 +66,9 @@ defineEmits<{ retry: [] }>()
   font-weight: 600;
 }
 .service-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 7px;
-  background: var(--ui-action);
-  color: var(--ui-on-action);
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
 }
 .service-main {
   display: grid;

@@ -6,7 +6,7 @@ import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CodeXml, ArrowRight, ShieldCheck, Eye, EyeOff } from '@lucide/vue'
+import { ArrowRight, ShieldCheck, Eye, EyeOff } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { login, currentUser, notify } from '@/data/demo'
 import { api } from '@/lib/api'
@@ -85,15 +85,15 @@ useActionFeedback(error)
   <main class="auth-page">
     <section class="auth-story">
       <RouterLink to="/" class="brand">
-        <span class="brand-symbol"><CodeXml :size="25" /></span>
+        <img class="brand-symbol" src="/brand/icon.png" alt="" />
         <span>
-          码上课堂
-          <span class="brand-sub">C++ Classroom</span>
+          Codemia
+          <span class="brand-sub">编程课堂</span>
         </span>
       </RouterLink>
       <div class="auth-story-copy">
-        <span class="auth-story-label">C++ Classroom</span>
-        <h1>C++ 编程教室</h1>
+        <span class="auth-story-label">Codemia</span>
+        <h1>编程教室</h1>
         <div class="auth-code-art">
           <div class="art-window-dots">
             <i />
@@ -119,7 +119,7 @@ int main() {
       <div class="auth-theme"><ThemeToggle /></div>
       <div class="auth-form-container">
         <h2>
-          {{ mode === 'join' ? '加入课堂' : mode === 'recover' ? '账号恢复' : '登录码上课堂' }}
+          {{ mode === 'join' ? '加入课堂' : mode === 'recover' ? '账号恢复' : '登录 Codemia' }}
         </h2>
         <p class="auth-intro">
           {{

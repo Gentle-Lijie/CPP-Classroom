@@ -1,4 +1,8 @@
-# 码上课堂 · C++ Classroom
+# Codemia
+
+![](./images/banner.png)
+
+---
 
 [![CI](https://github.com/Gentle-Lijie/CPP-Classroom/actions/workflows/ci.yml/badge.svg)](https://github.com/Gentle-Lijie/CPP-Classroom/actions/workflows/ci.yml)[![Vue 3](https://img.shields.io/badge/Vue-3-42b883?logo=vuedotjs&logoColor=white)](https://vuejs.org/)[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)[![Node.js 24](https://img.shields.io/badge/Node.js-24-5fa04e?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
@@ -23,7 +27,16 @@
 - **代码与结果对应。** 每次运行和提交都关联不可变的代码版本，当前草稿与历史结果分别展示，便于复盘。
 - **授课与巡视分屏。** 投影展示题目，另一块屏幕查看课堂进度；匿名投屏快照可撤销，并在两小时后过期。
 - **保留文件工作流。** 支持 Markdown／JSON 题目导入，以及源文件 ZIP、CSV 清单和 JSON 导出；桌面 Chrome／Edge 还可连接本地工作目录。
-- **按需开启代码补全。** C++ 使用浏览器内的 clangd；Python（Beta）使用独立 Web Worker 中的 Pyright，提供补全、诊断、悬停、签名及当前文件内的定义跳转和重命名。两者默认关闭，源码分析在浏览器本地完成。Python 语言服务首次开启下载约 20 MB 资源，固定采用 `monaco-pyright-lsp@0.1.7` 内的 Pyright 1.1.386 与类型存根。C++ 需要较新的桌面 Chrome／Edge，详见[浏览器要求](docs/browser-clangd.md)。
+- **按需开启代码补全。** C++ 使用浏览器内的 clangd；Python（Beta）使用独立 Web Worker 中的 Pyright，提供补全、诊断、悬停、签名及当前文件内的定义跳转和重命名。两者首次默认关闭；开关按语言分别保存在本机浏览器，之后进入可编辑工作区时会尝试恢复。源码分析在浏览器本地完成。Python 语言服务首次开启下载约 20 MB 资源，固定采用 `monaco-pyright-lsp@0.1.7` 内的 Pyright 1.1.386 与类型存根。C++ 需要较新的桌面 Chrome／Edge，详见[浏览器要求](docs/browser-clangd.md)。
+
+### 编辑与课堂管理
+
+- **编辑器操作。** 在可编辑代码区通过右键菜单的「格式化文档」或 `Shift+Alt+F` 格式化：C++ 使用 clang-format（LLVM 风格、4 空格缩进），Python 使用 Ruff。格式化在浏览器中进行，可撤销；处理期间代码发生变化时会提示重试。`Ctrl+S`（macOS 为 `Cmd+S`）可在学生工作区主动同步草稿及关联的本地文件，在授课页保存示范代码，在练习编辑页保存题目。自动保存与主动提交仍是不同操作。
+- **课堂与成员管理。** 教师可调整开放状态和课堂策略、重新生成课堂码、归档并恢复教学。移除成员会撤销该课堂访问并保留作品，也可恢复访问；符合权限条件时可永久删除学生账号。名册支持审批申请、批量重置密码并导出凭据。
+- **练习管理。** 支持调整顺序、批量修改状态和知识点、关闭并重新发布练习，以及永久删除练习。关闭练习会停止当前运行，学生仍可查看已有作品，但不能继续编辑、运行或提交。
+- **操作前区分归档与删除。** 归档保留账号、作品和历史，停止运行并关闭加入、编辑和提交；永久删除课堂会删除课堂数据但保留账号。永久删除练习会删除相关草稿、提交、求助与运行记录；永久删除学生账号也会删除相关数据，具体操作受权限和关联情况限制。需要保留的作品请先导出。
+- **节点管理与用量。** 管理员可添加、修改、停用和删除执行节点，并在配置中测试连接及沙箱。平台概览展示各节点近 24 小时按小时统计的调用趋势、峰值和当前并发槽位占用，每 15 秒刷新；未绑定节点的历史任务不计入。失败任务详情提供指标，且不向管理员展示学生源代码或程序输出。
+- **角色导览。** 学生可通过模拟工作区练习切题、输入、调试和提交；教师和管理员可使用分章节导览熟悉各自的页面。
 
 Python 仍处于 Beta，相关语言选择、编辑、运行和历史入口均显示胶囊标记。切换语言先保存当前草稿；运行中需先停止。下载和本地目录使用对应扩展名，另一种语言使用按题目 ID 生成的独立文件名，防止与命名题目覆盖。旧题目与旧记录按 C++ 兼容读取。科学计算包、Notebook、REPL 和多文件工程不在当前范围内。
 
@@ -147,10 +160,17 @@ macOS 可通过 `brew install postgresql@17` 安装并启动 PostgreSQL（`brew 
 git clone https://github.com/Gentle-Lijie/CPP-Classroom.git
 cd CPP-Classroom
 pnpm install --frozen-lockfile
-pnpm setup:local
+pnpm env:init
 ```
 
-`setup:local` 会生成带随机数据库密码的 `.env`，构建共享包并应用版本化 Drizzle 迁移。重复执行会保留已有配置与数据。首次使用需在本机 PostgreSQL 中创建同名角色与数据库（见下方"使用已有 PostgreSQL 实例"），迁移不会重置数据库。
+`env:init` 根据 `.env.example` 创建仅本机使用的 `.env`，生成随机数据库密码；已有 `.env` 会保留。先在本机 PostgreSQL 中创建数据库和角色，并把对应连接串写入 `.env` 的 `DATABASE_URL`。例如已有数据库时，直接改为现有实例的连接串即可。数据库及凭据必须在迁移前准备好。
+
+```sh
+pnpm build:packages
+pnpm db:migrate
+```
+
+也可在数据库和 `.env` 准备好后运行 `pnpm setup:local`，它会依次执行环境初始化、共享包构建和迁移。迁移是版本化的，不会重置已有数据。
 
 在生成的 `.env` 中配置自己的 Linux 评测节点：
 
@@ -166,7 +186,7 @@ GO_JUDGE_TIMEOUT_MS=10000
 
 管理员登录后，在「平台配置 → 执行节点」添加节点地址、认证令牌和节点并发容量，也可修改或停用节点。配置保存在业务 PostgreSQL 的 `runner_nodes` 表中；令牌按管理员的选择以明文保存，列表接口不会回显令牌。数据库和备份需限制访问。所有 worker 读取同一份节点配置，无需为每个节点启动单独的 worker。数据库事务统一限制每个节点的并发数和平台总并发；编译与运行保持在同一节点。停用节点不会中断已运行任务。
 
-尚未添加数据库节点时，继续使用 `.env` 的 `GO_JUDGE_URL` 和 `GO_JUDGE_AUTH_TOKEN`；一旦添加节点，即以数据库配置为准，包括全部节点停用时。`WORKER_CONCURRENCY` 是可选的单进程并发上限。各节点需要安装相同的 go-judge 补丁及运行环境，须分别进行原生 Linux 验证。状态检查只测试 `/version` 连通性；节点不可用时任务可能失败，目前没有健康感知调度或自动重试。
+尚未添加数据库节点时，继续使用 `.env` 的 `GO_JUDGE_URL` 和 `GO_JUDGE_AUTH_TOKEN`；一旦添加节点，即以数据库配置为准，包括全部节点停用时。`WORKER_CONCURRENCY` 是可选的单进程并发上限。各节点需要安装相同的 go-judge 补丁及运行环境，须分别进行原生 Linux 验证。健康状态检查只测试 `/version` 连通性；节点编辑窗口的「测试连接」还会运行固定沙箱测试。两者均不能代替完整运行时验收。节点不可用时任务可能失败，目前没有健康感知调度或自动重试。
 
 创建首个管理员，然后启动前端、API 与 worker：
 
@@ -186,22 +206,6 @@ pnpm dev
 | 本地 PostgreSQL | `127.0.0.1:5432`（brew 服务，`brew services` 管理） |
 
 端口配置见 [.env.example](.env.example)，Vite 将 `/api` 请求代理到 `VITE_API_TARGET`。按 Ctrl+C 停止开发进程；PostgreSQL 由系统服务管理（macOS 用 `brew services start/stop postgresql@17`）。
-
-<details>
-<summary>使用已有 PostgreSQL 实例</summary>
-
-先在现有实例中创建数据库与访问凭据，再执行：
-
-```sh
-pnpm env:init
-# 修改 .env 中的 DATABASE_URL，指向自己的数据库。
-pnpm build:packages
-pnpm db:migrate
-```
-
-随后创建管理员并运行 `pnpm dev`。迁移不会重置数据库。
-
-</details>
 
 ### 创建第一个课堂
 
@@ -229,7 +233,7 @@ API 负责身份、课堂权限、草稿与运行请求。独立 worker 从 Post
 | 层次     | 技术栈                                                                     |
 | -------- | -------------------------------------------------------------------------- |
 | 前端     | Vue 3 Composition API、TypeScript、Vite、shadcn-vue／Reka UI、Tailwind CSS |
-| 编辑器   | Monaco、可选 SharedWorker／WASM clangd                                     |
+| 编辑器   | Monaco、可选浏览器内 clangd 与 Pyright、WASM 格式化工具                    |
 | 业务 API | NestJS、会话 Cookie、服务端角色与课堂成员权限校验                          |
 | 数据存储 | PostgreSQL、Drizzle ORM、版本化迁移                                        |
 | 编译执行 | 独立 Node.js worker、原生 Linux go-judge、GCC                              |
@@ -253,6 +257,8 @@ pnpm queue:probe          # 验证队列与数据库集成，需要 worker 运�
 
 | 命令                                      | 用途                                                          |
 | ----------------------------------------- | ------------------------------------------------------------- |
+| `pnpm runtime:probe`                      | 对配置的节点验证 C++、Python 及运行时边界                     |
+| `pnpm acceptance:languages`               | 多语言业务链路验收，创建并归档独立测试课堂                    |
 | `pnpm acceptance`                         | 端到端验证权限、草稿、Linux 执行、输入／EOF、提交、投屏与导出 |
 | `node scripts/product-acceptance.mjs`     | 产品 API 回归                                                 |
 | `node scripts/account-acceptance.mjs`     | 账号归属、凭据交付、恢复与会话回归                            |
@@ -300,4 +306,4 @@ docs/                 设计、运维、验收与实现说明
 
 ## 当前范围
 
-当前版本聚焦**桌面课堂中的单文件 C++ 控制台练习**，暂不包含隐藏测试自动判题、多文件工程、协作编辑、SSO 或内置 AI。移动端适配不在当前实现与验收范围内。
+当前版本聚焦**桌面课堂中的单文件 C++ 和 Python（Beta）控制台练习**，暂不包含隐藏测试自动判题、多文件工程、协作编辑、SSO 或内置 AI。移动端适配不在当前实现与验收范围内。功能描述基于当前实现；既有验收文档仅覆盖其中记录的版本、环境和场景，新功能需要在目标环境单独验证。
