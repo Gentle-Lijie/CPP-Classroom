@@ -114,6 +114,12 @@ importers:
       '@vueuse/core':
         specifier: ^15.0.0
         version: 15.0.0(vue@3.5.44(typescript@5.9.3))
+      '@wasm-fmt/clang-format':
+        specifier: 23.1.1
+        version: 23.1.1
+      '@wasm-fmt/ruff_fmt':
+        specifier: 0.15.20
+        version: 0.15.20
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -1357,6 +1363,14 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       vue: ^3.5.0
+
+  '@wasm-fmt/clang-format@23.1.1':
+    resolution: {integrity: sha512-SPA6H8DI/MOJAr0CfpbFBoqI5sfrimu3SlovuAAy36mq9vs9TOkS48lpUsNaPLeZzeQVEGe+pfbJHXKxiroP/g==}
+    engines: {node: '>=16.17.0'}
+    hasBin: true
+
+  '@wasm-fmt/ruff_fmt@0.15.20':
+    resolution: {integrity: sha512-PYij4wTiDSTx6MyBGHSY0nWDjSiTbOB3moPJiZTBL8F0JZLEfHAi4lYAn9SC9Hzm8tVeTnL7Qyf1iPW0TKHVEg==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -4300,6 +4314,10 @@ snapshots:
   '@vueuse/shared@15.0.0(vue@3.5.44(typescript@5.9.3))':
     dependencies:
       vue: 3.5.44(typescript@5.9.3)
+
+  '@wasm-fmt/clang-format@23.1.1': {}
+
+  '@wasm-fmt/ruff_fmt@0.15.20': {}
 
   accepts@2.0.0:
     dependencies:

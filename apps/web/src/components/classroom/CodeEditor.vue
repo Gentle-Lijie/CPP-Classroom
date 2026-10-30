@@ -25,6 +25,7 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const container = ref<HTMLElement>()
+const formatError = ref('')
 const editorError = ref(''),
   editorLoading = ref(true)
 let editor: Monaco.editor.IStandaloneCodeEditor | undefined
@@ -165,6 +166,8 @@ async function initializeEditor() {
     const monaco = await import('monaco-editor/esm/vs/editor/editor.api.js')
     await import('monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution.js')
     await import('monaco-editor/esm/vs/basic-languages/python/python.contribution.js')
+    await import('monaco-editor/esm/vs/editor/contrib/contextmenu/browser/contextmenu.js')
+    await import('monaco-editor/esm/vs/editor/standalone/browser/quickAccess/standaloneCommandsQuickAccess.js')
     if (disposed || !container.value) return
     monacoApi = monaco
     self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
@@ -196,6 +199,46 @@ async function initializeEditor() {
       fixedOverflowWidgets: true,
     })
     const currentEditor = editor
+    currentEditor.addAction({
+      id: 'classroom.format-document',
+      label: '格式化文档',
+      precondition: '!editorReadonly',
+      contextMenuGroupId: '1_modification',
+      contextMenuOrder: 1.5,
+      keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF],
+      run: async () => {
+        const model = currentEditor.getModel()
+        if (!model || props.readonly) return
+        const version = model.getVersionId()
+        const source = model.getValue()
+        const language = props.language
+        formatError.value = ''
+        try {
+          const formatted = await (
+            await import('@/lib/format-source')
+          ).formatSource(source, language, props.filename)
+          if (
+            disposed ||
+            props.readonly ||
+            currentEditor.getModel() !== model ||
+            model.getVersionId() !== version
+          ) {
+            formatError.value = '格式化期间代码已更改，请重试。'
+            return
+          }
+          if (formatted !== source) {
+            currentEditor.pushUndoStop()
+            currentEditor.executeEdits('classroom.format-document', [
+              { range: model.getFullModelRange(), text: formatted },
+            ])
+            currentEditor.pushUndoStop()
+          }
+        } catch (error) {
+          if (!disposed)
+            formatError.value = `格式化失败：${error instanceof Error ? error.message : '请重试'}`
+        }
+      },
+    })
     currentEditor.onDidChangeModelContent(() => {
       if (!applyingValue) emit('update:modelValue', currentEditor.getValue())
     })
@@ -294,6 +337,7 @@ onBeforeUnmount(() => {
       ref="container"
       class="code-editor"
       :aria-label="readonly ? `${languageLabel} 代码，只读` : `${languageLabel} 代码编辑器`" />
+    <Alert v-if="formatError" role="alert" type="error">{{ formatError }}</Alert>
     <div v-if="!readonly" class="editor-language-bar">
       <label
         class="editor-language-toggle"

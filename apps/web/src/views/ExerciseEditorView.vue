@@ -334,6 +334,19 @@ async function save(publish: boolean) {
   }
   router.push('/teacher/exercises?exercise=' + value.id)
 }
+function saveShortcut(event: KeyboardEvent) {
+  if (
+    !(event.metaKey || event.ctrlKey) ||
+    event.altKey ||
+    event.shiftKey ||
+    event.key.toLowerCase() !== 's'
+  )
+    return
+  event.preventDefault()
+  if (!busy.value && !readingMarkdown.value && !missing.value) void save(false)
+}
+onMounted(() => window.addEventListener('keydown', saveShortcut, true))
+onBeforeUnmount(() => window.removeEventListener('keydown', saveShortcut, true))
 useActionFeedback(error)
 </script>
 <template>

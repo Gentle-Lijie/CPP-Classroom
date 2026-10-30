@@ -506,10 +506,25 @@ function keyboard(event: KeyboardEvent) {
     next(-1)
   }
 }
+function saveShortcut(event: KeyboardEvent) {
+  if (
+    !(event.metaKey || event.ctrlKey) ||
+    event.altKey ||
+    event.shiftKey ||
+    event.key.toLowerCase() !== 's'
+  )
+    return
+  event.preventDefault()
+  if (readonly.value) return
+  void nextTick().then(async () => {
+    if (!(await persist())) notify('示范代码尚未同步，请检查保存状态', 'error')
+  })
+}
 onMounted(() => {
   poll = setInterval(() => void pollRun(), 1000)
   window.addEventListener('beforeunload', beforeUnload)
   document.addEventListener('keydown', keyboard)
+  window.addEventListener('keydown', saveShortcut, true)
   document.addEventListener('fullscreenchange', fullscreenChange)
 })
 onBeforeUnmount(() => {
@@ -518,6 +533,7 @@ onBeforeUnmount(() => {
   clearInterval(poll)
   window.removeEventListener('beforeunload', beforeUnload)
   document.removeEventListener('keydown', keyboard)
+  window.removeEventListener('keydown', saveShortcut, true)
   document.removeEventListener('fullscreenchange', fullscreenChange)
 })
 </script>

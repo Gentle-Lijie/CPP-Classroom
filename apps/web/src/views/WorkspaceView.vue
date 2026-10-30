@@ -664,12 +664,31 @@ function unload(event: BeforeUnloadEvent) {
   }
 }
 window.addEventListener('beforeunload', unload)
+function saveShortcut(event: KeyboardEvent) {
+  if (
+    !(event.metaKey || event.ctrlKey) ||
+    event.altKey ||
+    event.shiftKey ||
+    event.key.toLowerCase() !== 's'
+  )
+    return
+  event.preventDefault()
+  if (readonly.value || studentGuideActive.value) return
+  void nextTick().then(async () => {
+    if ((await directoryPanel.value?.flush()) === false) {
+      notify('本地文件尚未保存，请先处理目录冲突或下载备份', 'error')
+    }
+    if (!(await saveNow())) notify('草稿尚未同步，请检查保存状态', 'error')
+  })
+}
+window.addEventListener('keydown', saveShortcut, true)
 onBeforeUnmount(() => {
   generation++
   clearTimeout(saveTimer)
   clearInterval(poll)
   clearInterval(pulse)
   window.removeEventListener('beforeunload', unload)
+  window.removeEventListener('keydown', saveShortcut, true)
 })
 onBeforeRouteLeave(async (to) => {
   if (to.path === '/login' && !currentUser.value) {
