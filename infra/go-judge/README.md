@@ -8,6 +8,20 @@
 
 ## 构建和安装
 
+### 一键部署
+
+在独立的原生 Linux 节点准备 systemd、cgroup v2、git、Go、curl、OpenSSL、GCC/G++、Python 3 和完整标准库，然后在仓库根目录运行：
+
+```sh
+sudo bash scripts/deploy-go-judge.sh
+```
+
+脚本构建并测试固定版本的课堂补丁，首次安装时生成随机令牌和默认挂载配置，安装并重启 systemd 服务，检查 `/version` 及 `/run` 的认证。重复运行会保留已有的 `/etc/cpp-classroom/go-judge.env` 和 `mount.yaml`，但会更新二进制及 systemd 服务并重启节点。部署前请检查默认挂载路径和节点工具链；脚本不会安装系统依赖或配置 HTTPS 反向代理。
+
+首次默认只监听 `127.0.0.1:5050`。需要通过网络访问时，按实际网络配置反向代理，或修改 `/etc/cpp-classroom/go-judge.env` 中的监听地址后重新运行脚本。配置文件使用不带引号的 `KEY=value`，令牌至少 32 位且只含字母、数字及 `._~-`。令牌保存在该 root 专用文件中；将同一令牌安全地配置到业务服务或执行节点管理中。启动检查不等于沙箱和交互功能验收，仍需按下文在 Linux 节点运行完整探针。
+
+### 手动部署
+
 1. 准备原生 Linux、cgroup v2、GCC 13、CPython 3、git、Go（可自动下载 go.mod 指定工具链）、curl。Python（Beta）要求节点安装发行版的 `python3` 标准库运行时，入口为 `/usr/bin/python3`；不要求 pip 或第三方包。
 2. 运行 `bash scripts/build-go-judge.sh /tmp/classroom-runner`。脚本检查上游 commit，应用补丁，执行 Go 流协议测试，构建并输出 SHA-256。仅下载官方未打补丁版本可使用 `scripts/install-go-judge.sh`，但该二进制不能验收交互 EOF。
 3. 将二进制安装为 `/opt/cpp-classroom/bin/go-judge`，创建 `/var/lib/cpp-classroom/go-judge` 和 `/etc/cpp-classroom`。
