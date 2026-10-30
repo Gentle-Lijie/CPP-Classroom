@@ -245,28 +245,16 @@ async function signOut() {
           @click="mobileOpen = false">
           <component :is="link.icon" :size="18" />
           <span>{{ link.title }}</span>
+          <div
+            v-if="link.title === '教师授课'"
+            style="margin-left: auto; display: inline-flex; align-items: center">
+            <ArrowUpRight :size="18" />
+          </div>
           <span v-if="link.title === '课堂总览' && counts.help" class="nav-count">
             {{ counts.help }}
           </span>
         </RouterLink>
       </nav>
-      <div v-if="role === 'teacher'" class="sidebar-session">
-        <span class="live-dot" :class="{ inactive: activeClassroom.status !== '进行中' }" />
-        {{
-          activeClassroom.status === '进行中'
-            ? '课堂进行中'
-            : activeClassroom.status === '已归档'
-              ? '课堂已归档'
-              : activeClassroom.status === '已关闭'
-                ? '课堂已关闭'
-                : '课堂尚未开始'
-        }}
-        <p>{{ counts.online }} 位同学在线</p>
-        <RouterLink to="/teacher/overview">
-          开始课堂巡视
-          <ArrowUpRight :size="14" />
-        </RouterLink>
-      </div>
       <div class="sidebar-bottom">
         <Button variant="plain" class="nav-item w-full" @click="startUserGuide">
           <HelpCircle :size="18" />

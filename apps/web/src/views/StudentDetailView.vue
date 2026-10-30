@@ -511,15 +511,6 @@ function closeWindow() {
             readonly-context />
           <Alert v-else type="info">这是提交时的代码版本，不包含运行结果。</Alert>
         </div>
-        <Alert
-          v-if="viewing?.kind !== 'submission'"
-          type="info"
-          :icon="History"
-          class="app-alert--banner">
-          结果来自{{ viewing ? '所选历史运行' : '最近一次真实运行' }}；{{
-            viewing ? '代码与结果对应同一快照。' : '运行结果属于最近一次快照，可能与当前草稿不同。'
-          }}
-        </Alert>
       </div>
       <aside class="detail-aside">
         <section v-if="currentHelp" class="help-detail-panel">

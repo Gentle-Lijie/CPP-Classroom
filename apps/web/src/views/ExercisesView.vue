@@ -28,9 +28,11 @@ import {
   Monitor,
   FileCode2,
   Pencil,
+  Trash,
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import ExerciseBatchImport from '@/components/classroom/ExerciseBatchImport.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
@@ -220,6 +222,7 @@ async function deleteExercise() {
     !target ||
     !(await confirmAction(
       `永久删除练习「${target.title}」？相关草稿、提交、求助及运行记录也会被删除，且无法恢复。`,
+      { destructive: true },
     ))
   )
     return
@@ -300,7 +303,7 @@ async function imported(ids: string[]) {
       </Button>
     </section>
     <div v-else class="exercise-layout">
-      <section class="panel exercise-list-panel">
+      <ContentPanel as="section" direct class="exercise-list-panel">
         <div class="panel-heading">
           <h2>
             课堂练习
@@ -371,12 +374,15 @@ async function imported(ids: string[]) {
               <span class="exercise-order">
                 {{ String(exercises.indexOf(e) + 1).padStart(2, '0') }}
               </span>
-              <div>
+              <div class="exercise-list-title">
                 <strong>{{ e.title || '未命名题目' }}</strong>
-                <small>
-                  {{ e.filename || '未指定源文件名' }}
-                  <PythonBeta v-if="sourceLanguage(e) === 'python'" />
-                  <span v-if="activeClassroom.recommended === e.id">· 当前推荐</span>
+                <small
+                  v-if="sourceLanguage(e) === 'python' || activeClassroom.recommended === e.id">
+                  <span v-if="sourceLanguage(e) === 'python'" class="exercise-list-language">
+                    Python
+                    <PythonBeta />
+                  </span>
+                  <span v-if="activeClassroom.recommended === e.id">当前推荐</span>
                 </small>
               </div>
               <span class="status" :class="tone(e.status)">{{ e.status }}</span>
@@ -390,8 +396,8 @@ async function imported(ids: string[]) {
           v-model:page-size="pageSize"
           :total="filtered.length"
           unit="道练习" />
-      </section>
-      <section class="panel exercise-preview">
+      </ContentPanel>
+      <ContentPanel as="section" direct class="exercise-preview">
         <div class="panel-heading">
           <div class="inline-items">
             <span class="status" :class="tone(exercise.status)">{{ exercise.status }}</span>
@@ -459,41 +465,49 @@ async function imported(ids: string[]) {
         </div>
         <div class="exercise-preview-actions">
           <div class="inline-items">
-            <Button variant="ghost" :disabled="busy" @click="deleteExercise">永久删除</Button>
             <Button variant="outline" @click="preview = true">
               <Eye />
               学生预览
             </Button>
+
             <Button
-              variant="warning"
+              v-if="exercise.status !== '已发布'"
+              variant="success"
               :disabled="busy"
               data-disabled-reason="正在保存练习，请稍候"
-              @click="exercise.status === '已关闭' ? close() : (confirmClose = true)">
-              <Archive />
-              {{ exercise.status === '已关闭' ? '移回草稿' : '关闭练习' }}
+              @click="publish">
+              <Send />
+              发布练习
+            </Button>
+            <Button
+              v-else
+              :variant="activeClassroom.recommended === exercise.id ? 'outline' : 'default'"
+              :disabled="busy || activeClassroom.recommended === exercise.id"
+              :data-disabled-reason="busy ? '正在保存练习，请稍候' : '这道练习已经是当前推荐练习'"
+              @click="recommend">
+              <Check v-if="activeClassroom.recommended === exercise.id" />
+              <Star v-else />
+              {{ activeClassroom.recommended === exercise.id ? '当前推荐练习' : '设为当前推荐' }}
             </Button>
           </div>
-          <Button
-            v-if="exercise.status !== '已发布'"
-            variant="success"
-            :disabled="busy"
-            data-disabled-reason="正在保存练习，请稍候"
-            @click="publish">
-            <Send />
-            发布练习
-          </Button>
-          <Button
-            v-else
-            :variant="activeClassroom.recommended === exercise.id ? 'outline' : 'default'"
-            :disabled="busy || activeClassroom.recommended === exercise.id"
-            :data-disabled-reason="busy ? '正在保存练习，请稍候' : '这道练习已经是当前推荐练习'"
-            @click="recommend">
-            <Check v-if="activeClassroom.recommended === exercise.id" />
-            <Star v-else />
-            {{ activeClassroom.recommended === exercise.id ? '当前推荐练习' : '设为当前推荐' }}
-          </Button>
+          <div class="exercise-danger-actions">
+            <div class="inline-items">
+              <Button
+                variant="warning"
+                :disabled="busy"
+                data-disabled-reason="正在保存练习，请稍候"
+                @click="exercise.status === '已关闭' ? close() : (confirmClose = true)">
+                <Archive />
+                {{ exercise.status === '已关闭' ? '移回草稿' : '关闭练习' }}
+              </Button>
+              <Button variant="destructive" :disabled="busy" @click="deleteExercise">
+                <Trash />
+                永久删除
+              </Button>
+            </div>
+          </div>
         </div>
-      </section>
+      </ContentPanel>
     </div>
   </div>
   <Modal
@@ -663,7 +677,7 @@ async function imported(ids: string[]) {
   background: transparent;
   box-shadow: none;
   gap: 10px;
-  padding: 18px 12px;
+  padding: 14px 12px;
 }
 .batch-edit-fields {
   display: grid;
@@ -703,6 +717,8 @@ async function imported(ids: string[]) {
   min-width: 0;
 }
 .exercise-preview-actions,
+.exercise-danger-actions,
+.exercise-danger-actions > .inline-items,
 .exercise-preview-actions > .inline-items,
 .exercise-preview .panel-heading > .inline-items {
   flex-wrap: wrap;
@@ -711,6 +727,17 @@ async function imported(ids: string[]) {
 .exercise-list-item > div {
   flex: 1;
   min-width: 0;
+}
+.exercise-list-title small {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.exercise-list-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .exercise-list-item > .status {
   font-size: 13px;

@@ -411,7 +411,7 @@ export class ClassroomController {
     await this.service.access(actor(req), id, true)
     return (
       await this.service.pool.query(
-        `select u.id,u.name,u.username,u.number,u.disabled,coalesce((u.created_by=$2 and not u.disabled),false) as "canResetPassword",m.status as membership,m.exercise_id as "exerciseId",m.last_seen as "lastSeen",coalesce(m.last_seen>now()-interval '15 seconds',false) as online from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 order by u.number,u.name`,
+        `select u.id,u.name,u.username,u.number,u.disabled,coalesce((u.created_by=$2 and not u.disabled),false) as "canResetPassword",coalesce((u.created_by=$2 and u.role='student'),false) as "canDeleteAccount",m.status as membership,m.exercise_id as "exerciseId",m.last_seen as "lastSeen",coalesce(m.last_seen>now()-interval '15 seconds',false) as online from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 order by u.number,u.name`,
         [id, actor(req).id],
       )
     ).rows
@@ -514,6 +514,86 @@ export class ClassroomController {
       }
     } catch (e) {
       await client.query('rollback').catch(() => {})
+      throw e
+    } finally {
+      client.release()
+    }
+  }
+  @Delete(':id/members/:userId/account') async deleteStudentAccount(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Req() req: AuthRequest,
+  ) {
+    const teacher = actor(req)
+    await this.service.access(teacher, id, true)
+    parse(z.uuid(), userId)
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      const classroom = await client.query(
+        'select id from classrooms where id=$1 and owner_id=$2 for update',
+        [id, teacher.id],
+      )
+      if (!classroom.rowCount) throw new NotFoundException('课堂不存在')
+      const student = (
+        await client.query(
+          "select id,username from users where id=$1 and role='student' and created_by=$2 for update",
+          [userId, teacher.id],
+        )
+      ).rows[0]
+      if (!student) throw new ForbiddenException('只能删除由你创建的学生账号')
+      const member = await client.query(
+        'select id from memberships where classroom_id=$1 and user_id=$2',
+        [id, userId],
+      )
+      if (!member.rowCount) throw new NotFoundException('该学生不是当前课堂成员')
+      const otherTeacher = await client.query(
+        `select 1 from classrooms c where c.owner_id<>$2 and (
+          exists(select 1 from memberships where classroom_id=c.id and user_id=$1) or
+          exists(select 1 from drafts where classroom_id=c.id and user_id=$1) or
+          exists(select 1 from runs where classroom_id=c.id and user_id=$1) or
+          exists(select 1 from submissions where classroom_id=c.id and user_id=$1) or
+          exists(select 1 from help_requests where classroom_id=c.id and user_id=$1) or
+          exists(select 1 from projections where classroom_id=c.id and user_id=$1)
+        ) limit 1`,
+        [userId, teacher.id],
+      )
+      if (otherTeacher.rowCount)
+        throw new ConflictException(
+          '该账号关联其他教师的课堂或作品，不能由教师永久删除，请联系管理员',
+        )
+      const active = await client.query(
+        "select 1 from runs where user_id=$1 and status in ('排队','编译中','运行中／可输入') limit 1",
+        [userId],
+      )
+      if (active.rowCount) throw new ConflictException('该学生仍有执行中的任务，请等待任务结束')
+      await client.query(
+        'delete from run_inputs where run_id in (select id from runs where user_id=$1)',
+        [userId],
+      )
+      for (const table of [
+        'runs',
+        'help_requests',
+        'submissions',
+        'drafts',
+        'projections',
+        'memberships',
+        'sessions',
+      ])
+        await client.query(`delete from ${table} where user_id=$1`, [userId])
+      await client.query('delete from recovery_requests where username=$1', [student.username])
+      await client.query('delete from users where id=$1', [userId])
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'student.deleted',
+        teacher.id,
+        JSON.stringify({ classroomId: id, userId }),
+      ])
+      await client.query('commit')
+      return { ok: true }
+    } catch (e) {
+      await client.query('rollback')
+      if ((e as { code?: string }).code === '23503')
+        throw new ConflictException('账号仍有关联记录，无法删除，请联系管理员')
       throw e
     } finally {
       client.release()

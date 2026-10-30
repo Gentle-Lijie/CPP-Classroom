@@ -4,11 +4,13 @@ import { cn } from 'cn'
 
 const props = defineProps<{
   class?: HTMLAttributes['class']
+  as?: string
 }>()
 </script>
 
 <template>
-  <div
+  <component
+    :is="props.as ?? 'div'"
     data-slot="card"
     :class="
       cn(
@@ -17,5 +19,5 @@ const props = defineProps<{
       )
     ">
     <slot />
-  </div>
+  </component>
 </template>

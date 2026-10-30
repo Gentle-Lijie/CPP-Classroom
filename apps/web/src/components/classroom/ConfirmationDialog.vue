@@ -11,7 +11,11 @@ import { confirmation, resolveConfirmation } from '@/lib/confirm'
     @update:open="!$event && resolveConfirmation(false)">
     <div class="modal-actions">
       <Button variant="outline" @click="resolveConfirmation(false)">取消</Button>
-      <Button @click="resolveConfirmation(true)">确认</Button>
+      <Button
+        :variant="confirmation?.destructive ? 'destructive' : 'default'"
+        @click="resolveConfirmation(true)">
+        确认
+      </Button>
     </div>
   </Modal>
 </template>

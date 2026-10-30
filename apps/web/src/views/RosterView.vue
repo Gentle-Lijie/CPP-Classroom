@@ -19,9 +19,11 @@ import {
   KeyRound,
   FileDown,
   RefreshCw,
+  Trash,
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import CredentialDialog from '@/components/classroom/CredentialDialog.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
@@ -47,6 +49,7 @@ interface Member {
   membership: string
   disabled: boolean
   canResetPassword: boolean
+  canDeleteAccount: boolean
 }
 interface Credential {
   id: string
@@ -63,6 +66,7 @@ const search = ref(''),
   number = ref(''),
   username = ref(''),
   password = ref('')
+const deleteTarget = ref<Member>()
 const remove = ref<Member>(),
   importing = ref(false),
   csv = ref(''),
@@ -106,6 +110,7 @@ watch(
     importing.value = false
     resetting.value = false
     remove.value = undefined
+    deleteTarget.value = undefined
     credentialsOpen.value = false
   },
   { immediate: true },
@@ -451,6 +456,26 @@ async function resetPasswords() {
     busy.value = false
   }
 }
+async function deleteStudentAccount() {
+  const target = deleteTarget.value
+  if (!target || busy.value) return
+  const classId = demo.classroomId
+  busyReason.value = '正在永久删除学生账号，请稍候'
+  busy.value = true
+  error.value = ''
+  try {
+    await api(`/classes/${classId}/members/${target.id}/account`, 'DELETE')
+    deleteTarget.value = undefined
+    credentials.value = credentials.value.filter((credential) => credential.id !== target.id)
+    selected.value = selected.value.filter((id) => id !== target.id)
+    notify(`学生账号 ${target.username} 已永久删除`)
+    await reloadAfterWrite(classId)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '删除账号失败'
+  } finally {
+    busy.value = false
+  }
+}
 async function removeStudent() {
   if (busy.value || !remove.value) return
   const classId = demo.classroomId,
@@ -534,7 +559,7 @@ const busyReason = ref('正在处理请求，请稍候')
     </template>
   </Alert>
 
-  <section class="panel panel-fill">
+  <ContentPanel as="section" direct class="panel-fill">
     <div class="panel-heading">
       <div class="filter-tabs borderless">
         <Button
@@ -724,6 +749,17 @@ const busyReason = ref('正在处理请求，请稍候')
                   <UserMinus :size="14" />
                   移除
                 </Button>
+
+                <Button
+                  v-if="m.canDeleteAccount"
+                  size="sm"
+                  variant="destructive"
+                  :disabled="busy"
+                  :data-disabled-reason="busyReason"
+                  @click="deleteTarget = m">
+                  <Trash />
+                  永久删除账号
+                </Button>
               </div>
             </td>
           </tr>
@@ -747,7 +783,7 @@ const busyReason = ref('正在处理请求，请稍候')
       v-model:page-size="pageSize"
       :total="visible.length"
       unit="位学生" />
-  </section>
+  </ContentPanel>
   <Modal
     v-model:open="add"
     :dismissible="!busy"
@@ -910,6 +946,22 @@ const busyReason = ref('正在处理请求，请稍候')
         @click="resetPasswords">
         <KeyRound />
         {{ busy ? '正在重置…' : '确认重置并生成凭据' }}
+      </Button>
+    </div>
+  </Modal>
+  <Modal
+    :open="!!deleteTarget"
+    :dismissible="!busy"
+    :title="`永久删除 ${deleteTarget?.name ?? '学生'} 的账号？`"
+    :description="`账号 ${deleteTarget?.username ?? ''} 及其在你所有课堂中的成员关系、草稿、提交、求助、运行记录和投屏将永久删除，无法恢复。登录会话也会失效。`"
+    @update:open="!$event && (deleteTarget = undefined)">
+    <Alert type="warning">
+      只能删除由你创建且未关联其他教师课堂或作品的学生账号。请先确认需要保留的作品已导出。
+    </Alert>
+    <div class="modal-actions">
+      <Button variant="outline" :disabled="busy" @click="deleteTarget = undefined">取消</Button>
+      <Button variant="destructive" :disabled="busy" @click="deleteStudentAccount">
+        {{ busy ? '正在删除…' : '确认永久删除账号' }}
       </Button>
     </div>
   </Modal>

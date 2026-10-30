@@ -75,7 +75,9 @@ async function load() {
 async function remove(node: Node) {
   if (
     busy.value ||
-    !(await confirmAction(`永久删除执行节点 ${node.name}？历史运行记录会保留，但不再关联此节点。`))
+    !(await confirmAction(`永久删除执行节点 ${node.name}？历史运行记录会保留，但不再关联此节点。`, {
+      destructive: true,
+    }))
   )
     return
   busy.value = true
@@ -175,7 +177,12 @@ onMounted(() => {
       </div>
       <div class="inline-items">
         <Button type="button" variant="outline" size="sm" @click="edit(node)">编辑</Button>
-        <Button type="button" variant="ghost" size="sm" :disabled="busy" @click="remove(node)">
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          :disabled="busy"
+          @click="remove(node)">
           删除
         </Button>
       </div>

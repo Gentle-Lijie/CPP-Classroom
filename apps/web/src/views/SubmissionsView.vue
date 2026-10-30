@@ -11,6 +11,7 @@ import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { Search, Download, FileCode2, ArrowRight, PackageOpen, RefreshCw, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Pagination from '@/components/classroom/Pagination.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import { download, notify, classPath, activeClassroom, exercises, students } from '@/data/demo'
 import { api } from '@/lib/api'
 import { csvDocument } from '@/lib/csv'
@@ -286,7 +287,7 @@ useActionFeedback(exportError)
       </Button>
     </div>
   </section>
-  <section class="panel panel-fill">
+  <ContentPanel as="section" direct class="panel-fill">
     <div class="panel-heading">
       <h2>
         主动提交
@@ -420,7 +421,7 @@ useActionFeedback(exportError)
       :total="total"
       :busy="loading"
       unit="份提交" />
-  </section>
+  </ContentPanel>
 </template>
 <style scoped>
 .export-panel {

@@ -1053,7 +1053,7 @@ th {
   background: var(--ui-warning-bg);
 }
 button.stat-card:hover {
-  border-color: var(--ui-blue-line);
+  /* border-color: var(--ui-blue-line); */
   background: var(--ui-hover);
 }
 .status {

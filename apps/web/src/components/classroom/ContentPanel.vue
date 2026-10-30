@@ -14,12 +14,14 @@ const props = defineProps<{
   description?: string
   icon?: Component
   contentClass?: HTMLAttributes['class']
+  as?: string
+  direct?: boolean
 }>()
 const titleId = useId()
 const slots = useSlots()
 </script>
 <template>
-  <Card class="panel content-panel" :aria-labelledby="title ? titleId : undefined">
+  <Card :as="props.as" class="panel content-panel" :aria-labelledby="title ? titleId : undefined">
     <CardHeader v-if="title || slots.header" class="content-panel-header">
       <slot name="header">
         <div class="content-panel-heading">
@@ -36,7 +38,8 @@ const slots = useSlots()
         <slot name="actions" />
       </CardAction>
     </CardHeader>
-    <CardContent :class="cn('content-panel-body', props.contentClass)"><slot /></CardContent>
+    <slot v-if="props.direct" />
+    <CardContent v-else :class="cn('content-panel-body', props.contentClass)"><slot /></CardContent>
     <CardFooter v-if="slots.footer" class="content-panel-footer"><slot name="footer" /></CardFooter>
   </Card>
 </template>

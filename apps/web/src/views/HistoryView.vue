@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
 import RunOutput from '@/components/classroom/RunOutput.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import { download, tone, demo, exercises, classPath, type RunRecord } from '@/data/demo'
 import { api } from '@/lib/api'
 import { compilerLabel, formatTime } from '@/lib/display'
@@ -141,7 +142,7 @@ void load()
     </RouterLink>
   </div>
   <div v-else-if="records.length" class="history-page-layout fill-stack" :aria-busy="loading">
-    <section class="panel panel-fill">
+    <ContentPanel as="section" direct class="panel-fill">
       <div class="panel-heading">
         <h2>运行记录</h2>
         <History :size="17" class="muted" />
@@ -168,8 +169,8 @@ void load()
         :total="total"
         :busy="loading"
         unit="条记录" />
-    </section>
-    <section v-if="run" class="panel panel-fill">
+    </ContentPanel>
+    <ContentPanel v-if="run" as="section" direct class="panel-fill">
       <div class="panel-heading">
         <div class="inline-items">
           <h2>运行 {{ run.id.slice(0, 8) }}</h2>
@@ -200,7 +201,7 @@ void load()
           <RunOutput :key="run.id" :run="run" readonly-context />
         </div>
       </div>
-    </section>
+    </ContentPanel>
   </div>
 </template>
 <style scoped>

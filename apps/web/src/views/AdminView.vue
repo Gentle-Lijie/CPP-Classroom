@@ -353,7 +353,9 @@ async function saveUser() {
 async function deleteUser(u: User) {
   if (
     busy.value ||
-    !(await confirmAction(`永久删除账号 ${u.username}？有关联课堂或作品的账号不能删除。`))
+    !(await confirmAction(`永久删除账号 ${u.username}？有关联课堂或作品的账号不能删除。`, {
+      destructive: true,
+    }))
   )
     return
   busy.value = true
@@ -505,7 +507,7 @@ const busyReason = ref('正在处理请求，请稍候')
     </div>
     <RunnerUsage ref="runnerUsage" />
   </template>
-  <section v-else-if="section === 'teachers'" class="panel panel-fill">
+  <ContentPanel v-else-if="section === 'teachers'" as="section" direct class="panel-fill">
     <div class="table-controls">
       <label class="search-field">
         <Search :size="16" />
@@ -553,7 +555,7 @@ const busyReason = ref('正在处理请求，请稍候')
             <td>
               <template v-if="u.id !== currentUser?.id">
                 <Button size="sm" variant="ghost" @click="openEdit(u)">编辑</Button>
-                <Button size="sm" variant="ghost" @click="deleteUser(u)">删除</Button>
+                <Button size="sm" variant="destructive" @click="deleteUser(u)">删除</Button>
                 <Button
                   size="sm"
                   :variant="u.disabled ? 'success' : 'outline'"
@@ -622,8 +624,8 @@ const busyReason = ref('正在处理请求，请稍候')
         :total="recoveryTotal"
         unit="条申请" />
     </div>
-  </section>
-  <section v-else-if="section === 'tasks'" class="panel panel-fill">
+  </ContentPanel>
+  <ContentPanel v-else-if="section === 'tasks'" as="section" direct class="panel-fill">
     <div class="table-controls">
       <label class="search-field">
         <Search :size="16" />
@@ -663,7 +665,7 @@ const busyReason = ref('正在处理请求，请稍候')
       v-model:page-size="taskPages.pageSize.value"
       :total="taskTotal"
       unit="条任务" />
-  </section>
+  </ContentPanel>
   <template v-else>
     <ContentPanel title="数据库备份" :icon="Database" class="admin-backup-panel">
       <p>备份保存在服务器本地。验证会使用独立的临时数据库，保留当前课堂、账号和作品数据。</p>
@@ -673,7 +675,7 @@ const busyReason = ref('正在处理请求，请稍候')
         {{ busy ? '备份与恢复验证中…' : '创建并验证备份' }}
       </Button>
     </ContentPanel>
-    <section class="panel panel-fill" data-guide="audit-records">
+    <ContentPanel as="section" direct class="panel-fill" data-guide="audit-records">
       <div class="panel-heading"><h2>管理与备份记录</h2></div>
       <div class="table-controls">
         <label class="search-field">
@@ -704,7 +706,7 @@ const busyReason = ref('正在处理请求，请稍候')
         v-model:page-size="auditPages.pageSize.value"
         :total="auditTotal"
         unit="条记录" />
-    </section>
+    </ContentPanel>
   </template>
   <Modal
     :open="!!editTarget"

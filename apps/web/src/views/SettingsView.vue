@@ -249,6 +249,7 @@ async function deleteClass() {
     busy.value ||
     !(await confirmAction(
       `永久删除课堂「${activeClassroom.value.name}」？课堂内所有题目、成员关系、草稿、提交、求助、投屏和运行记录都会删除，且无法恢复。账号会保留。`,
+      { destructive: true },
     ))
   )
     return
@@ -478,24 +479,26 @@ const busyReason = ref('正在处理请求，请稍候')
             归档会关闭新成员加入、编辑与新运行，并停止正在执行的任务。历史作品按只读访问策略保留；需要继续教学时可恢复课堂。
           </p>
           <Alert type="warning">归档保留账号、作品和历史记录，不会永久删除数据。</Alert>
-          <Button variant="outline" class="self-start" :disabled="busy" @click="deleteClass">
-            永久删除课堂
-          </Button>
-          <Button
-            v-if="activeClassroom.status === '已归档'"
-            variant="success"
-            class="self-start"
-            @click="reopen = true">
-            恢复课堂教学
-          </Button>
-          <Button
-            variant="destructive"
-            class="self-start"
-            :disabled="busy || activeClassroom.status === '已归档'"
-            :data-disabled-reason="busy ? busyReason : '课堂已归档，请先恢复课堂教学'"
-            @click="archive = true">
-            {{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}
-          </Button>
+          <div class="inline-items">
+            <Button
+              v-if="activeClassroom.status === '已归档'"
+              variant="success"
+              class="self-start"
+              @click="reopen = true">
+              恢复课堂教学
+            </Button>
+            <Button
+              variant="destructive"
+              class="self-start"
+              :disabled="busy || activeClassroom.status === '已归档'"
+              :data-disabled-reason="busy ? busyReason : '课堂已归档，请先恢复课堂教学'"
+              @click="archive = true">
+              {{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}
+            </Button>
+            <Button variant="destructive" class="self-start" :disabled="busy" @click="deleteClass">
+              永久删除课堂
+            </Button>
+          </div>
         </div>
       </section>
     </div>

@@ -24,6 +24,7 @@ import {
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import {
@@ -255,9 +256,13 @@ async function regenerateInvite() {
       <!-- </div> -->
     </Button>
   </div>
-  <div class="overview-columns">
-    <section class="panel student-panel">
-      <div class="panel-heading">
+  <div class="overview-columns fill-stack">
+    <ContentPanel
+      class="student-panel panel-fill"
+      content-class="student-panel-body"
+      role="region"
+      aria-label="课堂巡视">
+      <template #header>
         <div class="section-heading">
           <h2>课堂巡视</h2>
           <span class="subtle-count">{{ counts.total }}</span>
@@ -266,7 +271,7 @@ async function regenerateInvite() {
             服务器状态同步
           </span>
         </div>
-      </div>
+      </template>
       <div class="filter-tabs">
         <Button
           v-for="f in filters"
@@ -332,17 +337,26 @@ async function regenerateInvite() {
                 </div>
               </td>
               <td>
-                <span class="table-exercise">
-                  {{ studentExercise(s)?.title ?? '尚未选择练习' }}
-                </span>
-                <small class="cell-secondary">{{ s.online ? '在线编辑' : '当前离线' }}</small>
+                <div class="student-row-content">
+                  <span class="table-exercise" :title="studentExercise(s)?.title ?? '尚未选择练习'">
+                    {{ studentExercise(s)?.title ?? '尚未选择练习' }}
+                  </span>
+                  <small class="cell-secondary">{{ s.online ? '在线' : '离线' }}</small>
+                </div>
               </td>
               <td>
-                <span class="status" :class="tone(s.status)">
-                  <span class="status-dot" />
-                  {{ s.status }}
-                </span>
-                <small class="cell-secondary error-summary">{{ s.summary }}</small>
+                <div class="student-row-content">
+                  <span class="status" :class="tone(s.status)">
+                    <span class="status-dot" />
+                    {{ s.status }}
+                  </span>
+                  <small
+                    v-if="s.summary && s.summary !== s.status"
+                    class="cell-secondary error-summary"
+                    :title="s.summary">
+                    {{ s.summary }}
+                  </small>
+                </div>
               </td>
               <td>
                 <span v-if="s.help" class="help-label">
@@ -377,12 +391,14 @@ async function regenerateInvite() {
           </Button>
         </div>
       </div>
-      <Pagination
-        v-model:page="page"
-        v-model:page-size="pageSize"
-        :total="visible.length"
-        unit="位学生" />
-    </section>
+      <template #footer>
+        <Pagination
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :total="visible.length"
+          unit="位学生" />
+      </template>
+    </ContentPanel>
     <aside class="overview-aside">
       <section class="panel current-exercise">
         <div class="panel-heading">
@@ -530,9 +546,134 @@ async function regenerateInvite() {
 .student-panel {
   min-width: 0;
 }
+.overview-columns {
+  align-items: stretch;
+}
+.student-panel {
+  height: 100%;
+}
+.student-panel :deep(.content-panel-header) {
+  min-height: 48px;
+  padding: 9px 16px;
+}
+.student-panel :deep(.student-panel-body) {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+}
+.student-panel .table-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+}
+.student-panel :deep(.content-panel-footer) {
+  padding: 0;
+  border-top: 0;
+  background: var(--ui-page);
+}
+.student-panel :deep(.pagination) {
+  width: 100%;
+}
+.overview-aside {
+  min-height: 0;
+  overflow-y: auto;
+}
+.overview-aside > section {
+  flex-shrink: 0;
+}
+@media (max-width: 1180px) {
+  .overview-columns {
+    grid-template-rows: minmax(300px, 1fr) auto;
+    overflow-y: auto;
+  }
+  .overview-aside {
+    overflow: visible;
+  }
+}
 .filter-tabs {
   overflow-x: auto;
   flex-shrink: 0;
+  gap: 16px;
+  padding-inline: 16px;
+}
+.student-panel .filter-tabs > :deep(button) {
+  padding-block: 9px 8px;
+}
+.student-panel .table-controls {
+  padding: 8px 16px;
+}
+.student-panel .select-wrap {
+  background: var(--ui-page);
+  border-color: var(--ui-line-strong);
+}
+.student-panel .select-wrap:focus-within {
+  border-color: var(--ui-action);
+  box-shadow: 0 0 0 3px var(--ui-focus);
+}
+.student-panel .select-wrap :deep(.ui-select-trigger) {
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.student-panel .select-wrap :deep(.ui-select-trigger:focus-visible) {
+  box-shadow: none;
+}
+.student-panel .student-table th {
+  padding: 8px 14px;
+}
+.student-panel .student-table td {
+  padding: 7px 14px;
+}
+.student-panel .student-table :is(th, td):first-child {
+  padding-left: 16px;
+}
+.student-panel .student-table :is(th, td):last-child {
+  padding-right: 16px;
+}
+.student-panel .person-cell {
+  min-height: 30px;
+  height: auto;
+  gap: 8px;
+}
+.student-panel .student-avatar {
+  width: 28px;
+  height: 28px;
+}
+.student-panel .person-text,
+.student-panel .student-row-content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 7px;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+.student-panel .person-text strong,
+.student-panel .table-exercise,
+.student-panel .error-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.student-panel .table-exercise {
+  display: block;
+}
+.student-panel .person-text small,
+.student-panel .cell-secondary {
+  display: inline;
+  margin: 0;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+.student-panel .error-summary {
+  flex-shrink: 1;
+}
+.student-panel :deep(.pagination) {
+  padding-block: 8px;
 }
 .help-item p {
   white-space: pre-wrap;

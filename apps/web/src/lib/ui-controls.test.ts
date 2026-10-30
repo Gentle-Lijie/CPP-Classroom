@@ -31,6 +31,12 @@ describe('navigation confirmation', () => {
     expect(await answer).toBe(false)
     expect(confirmation.value).toBeUndefined()
   })
+  it('marks destructive confirmations separately from ordinary confirmations', async () => {
+    const answer = confirmAction('删除记录？', { destructive: true })
+    expect(confirmation.value?.destructive).toBe(true)
+    resolveConfirmation(false)
+    expect(await answer).toBe(false)
+  })
   it('cancels a superseded request and resolves the current choice', async () => {
     const first = confirmAction('First page')
     const second = confirmAction('Second page')
