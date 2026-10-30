@@ -20,6 +20,14 @@ sudo bash scripts/deploy-go-judge.sh
 
 首次默认只监听 `127.0.0.1:5050`。需要通过网络访问时，按实际网络配置反向代理，或修改 `/etc/cpp-classroom/go-judge.env` 中的监听地址后重新运行脚本。配置文件使用不带引号的 `KEY=value`，令牌至少 32 位且只含字母、数字及 `._~-`。令牌保存在该 root 专用文件中；将同一令牌安全地配置到业务服务或执行节点管理中。启动检查不等于沙箱和交互功能验收，仍需按下文在 Linux 节点运行完整探针。
 
+构建时 Go 模块下载会自动重试两次。如果连接 `proxy.golang.org` 时出现 `unexpected EOF`，可直接重新运行；已下载的模块会复用。若网络持续不稳定，可选用可信的 Go 模块代理，并明确将其传给 sudo 进程，例如：
+
+```sh
+sudo env GOPROXY=https://goproxy.cn,direct ./scripts/deploy-go-judge.sh
+```
+
+该代理是第三方服务，请按所在网络的要求选择；脚本不会修改系统的 Go 代理设置。
+
 ### 手动部署
 
 1. 准备原生 Linux、cgroup v2、GCC 13、CPython 3、git、Go（可自动下载 go.mod 指定工具链）、curl。Python（Beta）要求节点安装发行版的 `python3` 标准库运行时，入口为 `/usr/bin/python3`；不要求 pip 或第三方包。
