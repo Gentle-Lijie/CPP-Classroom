@@ -11,6 +11,7 @@ import CodeEditor from '@/components/classroom/CodeEditor.vue'
 import RunOutput from '@/components/classroom/RunOutput.vue'
 import { demo, notify, type RunRecord } from '@/data/demo'
 import { api, ApiError } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
 const route = useRoute(),
   router = useRouter()
 const size = ref(23),
@@ -71,7 +72,7 @@ onBeforeUnmount(() => {
   clearInterval(poll)
 })
 async function end() {
-  if (busy.value) return
+  if (busy.value || !(await confirmAction('结束并撤销当前投屏？投屏链接将立即失效。'))) return
   busy.value = true
   try {
     await api(path + '/revoke', 'POST', {})

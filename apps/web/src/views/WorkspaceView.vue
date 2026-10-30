@@ -393,6 +393,10 @@ watch([historyPage, historySize], () => {
   if (!loading.value) void loadHistory()
 })
 async function useServer() {
+  if (
+    !(await confirmAction('采用服务器版本？当前未同步的代码会先下载备份，然后替换编辑器中的代码。'))
+  )
+    return
   const c = context()
   try {
     const remote = await api<{ code: string; revision: number }>(

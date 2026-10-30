@@ -436,6 +436,12 @@ function openMonitor() {
   )
 }
 async function useServer() {
+  if (
+    !(await confirmAction(
+      '采用服务器版本？当前未同步的示范代码会先下载备份，然后替换编辑器中的代码。',
+    ))
+  )
+    return
   download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
   try {
     localStorage.removeItem(backupKey(context()))

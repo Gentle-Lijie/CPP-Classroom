@@ -35,6 +35,7 @@ import {
   activeClassroom,
 } from '@/data/demo'
 import { api } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
 import { csvDocument, parseRoster } from '@/lib/csv'
 import { readRosterFile, rosterCsvTemplate, rosterExcelTemplate } from '@/lib/roster-file'
 import { downloadBlob } from '@/lib/source-archive'
@@ -283,7 +284,17 @@ async function save() {
 async function decide(id: string, status: string) {
   if (busy.value) return
   const classId = demo.classroomId,
-    wasRemoved = members.value.find((m) => m.id === id)?.membership === 'removed'
+    member = members.value.find((m) => m.id === id),
+    wasRemoved = member?.membership === 'removed'
+  const action =
+    status === 'removed' ? '拒绝加入申请' : wasRemoved ? '恢复课堂访问' : '批准加入课堂'
+  if (
+    !(await confirmAction(
+      `确认${action}：${member?.name ?? '该学生'}？${status === 'removed' ? '学生之后可重新申请。' : '该学生将获得课堂访问权限。'}`,
+    ))
+  )
+    return
+  if (classId !== demo.classroomId) return
   busyReason.value = '正在更新课堂成员状态，请稍候'
   busy.value = true
   error.value = ''

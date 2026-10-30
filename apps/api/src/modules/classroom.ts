@@ -353,6 +353,51 @@ export class ClassroomController {
     }
     return { ok: true }
   }
+  @Delete(':id') async deleteClass(@Param('id') id: string, @Req() req: AuthRequest) {
+    const user = actor(req)
+    await this.service.access(user, id, true)
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      const classroom = await client.query(
+        'select id from classrooms where id=$1 and owner_id=$2 for update',
+        [id, user.id],
+      )
+      if (!classroom.rowCount) throw new NotFoundException('课堂不存在')
+      const active = await client.query(
+        "select 1 from runs where classroom_id=$1 and status in ('排队','编译中','运行中／可输入') limit 1",
+        [id],
+      )
+      if (active.rowCount) throw new ConflictException('课堂仍有执行中的任务，请等待任务结束')
+      await client.query(
+        'delete from run_inputs where run_id in (select id from runs where classroom_id=$1)',
+        [id],
+      )
+      for (const table of [
+        'runs',
+        'help_requests',
+        'submissions',
+        'drafts',
+        'projections',
+        'memberships',
+        'exercises',
+      ])
+        await client.query(`delete from ${table} where classroom_id=$1`, [id])
+      await client.query('delete from classrooms where id=$1', [id])
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'classroom.deleted',
+        user.id,
+        JSON.stringify({ classroomId: id }),
+      ])
+      await client.query('commit')
+      return { ok: true }
+    } catch (e) {
+      await client.query('rollback')
+      throw e
+    } finally {
+      client.release()
+    }
+  }
   @Post(':id/invite') async invite(@Param('id') id: string, @Req() req: AuthRequest) {
     await this.service.access(actor(req), id, true)
     return (
@@ -944,6 +989,67 @@ export class ClassroomController {
     } catch (e) {
       await client.query('rollback').catch(() => {})
       if ((e as { code: string }).code === '23505') throw new ConflictException('文件名已存在')
+      throw e
+    } finally {
+      client.release()
+    }
+  }
+  @Delete(':id/exercises/:exerciseId/permanent') async deleteExercise(
+    @Param('id') id: string,
+    @Param('exerciseId') exerciseId: string,
+    @Req() req: AuthRequest,
+  ) {
+    const user = actor(req)
+    await this.service.access(user, id, true)
+    parse(z.uuid(), exerciseId)
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      await client.query('select id from classrooms where id=$1 for update', [id])
+      const exercise = await client.query(
+        'select id from exercises where classroom_id=$1 and id=$2 for update',
+        [id, exerciseId],
+      )
+      if (!exercise.rowCount) throw new NotFoundException('练习不存在')
+      const active = await client.query(
+        "select 1 from runs where classroom_id=$1 and exercise_id=$2 and status in ('排队','编译中','运行中／可输入') limit 1",
+        [id, exerciseId],
+      )
+      if (active.rowCount) throw new ConflictException('练习仍有执行中的任务，请等待任务结束')
+      await client.query(
+        'delete from run_inputs where run_id in (select id from runs where classroom_id=$1 and exercise_id=$2)',
+        [id, exerciseId],
+      )
+      await client.query(
+        `delete from projections where classroom_id=$1 and (
+          snapshot->>'exercise_id'=$2::text or snapshot->>'exerciseId'=$2::text or
+          snapshot->>'snapshotId' in (select id::text from drafts where classroom_id=$1 and exercise_id=$2::uuid)
+        )`,
+        [id, exerciseId],
+      )
+      for (const table of ['runs', 'help_requests', 'submissions', 'drafts'])
+        await client.query(`delete from ${table} where classroom_id=$1 and exercise_id=$2`, [
+          id,
+          exerciseId,
+        ])
+      await client.query('update classrooms set recommended=null where id=$1 and recommended=$2', [
+        id,
+        exerciseId,
+      ])
+      await client.query(
+        'update memberships set exercise_id=null where classroom_id=$1 and exercise_id=$2',
+        [id, exerciseId],
+      )
+      await client.query('delete from exercises where classroom_id=$1 and id=$2', [id, exerciseId])
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'exercise.deleted',
+        user.id,
+        JSON.stringify({ classroomId: id, exerciseId }),
+      ])
+      await client.query('commit')
+      return { ok: true }
+    } catch (e) {
+      await client.query('rollback')
       throw e
     } finally {
       client.release()

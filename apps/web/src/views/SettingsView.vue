@@ -24,6 +24,11 @@ import {
   executionSettings,
 } from '@/data/demo'
 import { api } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
+import { classroomPolicyChanges } from '@/lib/sensitive-actions'
+import { useRouter } from 'vue-router'
+import { refresh } from '@/data/demo'
+const router = useRouter()
 import { onBeforeRouteLeave } from 'vue-router'
 const environmentLanguage = ref<SourceLanguage>('cpp')
 const languageEnvironment = computed(() => executionSettings.languages[environmentLanguage.value])
@@ -153,6 +158,36 @@ async function save(status = form.state, confirmed = false) {
     confirmState.value = status
     return false
   }
+  const settings = activeClassroom.value.settings
+  const changedPolicies = classroomPolicyChanges(
+    {
+      access: String(settings?.access ?? 'approval'),
+      capacity: Number(settings?.capacity ?? 50),
+      allowJoin: settings?.allowJoin !== false,
+      allowRun: settings?.allowRun !== false,
+      allowResubmit: settings?.allowResubmit !== false,
+      readonly: settings?.readonly !== false,
+    },
+    {
+      access: form.access,
+      capacity: form.capacity,
+      allowJoin: form.allowJoin,
+      allowRun: form.allowRun,
+      allowResubmit: form.allowResubmit,
+      readonly: form.readonly,
+    },
+  )
+  if (!confirmed && (changedPolicies.length || status !== activeClassroom.value.status)) {
+    const policySummary = changedPolicies.length ? `将修改：${changedPolicies.join('、')}。` : ''
+    const statusSummary =
+      status !== activeClassroom.value.status ? `课堂状态将更改为${status}。` : ''
+    if (
+      !(await confirmAction(
+        `保存课堂设置？${statusSummary}${policySummary}关闭运行权限会停止正在执行的任务。`,
+      ))
+    )
+      return false
+  }
   busyReason.value = '正在保存课堂设置，请稍候'
   busy.value = true
   try {
@@ -205,6 +240,27 @@ async function regenerateInvite() {
     notify('课堂码已更新，旧邀请失效')
   } catch (e) {
     reportError(e)
+  } finally {
+    busy.value = false
+  }
+}
+async function deleteClass() {
+  if (
+    busy.value ||
+    !(await confirmAction(
+      `永久删除课堂「${activeClassroom.value.name}」？课堂内所有题目、成员关系、草稿、提交、求助、投屏和运行记录都会删除，且无法恢复。账号会保留。`,
+    ))
+  )
+    return
+  busy.value = true
+  try {
+    await api(classPath(), 'DELETE')
+    initial.value = JSON.stringify(form)
+    await refresh()
+    notify('课堂已永久删除')
+    await router.push('/teacher/classes')
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '删除课堂失败'
   } finally {
     busy.value = false
   }
@@ -422,6 +478,9 @@ const busyReason = ref('正在处理请求，请稍候')
             归档会关闭新成员加入、编辑与新运行，并停止正在执行的任务。历史作品按只读访问策略保留；需要继续教学时可恢复课堂。
           </p>
           <Alert type="warning">归档保留账号、作品和历史记录，不会永久删除数据。</Alert>
+          <Button variant="outline" class="self-start" :disabled="busy" @click="deleteClass">
+            永久删除课堂
+          </Button>
           <Button
             v-if="activeClassroom.status === '已归档'"
             variant="success"
@@ -444,7 +503,7 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     v-model:open="archive"
     title="结束并归档课堂？"
-    description="归档后关闭加入、编辑与运行，保留作品和历史记录。">
+    description="归档后关闭加入、编辑与运行，保留作品和历史记录；未保存的课堂设置也会一并保存。">
     <p class="body-copy">
       归档后不再接受新成员、编辑与提交，正在运行的程序会停止。请先按需导出课堂作品。
     </p>
@@ -499,7 +558,7 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     v-model:open="reopen"
     title="恢复课堂教学？"
-    description="课堂将回到进行中，成员可按课堂策略继续编辑、运行与提交。">
+    description="课堂将回到进行中，成员可按课堂策略继续编辑、运行与提交；未保存的课堂设置也会一并保存。">
     <div class="modal-actions">
       <Button
         variant="outline"
@@ -524,7 +583,7 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     :open="!!confirmState"
     title="更改课堂状态？"
-    :description="`课堂将设为${confirmState}，学生只能查看作品，正在执行的程序会停止。`"
+    :description="`课堂将设为${confirmState}，学生只能查看作品，正在执行的程序会停止；未保存的课堂设置也会一并保存。`"
     @update:open="!$event && (confirmState = '')">
     <div class="modal-actions">
       <Button

@@ -413,7 +413,7 @@ export class TeachingController {
     return (
       await this.service.pool.query(
         `insert into projections(classroom_id,user_id,snapshot,expires_at) values($1,$2,$3,now()+interval '2 hours') returning id`,
-        [id, data.student, JSON.stringify(snapshot)],
+        [id, data.student, JSON.stringify({ ...snapshot, exerciseId: data.exerciseId })],
       )
     ).rows[0]
   }

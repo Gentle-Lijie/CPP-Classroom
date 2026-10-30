@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Query,
   NotFoundException,
@@ -167,25 +168,47 @@ export class AdminController {
     const data = parse(
       z.object({
         disabled: z.boolean().optional(),
+        name: text(50).optional(),
+        number: z.string().max(50).optional(),
+        username: text(80)
+          .regex(/^[a-zA-Z0-9._@-]+$/)
+          .optional(),
+        role: z.enum(['teacher', 'student']).optional(),
         password: passwordInput.optional(),
       }),
       body,
     )
     if (id === user.id) throw new ConflictException('请使用个人密码接口修改自身账号')
-    if (data.disabled === undefined && !data.password)
+    if (Object.keys(data).length === 0)
       throw new ConflictException('请选择需要更新的账号状态或密码')
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
       const target = (
-        await client.query('select id,username from users where id=$1 for update', [id])
+        await client.query('select id,username,role from users where id=$1 for update', [id])
       ).rows[0]
       if (!target) throw new NotFoundException('账号不存在')
+      if (data.role && target.role === 'admin') throw new ConflictException('不能更改管理员身份')
+      if (data.role && data.role !== target.role) {
+        const linked = await client.query(
+          'select 1 from classrooms where owner_id=$1 union all select 1 from memberships where user_id=$1 limit 1',
+          [id],
+        )
+        if (linked.rowCount) throw new ConflictException('账号已有课堂关联，不能更改身份')
+      }
       await client.query(
-        'update users set disabled=coalesce($2,disabled),password_hash=coalesce($3,password_hash) where id=$1',
-        [id, data.disabled, data.password ? await passwordHash(data.password) : null],
+        'update users set disabled=coalesce($2,disabled),password_hash=coalesce($3,password_hash),name=coalesce($4,name),number=coalesce($5,number),username=coalesce($6,username),role=coalesce($7,role) where id=$1',
+        [
+          id,
+          data.disabled,
+          data.password ? await passwordHash(data.password) : null,
+          data.name,
+          data.number,
+          data.username,
+          data.role,
+        ],
       )
-      if (data.password || data.disabled === true) {
+      if (data.password || data.disabled === true || data.username || data.role) {
         await client.query('delete from sessions where user_id=$1', [id])
         await client.query(
           "update runs set stop_requested=true where user_id=$1 and status in ('排队','编译中','运行中／可输入')",
@@ -204,12 +227,43 @@ export class AdminController {
           username: target.username,
           disabled: data.disabled,
           passwordReset: !!data.password,
+          changedFields: Object.keys(data).filter((key) => key !== 'password'),
         }),
       ])
       await client.query('commit')
       return { ok: true }
     } catch (e) {
       await client.query('rollback')
+      if ((e as { code?: string }).code === '23505') throw new ConflictException('账号已存在')
+      throw e
+    } finally {
+      client.release()
+    }
+  }
+  @Delete('users/:id') async deleteUser(@Req() req: AuthRequest, @Param('id') id: string) {
+    const user = this.admin(req)
+    parse(z.uuid(), id)
+    if (id === user.id) throw new ConflictException('不能删除当前账号')
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      const target = await client.query('select id,username from users where id=$1 for update', [
+        id,
+      ])
+      if (!target.rows.length) throw new NotFoundException('账号不存在')
+      await client.query('delete from sessions where user_id=$1', [id])
+      await client.query('delete from users where id=$1', [id])
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'user.deleted',
+        user.id,
+        JSON.stringify({ id, username: target.rows[0].username }),
+      ])
+      await client.query('commit')
+      return { ok: true }
+    } catch (e) {
+      await client.query('rollback')
+      if ((e as { code?: string }).code === '23503')
+        throw new ConflictException('账号仍有关联的课堂、成员或作品等记录，不能删除；可先停用账号')
       throw e
     } finally {
       client.release()
@@ -448,6 +502,38 @@ export class AdminController {
     if (!result.rows.length) throw new NotFoundException('执行节点不存在')
     await this.service.audit(user, 'runner.updated', { id, name: data.name, enabled: data.enabled })
     return { id }
+  }
+  @Delete('runners/:id') async deleteRunner(@Req() req: AuthRequest, @Param('id') id: string) {
+    const user = this.admin(req)
+    parse(z.uuid(), id)
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      await client.query('select pg_advisory_xact_lock(782132)')
+      const node = await client.query('select id,name from runner_nodes where id=$1 for update', [
+        id,
+      ])
+      if (!node.rows.length) throw new NotFoundException('执行节点不存在')
+      const active = await client.query(
+        "select 1 from runs where runner_id=$1 and status in ('排队','编译中','运行中／可输入') limit 1",
+        [id],
+      )
+      if (active.rowCount) throw new ConflictException('节点仍有执行中的任务，请等待任务结束')
+      await client.query('update runs set runner_id=null where runner_id=$1', [id])
+      await client.query('delete from runner_nodes where id=$1', [id])
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'runner.deleted',
+        user.id,
+        JSON.stringify({ id, name: node.rows[0].name }),
+      ])
+      await client.query('commit')
+      return { ok: true }
+    } catch (e) {
+      await client.query('rollback')
+      throw e
+    } finally {
+      client.release()
+    }
   }
   @Post('settings') async saveSettings(@Req() req: AuthRequest, @Body() body: unknown) {
     const user = this.admin(req)

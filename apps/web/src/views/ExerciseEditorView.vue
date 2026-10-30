@@ -35,6 +35,7 @@ import {
   type Exercise,
 } from '@/data/demo'
 import { api, ApiError } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
 import { validSourceFilename } from '@/lib/source-file'
 import { exerciseFields, parseExerciseMarkdown, type MarkdownImport } from '@/lib/exercise-markdown'
 const route = useRoute()
@@ -309,6 +310,13 @@ async function save(publish: boolean) {
     id: draft.id,
     status: publish ? '已发布' : draft.status,
   }
+  if (
+    (publish || value.status === '已发布') &&
+    !(await confirmAction(
+      `保存并${publish ? '发布' : '更新已发布的'}练习「${value.title || '未命名练习'}」？更改将对课堂学生可见。`,
+    ))
+  )
+    return
   busy.value = true
   try {
     value.id = await saveExercise(value)

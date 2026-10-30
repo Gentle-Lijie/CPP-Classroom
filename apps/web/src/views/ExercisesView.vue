@@ -51,6 +51,7 @@ import {
   type Exercise,
 } from '@/data/demo'
 import { api } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
 const router = useRouter()
 const route = useRoute()
 const selected = ref(String(route.query.exercise ?? exercises[0]?.id ?? ''))
@@ -158,7 +159,11 @@ watch(
 )
 const exercise = computed(() => exercises.find((e) => e.id === selected.value)!)
 async function recommend() {
-  if (busy.value) return
+  if (
+    busy.value ||
+    !(await confirmAction(`将「${exercise.value.title}」设为当前推荐练习？学生将看到新的推荐。`))
+  )
+    return
   busy.value = true
   try {
     await updateClass({ recommended: exercise.value.id })
@@ -170,7 +175,13 @@ async function recommend() {
   }
 }
 async function publish() {
-  if (busy.value) return
+  if (
+    busy.value ||
+    !(await confirmAction(
+      `发布练习「${exercise.value.title}」？课堂学生将可以查看练习并按课堂策略使用。`,
+    ))
+  )
+    return
   busy.value = true
   try {
     await saveExercise({ ...exercise.value, status: '已发布' })
@@ -183,6 +194,11 @@ async function publish() {
 }
 async function close() {
   if (busy.value) return
+  if (
+    exercise.value.status === '已关闭' &&
+    !(await confirmAction(`将练习「${exercise.value.title}」移回草稿？学生将无法查看这道练习。`))
+  )
+    return
   busy.value = true
   try {
     await saveExercise({
@@ -191,6 +207,27 @@ async function close() {
     })
     confirmClose.value = false
     notify('状态已更新')
+  } catch (e) {
+    reportError(e)
+  } finally {
+    busy.value = false
+  }
+}
+async function deleteExercise() {
+  const target = exercise.value
+  if (
+    busy.value ||
+    !target ||
+    !(await confirmAction(
+      `永久删除练习「${target.title}」？相关草稿、提交、求助及运行记录也会被删除，且无法恢复。`,
+    ))
+  )
+    return
+  busy.value = true
+  try {
+    await api(classPath('/exercises/' + target.id + '/permanent'), 'DELETE')
+    await refresh()
+    notify('练习已永久删除')
   } catch (e) {
     reportError(e)
   } finally {
@@ -422,6 +459,7 @@ async function imported(ids: string[]) {
         </div>
         <div class="exercise-preview-actions">
           <div class="inline-items">
+            <Button variant="ghost" :disabled="busy" @click="deleteExercise">永久删除</Button>
             <Button variant="outline" @click="preview = true">
               <Eye />
               学生预览

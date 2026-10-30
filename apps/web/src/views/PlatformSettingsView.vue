@@ -166,9 +166,10 @@ async function save() {
     saveError.value = '宏定义格式无效，请使用空格分隔的名称或 NAME=VALUE。'
     return
   }
+  const value = configuration()
+  if (!(await confirmAction('保存平台运行配置？后续开始的任务将使用新配置，影响所有课堂。'))) return
   saving.value = true
   saveError.value = ''
-  const value = configuration()
   try {
     await api('/admin/settings', 'POST', value)
     Object.assign(executionSettings, value)

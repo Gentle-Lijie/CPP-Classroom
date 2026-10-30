@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 import { Server, Plus, RefreshCw } from '@lucide/vue'
 import { api } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form } from '@/components/ui/form'
@@ -69,6 +70,22 @@ async function load() {
     loadError.value = ''
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : '读取节点失败'
+  }
+}
+async function remove(node: Node) {
+  if (
+    busy.value ||
+    !(await confirmAction(`永久删除执行节点 ${node.name}？历史运行记录会保留，但不再关联此节点。`))
+  )
+    return
+  busy.value = true
+  try {
+    await api(`/admin/runners/${node.id}`, 'DELETE')
+    await load()
+  } catch (e) {
+    loadError.value = e instanceof Error ? e.message : '删除节点失败'
+  } finally {
+    busy.value = false
   }
 }
 async function save() {
@@ -156,7 +173,12 @@ onMounted(() => {
           {{ node.capacity }} · {{ node.hasToken ? '令牌已配置' : '未配置令牌' }}
         </small>
       </div>
-      <Button type="button" variant="outline" size="sm" @click="edit(node)">编辑</Button>
+      <div class="inline-items">
+        <Button type="button" variant="outline" size="sm" @click="edit(node)">编辑</Button>
+        <Button type="button" variant="ghost" size="sm" :disabled="busy" @click="remove(node)">
+          删除
+        </Button>
+      </div>
     </div>
     <Modal
       v-model:open="open"

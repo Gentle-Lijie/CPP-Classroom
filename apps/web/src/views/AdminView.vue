@@ -15,6 +15,7 @@ import { Database, RefreshCw, Search, Download, KeyRound, Eye, EyeOff } from '@l
 import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { api } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
 import { csvDocument } from '@/lib/csv'
 import { notify, download, currentUser } from '@/data/demo'
 import Modal from '@/components/classroom/Modal.vue'
@@ -32,6 +33,7 @@ interface User {
   id: string
   name: string
   username: string
+  number: string
   role: string
   disabled: boolean
 }
@@ -73,6 +75,11 @@ const runnerUsage = ref<InstanceType<typeof RunnerUsage>>()
 async function refreshOverview() {
   await Promise.all([load(), runnerUsage.value?.refresh()])
 }
+const editTarget = ref<User>()
+const editName = ref(''),
+  editUsername = ref(''),
+  editNumber = ref(''),
+  editRole = ref('')
 const create = ref(false),
   name = ref(''),
   account = ref(''),
@@ -271,7 +278,14 @@ async function resolveRecovery() {
 }
 function resetRecovery(r: Recovery) {
   if (!r.user_id || !r.name || !r.role) return
-  openReset({ id: r.user_id, name: r.name, role: r.role, username: r.username, disabled: false })
+  openReset({
+    id: r.user_id,
+    name: r.name,
+    role: r.role,
+    username: r.username,
+    number: '',
+    disabled: false,
+  })
 }
 function storeCredential(value: Credential) {
   credentials.value = [
@@ -305,6 +319,53 @@ function openCreate() {
   password.value = ''
   showPassword.value = false
   create.value = true
+}
+function openEdit(u: User) {
+  editTarget.value = u
+  editName.value = u.name
+  editUsername.value = u.username
+  editNumber.value = u.number
+  editRole.value = u.role
+  error.value = ''
+}
+async function saveUser() {
+  const u = editTarget.value
+  if (!u || busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    const changes = {
+      ...(editName.value.trim() !== u.name ? { name: editName.value.trim() } : {}),
+      ...(editUsername.value.trim() !== u.username ? { username: editUsername.value.trim() } : {}),
+      ...(editNumber.value !== u.number ? { number: editNumber.value } : {}),
+      ...(editRole.value !== u.role ? { role: editRole.value } : {}),
+    }
+    if (Object.keys(changes).length) await api('/admin/users/' + u.id, 'PATCH', changes)
+    editTarget.value = undefined
+    notify('账号资料已保存')
+    await load()
+  } catch (e) {
+    error.value = message(e)
+  } finally {
+    busy.value = false
+  }
+}
+async function deleteUser(u: User) {
+  if (
+    busy.value ||
+    !(await confirmAction(`永久删除账号 ${u.username}？有关联课堂或作品的账号不能删除。`))
+  )
+    return
+  busy.value = true
+  try {
+    await api('/admin/users/' + u.id, 'DELETE')
+    notify('账号已删除')
+    await load()
+  } catch (e) {
+    notify(message(e), 'error')
+  } finally {
+    busy.value = false
+  }
 }
 function openReset(u: User) {
   resetTarget.value = u
@@ -491,6 +552,8 @@ const busyReason = ref('正在处理请求，请稍候')
             </td>
             <td>
               <template v-if="u.id !== currentUser?.id">
+                <Button size="sm" variant="ghost" @click="openEdit(u)">编辑</Button>
+                <Button size="sm" variant="ghost" @click="deleteUser(u)">删除</Button>
                 <Button
                   size="sm"
                   :variant="u.disabled ? 'success' : 'outline'"
@@ -643,6 +706,39 @@ const busyReason = ref('正在处理请求，请稍候')
         unit="条记录" />
     </section>
   </template>
+  <Modal
+    :open="!!editTarget"
+    title="编辑账号"
+    :dismissible="!busy"
+    @update:open="
+      (value) => {
+        if (!value) editTarget = undefined
+      }
+    ">
+    <Form class="form-stack" @submit.prevent="saveUser">
+      <label>
+        姓名
+        <Input v-model="editName" required maxlength="50" />
+      </label>
+      <label>
+        账号
+        <Input v-model="editUsername" required maxlength="80" pattern="[a-zA-Z0-9._@-]+" />
+      </label>
+      <label>
+        学号
+        <Input v-model="editNumber" maxlength="50" />
+      </label>
+      <label v-if="editTarget?.role !== 'admin'">
+        身份
+        <Select v-model="editRole">
+          <SelectOption value="teacher">教师</SelectOption>
+          <SelectOption value="student">学生</SelectOption>
+        </Select>
+      </label>
+      <p v-if="error" role="alert">{{ error }}</p>
+      <div class="modal-actions"><Button type="submit" :disabled="busy">保存</Button></div>
+    </Form>
+  </Modal>
   <Modal
     v-model:open="create"
     :dismissible="!busy"

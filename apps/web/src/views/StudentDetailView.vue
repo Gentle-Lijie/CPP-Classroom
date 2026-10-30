@@ -40,6 +40,7 @@ import {
   executionSettings,
 } from '@/data/demo'
 import { api } from '@/lib/api'
+import { confirmAction } from '@/lib/confirm'
 import { compilerLabel, formatTime } from '@/lib/display'
 const route = useRoute()
 const router = useRouter()
@@ -278,9 +279,16 @@ function navigate(step: number) {
 }
 async function project() {
   if (projecting.value || loading.value || !student.value || !exercise.value) return
-  projecting.value = true
   const c = context(),
     snapshot = viewing.value
+  if (
+    !(await confirmAction(
+      `投屏展示 ${student.value.name} 的代码？屏幕前的人员将能够看到所选内容。`,
+    ))
+  )
+    return
+  if (!matches(c) || viewing.value !== snapshot) return
+  projecting.value = true
   try {
     const result = await api<{ id: string }>(path(c, '/projections'), 'POST', {
       student: c.student,
