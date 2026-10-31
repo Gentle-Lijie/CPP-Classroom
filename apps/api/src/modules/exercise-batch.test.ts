@@ -42,7 +42,7 @@ describe('atomic exercise batch editing', () => {
         req,
       ),
     ).resolves.toEqual({ ids: [firstId, secondId] })
-    expect(mock.access).toHaveBeenCalledWith(req.actor, classId, true)
+    expect(mock.access).toHaveBeenCalledWith(req.actor, classId, 'teacher')
     const update = mock.query.mock.calls.find(([sql]) => sql.startsWith('update exercises'))!
     expect(update[0]).toContain('content=content || $4::jsonb')
     expect(update[1]).toEqual([classId, [firstId, secondId], null, '{"topic":"循环"}'])

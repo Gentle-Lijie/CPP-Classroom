@@ -17,7 +17,11 @@ const current = ref(''),
   visible = ref(false),
   busy = ref(false),
   error = ref('')
-const roleLabels: Record<string, string> = { teacher: '教师', student: '学生', admin: '管理员' }
+const roleLabels: Record<string, string> = {
+  teacher: '可创建课堂',
+  student: '普通账号',
+  admin: '平台管理员',
+}
 watch(open, (value) => {
   if (!value) {
     current.value = ''

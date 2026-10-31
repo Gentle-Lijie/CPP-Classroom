@@ -13,7 +13,7 @@ import {
 import { z } from 'zod'
 import { exerciseStarterCode, sourceLanguages } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
-import { actor, parse, role, type AuthRequest } from './common.js'
+import { actor, parse, type AuthRequest } from './common.js'
 
 @Controller('classes/:id')
 export class WorkspaceController {
@@ -79,7 +79,6 @@ export class WorkspaceController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    role(user, 'student', 'teacher')
     const { e } = await this.service.exercise(user, id, exerciseId, true)
     const data = parse(
       z.object({

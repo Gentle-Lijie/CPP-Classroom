@@ -16,6 +16,7 @@ import {
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import type { Response } from 'express'
 import { z } from 'zod'
+import { platformPermissions } from '@classroom/contracts'
 import { DatabaseService } from '../database.service.js'
 import { actor, parse, text, passwordInput, type Actor, type AuthRequest } from './common.js'
 
@@ -148,10 +149,12 @@ export class AuthController {
       name: user.name,
       number: user.number,
       role: user.role,
+      platformPermissions: platformPermissions(user.role),
     }
   }
   @Get('me') me(@Req() req: AuthRequest) {
-    return actor(req)
+    const user = actor(req)
+    return { ...user, platformPermissions: platformPermissions(user.role) }
   }
   @Post('logout') async logout(@Req() req: AuthRequest, @Res({ passthrough: true }) res: Response) {
     await this.database.database.pool.query('delete from sessions where token=$1', [

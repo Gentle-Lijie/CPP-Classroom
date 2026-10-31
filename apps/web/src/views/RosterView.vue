@@ -7,25 +7,33 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Form } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import {
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from 'reka-ui'
 import {
   Search,
   UserPlus,
   Upload,
   Download,
-  UserMinus,
   Check,
   Users,
   KeyRound,
   FileDown,
   RefreshCw,
-  Trash,
+  Ellipsis,
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
 import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import CredentialDialog from '@/components/classroom/CredentialDialog.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
+import ClassroomAssignments from '@/components/classroom/ClassroomAssignments.vue'
 import { usePagination } from '@/composables/usePagination'
 import {
   students,
@@ -85,6 +93,34 @@ const members = ref<Member[]>([]),
 const importResults = ref<{ name: string; number: string; error?: string; created?: boolean }[]>([])
 const credentialKey = computed(() => `cpp-credentials:${currentUser.value?.id}:${demo.classroomId}`)
 const credentials = ref<Credential[]>([])
+const route = useRoute()
+const router = useRouter()
+const assignments = ref<InstanceType<typeof ClassroomAssignments>>()
+const section = computed(() =>
+  route.query.section === 'staff' && activeClassroom.value.canManageStaff ? 'staff' : 'students',
+)
+function switchSection(value: 'students' | 'staff') {
+  if (busy.value) return
+  void router.replace({
+    query: { ...route.query, section: value === 'staff' ? 'staff' : undefined },
+  })
+}
+function openRemove(member: Member) {
+  error.value = ''
+  remove.value = member
+}
+async function assignmentsChanged(assignment?: { role: string; status: 'active' | 'removed' }) {
+  try {
+    await refresh()
+    await loadMembers(true)
+    if (assignment && activeClassroom.value.canManageStaff) {
+      switchSection(assignment.role === 'student' ? 'students' : 'staff')
+      if (assignment.role === 'student' && assignment.status === 'removed') tab.value = '已移除'
+    }
+  } catch {
+    notify('人员已更新，课堂数据刷新失败，请手动刷新', 'error')
+  }
+}
 watch(
   credentialKey,
   (key) => {
@@ -501,11 +537,13 @@ async function removeStudent() {
 }
 function openAdd() {
   if (busy.value) return
+  switchSection('students')
   error.value = ''
   add.value = true
 }
 function openImport() {
   if (busy.value) return
+  switchSection('students')
   error.value = ''
   importResults.value = []
   importing.value = true
@@ -518,11 +556,18 @@ const busyReason = ref('正在处理请求，请稍候')
     <div>
       <div class="heading-meta">课堂管理</div>
       <h1>
-        学生名册
-        <span class="heading-count">{{ active.length }}</span>
+        课堂人员
+        <span class="heading-count">{{ active.length }} 位学生</span>
       </h1>
     </div>
     <div class="heading-actions">
+      <Button
+        v-if="activeClassroom.canManageStaff"
+        variant="outline"
+        @click="assignments?.openAdd()">
+        <Users />
+        添加已有账号
+      </Button>
       <Button variant="outline" @click="openImport">
         <Upload />
         导入名单
@@ -532,6 +577,24 @@ const busyReason = ref('正在处理请求，请稍候')
         添加学生
       </Button>
     </div>
+  </div>
+  <div v-if="activeClassroom.canManageStaff" class="filter-tabs" role="group" aria-label="人员类别">
+    <Button
+      variant="plain"
+      :class="{ selected: section === 'students' }"
+      :aria-pressed="section === 'students'"
+      :disabled="busy"
+      @click="switchSection('students')">
+      学生
+    </Button>
+    <Button
+      variant="plain"
+      :class="{ selected: section === 'staff' }"
+      :aria-pressed="section === 'staff'"
+      :disabled="busy"
+      @click="switchSection('staff')">
+      教师与助教
+    </Button>
   </div>
   <!-- <Alert type="info" :icon="KeyRound">
     <div>
@@ -551,7 +614,7 @@ const busyReason = ref('正在处理请求，请稍候')
       </Button>
     </template>
   </Alert> -->
-  <Alert v-if="loadError" role="alert" type="error">
+  <Alert v-if="loadError && section === 'students'" role="alert" type="error">
     {{ loadError }}
 
     <template #actions>
@@ -559,7 +622,7 @@ const busyReason = ref('正在处理请求，请稍候')
     </template>
   </Alert>
 
-  <ContentPanel as="section" direct class="panel-fill">
+  <ContentPanel v-show="section === 'students'" as="section" direct class="panel-fill">
     <div class="panel-heading">
       <div class="filter-tabs borderless">
         <Button
@@ -721,46 +784,43 @@ const busyReason = ref('正在处理请求，请稍候')
                 </Button>
                 <span v-if="m.disabled" class="muted text-xs">账号已停用，请联系管理员</span>
               </div>
-              <div v-else class="inline-items">
-                <Button
-                  v-if="m.canResetPassword"
-                  variant="plain"
-                  class="text-button"
-                  :disabled="busy"
-                  :data-disabled-reason="busyReason"
-                  @click="openReset([m.id])">
-                  <KeyRound :size="14" />
-                  重置密码
-                </Button>
-                <span v-else class="muted text-xs">
-                  {{ m.disabled ? '联系管理员启用' : '密码由管理员或创建教师恢复' }}
-                </span>
-                <Button
-                  variant="plain"
-                  class="text-button danger-text"
-                  :disabled="busy"
-                  :data-disabled-reason="busyReason"
-                  @click="
-                    () => {
-                      error = ''
-                      remove = m
-                    }
-                  ">
-                  <UserMinus :size="14" />
-                  移除
-                </Button>
-
-                <Button
-                  v-if="m.canDeleteAccount"
-                  size="sm"
-                  variant="destructive"
-                  :disabled="busy"
-                  :data-disabled-reason="busyReason"
-                  @click="deleteTarget = m">
-                  <Trash />
-                  永久删除账号
-                </Button>
-              </div>
+              <DropdownMenuRoot v-else>
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    :disabled="busy"
+                    :aria-label="'管理学生 ' + m.name">
+                    <Ellipsis />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent class="ui-menu-content" align="end" :side-offset="5">
+                    <DropdownMenuItem
+                      v-if="activeClassroom.canManageStaff && !m.disabled"
+                      class="ui-menu-item"
+                      @select="assignments?.editMember(m.id)">
+                      调整身份
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      class="ui-menu-item"
+                      :disabled="!m.canResetPassword"
+                      @select="openReset([m.id])">
+                      重置密码
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator class="member-menu-separator" />
+                    <DropdownMenuItem class="ui-menu-item danger-text" @select="openRemove(m)">
+                      移除课堂成员
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      v-if="m.canDeleteAccount"
+                      class="ui-menu-item danger-text"
+                      @select="deleteTarget = m">
+                      永久删除账号
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenuRoot>
             </td>
           </tr>
         </tbody>
@@ -784,6 +844,13 @@ const busyReason = ref('正在处理请求，请稍候')
       :total="visible.length"
       unit="位学生" />
   </ContentPanel>
+  <ClassroomAssignments
+    v-if="activeClassroom.canManageStaff"
+    ref="assignments"
+    :classroom-id="activeClassroom.id"
+    :show-list="section === 'staff'"
+    staff-only
+    @changed="assignmentsChanged" />
   <Modal
     v-model:open="add"
     :dismissible="!busy"
@@ -990,6 +1057,11 @@ const busyReason = ref('正在处理请求，请稍候')
   </Modal>
 </template>
 <style scoped>
+.member-menu-separator {
+  height: 1px;
+  margin: 5px 0;
+  background: var(--ui-line);
+}
 .roster-import-files {
   flex-wrap: wrap;
 }

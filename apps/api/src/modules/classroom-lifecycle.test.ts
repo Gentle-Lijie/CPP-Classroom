@@ -14,7 +14,16 @@ function setup(
   const client = { query: vi.fn(query), release: vi.fn() }
   const pool = { query: vi.fn(query), connect: vi.fn(async () => client) }
   return {
-    controller: new ClassroomController({ access: vi.fn(), pool } as unknown as ClassroomService),
+    controller: new ClassroomController({
+      access: vi.fn(),
+      withAccess: async (
+        _user: unknown,
+        _id: string,
+        _permission: unknown,
+        operation: (client: typeof client) => Promise<unknown>,
+      ) => operation(pool),
+      pool,
+    } as unknown as ClassroomService),
     client,
     pool,
   }
@@ -24,7 +33,7 @@ describe('classroom lifecycle transitions', () => {
   it.each([
     { status: '已归档', settings: {}, member: undefined },
     { status: '已关闭', settings: {}, member: undefined },
-    { status: '进行中', settings: {}, member: { status: 'removed' } },
+    { status: '进行中', settings: {}, member: { status: 'removed', role: 'student' } },
     { status: '进行中', settings: { access: 'roster' }, member: undefined },
   ])('enforces join authorization: %j', async ({ status, settings, member }) => {
     const mock = setup(async (sql) => {
@@ -43,7 +52,7 @@ describe('classroom lifecycle transitions', () => {
     expect(mock.client.query.mock.calls.at(-1)?.[0]).toBe('rollback')
   })
 
-  it.each([undefined, { status: 'active' }])(
+  it.each([undefined, { status: 'active', role: 'student' }])(
     'admits an eligible join without duplicating existing membership',
     async (member) => {
       const mock = setup(async (sql) => {
@@ -212,16 +221,27 @@ describe('classroom lifecycle transitions', () => {
   it('refuses approval at capacity and stops runs on member removal', async () => {
     const mock = setup(async (sql) => {
       if (sql.startsWith('select settings')) return { rows: [{ settings: { capacity: 1 } }] }
-      if (sql.startsWith('select status from memberships')) return { rows: [{ status: 'pending' }] }
+      if (sql.startsWith('select status,role from memberships'))
+        return { rows: [{ status: 'pending', role: 'student' }] }
       if (sql.startsWith('select count(*)')) return { rows: [{ count: 1 }] }
       if (sql.startsWith('update memberships')) return { rows: [{ id: 'member' }], rowCount: 1 }
       return { rows: [] }
     })
     await expect(
-      mock.controller.member(classId, studentId, { status: 'active' }, req('teacher')),
+      mock.controller.member(
+        classId,
+        studentId,
+        { status: 'active', role: 'student' },
+        req('teacher'),
+      ),
     ).rejects.toBeInstanceOf(ConflictException)
     await expect(
-      mock.controller.member(classId, studentId, { status: 'removed' }, req('teacher')),
+      mock.controller.member(
+        classId,
+        studentId,
+        { status: 'removed', role: 'student' },
+        req('teacher'),
+      ),
     ).resolves.toEqual({ ok: true })
     expect(
       mock.client.query.mock.calls.some(([sql]) =>

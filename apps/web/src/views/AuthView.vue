@@ -8,7 +8,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowRight, ShieldCheck, Eye, EyeOff } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-import { login, currentUser, notify } from '@/data/demo'
+import { login, homePath, notify } from '@/data/demo'
 import { api } from '@/lib/api'
 const route = useRoute(),
   router = useRouter()
@@ -65,12 +65,7 @@ async function submit() {
     }
     await login(username.value, password.value)
     if (token !== generation) return
-    const to = String(
-      route.query.redirect ??
-        (currentUser.value?.role === 'admin'
-          ? '/admin/health'
-          : `/${currentUser.value?.role}/classes`),
-    )
+    const to = String(route.query.redirect ?? homePath())
     await router.push(to.startsWith('/') && !to.startsWith('//') ? to : '/')
   } catch (e) {
     if (token !== generation) return

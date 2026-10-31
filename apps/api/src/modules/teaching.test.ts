@@ -22,9 +22,19 @@ function setup(
   const pool = { query: vi.fn(query), connect: vi.fn(async () => client) }
   const service = {
     pool,
-    access: vi.fn(),
+    withAccess: async (
+      _user: unknown,
+      _id: string,
+      _permission: unknown,
+      operation: (connection: typeof client) => Promise<unknown>,
+    ) => operation(client),
+    access: vi.fn(async () => ({ classroomRole: 'student' })),
     exercise: vi.fn(async () => ({ e: { id: exerciseId, language: 'cpp', filename: 'main.cpp' } })),
-    lockWritable: vi.fn(async () => ({ status: '进行中', settings: { allowResubmit: false } })),
+    lockWritable: vi.fn(async () => ({
+      classroomRole: 'student',
+      status: '进行中',
+      settings: { allowResubmit: false },
+    })),
     audit: vi.fn(),
   }
   return {
@@ -64,7 +74,7 @@ describe('teaching lifecycle safeguards', () => {
     await expect(
       mock.controller.resolve(classId, studentId, { requestId: exerciseId }, req('teacher')),
     ).resolves.toEqual({ ok: true, resolved: 1 })
-    expect(mock.pool.query.mock.calls[0]?.[1]).toEqual([classId, studentId, exerciseId, null])
+    expect(mock.client.query.mock.calls[0]?.[1]).toEqual([classId, studentId, exerciseId, null])
   })
 
   it.each([

@@ -77,6 +77,14 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable --now cpp-classroom-postgres
+step 'Stop API and worker before schema changes'
+# Old APIs must not create classrooms without teaching memberships after the backfill.
+# Leave services stopped if migration fails; restarting the old schema assumptions is unsafe.
+for service in cpp-classroom-api cpp-classroom-worker; do
+  if pm2 describe "$service" >/dev/null 2>&1; then
+    pm2 stop "$service"
+  fi
+done
 step 'Apply database migrations'
 runuser -u cppclass -- env PATH="$PATH" pnpm db:migrate
 step 'Check administrator bootstrap (existing account is preserved)'

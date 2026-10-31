@@ -1,6 +1,12 @@
 import { computed, reactive, ref } from 'vue'
 import { api, ApiError, connectionState } from '@/lib/api'
-import { executionDefaults, languageSettings, type SourceLanguage } from '@classroom/contracts'
+import {
+  executionDefaults,
+  languageSettings,
+  type SourceLanguage,
+  type ClassroomRole,
+  type ClassroomPermission,
+} from '@classroom/contracts'
 import { clearNotifications, notify } from '@/lib/notifications'
 export { notify } from '@/lib/notifications'
 export const executionSettings = reactive({ ...executionDefaults, languages: languageSettings() })
@@ -44,6 +50,10 @@ export interface Exercise {
   position?: number
 }
 export interface Classroom {
+  classroomRole: ClassroomRole
+  permissions: ClassroomPermission[]
+  ownerId?: string
+  canManageStaff?: boolean
   id: string
   name: string
   description: string
@@ -98,6 +108,8 @@ export const demo = reactive({
   helpSent: false,
 })
 const emptyClassroom: Classroom = {
+  classroomRole: 'student',
+  permissions: [],
   id: '',
   name: '请选择课堂',
   description: '',
@@ -108,6 +120,20 @@ const emptyClassroom: Classroom = {
 export const activeClassroom = computed(
   () => classrooms.find((c) => c.id === demo.classroomId) ?? emptyClassroom,
 )
+// Account category only controls platform administration and classroom creation.
+// Teaching and learning permissions always follow the selected classroom.
+export const classroomRole = computed(() => activeClassroom.value.classroomRole)
+export const isTeacher = computed(() => classroomRole.value === 'teacher')
+export const isStaff = computed(() => ['teacher', 'ta'].includes(classroomRole.value))
+export const canCreateClassroom = computed(() =>
+  ['teacher', 'admin'].includes(currentUser.value?.role ?? ''),
+)
+export const workspaceRole = computed(() =>
+  isStaff.value || (!demo.classroomId && canCreateClassroom.value) ? 'teacher' : 'student',
+)
+export function homePath() {
+  return currentUser.value?.role === 'admin' ? '/admin/health' : `/${workspaceRole.value}/classes`
+}
 export const counts = computed(() => ({
   total: students.length,
   online: students.filter((s) => s.online).length,
@@ -204,13 +230,16 @@ async function refreshData(preferred?: string) {
   const [content, roster] = selected
     ? await Promise.all([
         api<Exercise[]>(path + '/exercises'),
-        user.role === 'teacher' ? api<Student[]>(path + '/overview') : Promise.resolve([]),
+        selected.classroomRole !== 'student'
+          ? api<Student[]>(path + '/overview')
+          : Promise.resolve([]),
       ])
     : [[], []]
   if (currentUser.value?.id !== user.id) return
   Object.assign(executionSettings, environment)
   classrooms.splice(0, classrooms.length, ...list)
   demo.classroomId = selected?.id ?? ''
+  demo.role = selected?.classroomRole ?? user.role
   demo.inviteCode = selected?.inviteCode ?? ''
   demo.recommended =
     content.find((e) => e.id === selected?.recommended && e.status === '已发布')?.id ??

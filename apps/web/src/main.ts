@@ -2,7 +2,16 @@ import { createApp } from 'vue'
 import { createNotivue } from 'notivue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import { initialize, currentUser, demo, exercises, bootstrapError } from './data/demo'
+import {
+  initialize,
+  currentUser,
+  demo,
+  exercises,
+  bootstrapError,
+  activeClassroom,
+  workspaceRole,
+  homePath,
+} from './data/demo'
 import { initializeTheme } from '@/lib/theme'
 import './styles.css'
 import './interface.css'
@@ -45,6 +54,7 @@ const router = createRouter({
       meta: { standalone: true },
     },
     { path: '/teacher/roster', component: () => import('./views/RosterView.vue') },
+    { path: '/teacher/team', redirect: { path: '/teacher/roster', query: { section: 'staff' } } },
     { path: '/teacher/settings', component: () => import('./views/SettingsView.vue') },
     { path: '/teacher/submissions', component: () => import('./views/SubmissionsView.vue') },
     { path: '/teacher/students/:id', component: () => import('./views/StudentDetailView.vue') },
@@ -67,6 +77,7 @@ const router = createRouter({
       component: () => import('./views/AuthView.vue'),
       meta: { standalone: true },
     },
+    { path: '/admin/classes', component: () => import('./views/AdminClassesView.vue') },
     { path: '/admin/settings', component: () => import('./views/PlatformSettingsView.vue') },
     { path: '/admin/environment', redirect: '/admin/settings?section=execution' },
     { path: '/admin/:section', component: () => import('./views/AdminView.vue') },
@@ -84,18 +95,32 @@ router.beforeEach(async (to) => {
   if (to.path === '/guide') return true
   if (
     to.path.startsWith('/admin/') &&
-    !['health', 'teachers', 'settings', 'environment', 'tasks', 'backups'].includes(
+    !['health', 'teachers', 'classes', 'settings', 'environment', 'tasks', 'backups'].includes(
       to.path.split('/')[2]!,
     )
   )
     return '/admin/health'
-  if (to.path === '/join' && role === 'student') return true
-  const prefix = to.path.startsWith('/projection') ? 'teacher' : to.path.split('/')[1]
-  if (['teacher', 'student', 'admin'].includes(prefix!) && prefix !== role)
-    return role === 'admin' ? '/admin/health' : `/${role}/classes`
-  if (!demo.classroomId && role !== 'admin' && !to.path.endsWith('/classes') && to.path !== '/join')
-    return `/${role}/classes`
-  if (role === 'student' && to.path === '/student/workspace' && !exercises.length)
+  if (to.path === '/join') return true
+  // The projection API checks access against its own classroom query parameter.
+  if (to.path.startsWith('/projection/')) return true
+  const prefix = to.path.split('/')[1]
+  if (prefix === 'admin') return role === 'admin' ? true : homePath()
+  // Both lists contain all assignments so a user can enter another classroom role.
+  if (to.path.endsWith('/classes')) return true
+  if (['teacher', 'student'].includes(prefix!)) {
+    if (!demo.classroomId) return `/${workspaceRole.value}/classes`
+    if (prefix !== workspaceRole.value) return `/${workspaceRole.value}/classes`
+    if (
+      activeClassroom.value.classroomRole === 'ta' &&
+      !(
+        /^\/teacher\/(overview|monitor|inspect\/[^/]+|students\/[^/]+|submissions)$/.test(
+          to.path,
+        ) || to.path.startsWith('/projection/')
+      )
+    )
+      return '/teacher/overview'
+  }
+  if (prefix === 'student' && to.path === '/student/workspace' && !exercises.length)
     return '/student/classes'
   return true
 })

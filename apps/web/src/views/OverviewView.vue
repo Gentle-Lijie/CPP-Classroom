@@ -29,6 +29,7 @@ import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import {
   students,
+  isTeacher,
   exercises,
   counts,
   activeClassroom,
@@ -172,7 +173,7 @@ async function regenerateInvite() {
       </div>
       <h1>{{ activeClassroom.name }}</h1>
     </div>
-    <div class="heading-actions">
+    <div v-if="isTeacher" class="heading-actions">
       <Button
         variant="outline"
         :disabled="!exercises.length"
@@ -419,7 +420,11 @@ async function regenerateInvite() {
                 width: (counts.total ? (recommendedSubmitted / counts.total) * 100 : 0) + '%',
               }" />
           </div>
-          <Button variant="outline" class="w-full" @click="router.push('/teacher/exercises')">
+          <Button
+            v-if="isTeacher"
+            variant="outline"
+            class="w-full"
+            @click="router.push('/teacher/exercises')">
             管理练习
             <ArrowRight />
           </Button>
@@ -428,6 +433,7 @@ async function regenerateInvite() {
           <BookOpen :size="28" />
           <p>还没有已发布的推荐练习</p>
           <Button
+            v-if="isTeacher"
             variant="outline"
             @click="
               router.push(exercises.length ? '/teacher/exercises' : '/teacher/exercises/new')

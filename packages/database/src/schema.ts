@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -91,11 +92,21 @@ export const memberships = pgTable(
       .notNull()
       .references(() => users.id),
     status: text('status').notNull().default('pending'),
+    role: text('role').$type<'student' | 'teacher' | 'ta'>().notNull().default('student'),
     lastSeen: timestamp('last_seen', { withTimezone: true }),
     exerciseId: uuid('exercise_id'),
     language: text('language').$type<'cpp' | 'python'>().notNull().default('cpp'),
   },
-  (t) => [uniqueIndex('membership_user_class_unique').on(t.classroomId, t.userId)],
+  (t) => [
+    uniqueIndex('membership_user_class_unique').on(t.classroomId, t.userId),
+    index('memberships_user_idx').on(t.userId),
+    index('memberships_class_role_status_idx').on(t.classroomId, t.role, t.status),
+    check('memberships_role_check', sql`${t.role} in ('student', 'teacher', 'ta')`),
+    check(
+      'memberships_staff_status_check',
+      sql`${t.role} = 'student' or ${t.status} in ('active', 'removed')`,
+    ),
+  ],
 )
 export const exercises = pgTable(
   'exercises',

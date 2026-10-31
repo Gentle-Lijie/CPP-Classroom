@@ -13,6 +13,7 @@ function setup(
   options: {
     role?: 'teacher' | 'student'
     owner?: string
+    classroomRole?: string
     disabled?: boolean
     accountRole?: string
     membership?: string
@@ -34,8 +35,10 @@ function setup(
       }
     if (sql.startsWith('select status,filename,language from exercises'))
       return { rows: [{ status: options.exerciseStatus ?? '已发布' }] }
-    if (sql.startsWith('select status from memberships'))
-      return { rows: [{ status: options.membership ?? 'active' }] }
+    if (sql.startsWith('select status,role from memberships'))
+      return {
+        rows: [{ status: options.membership ?? 'active', role: options.classroomRole ?? role }],
+      }
     if (sql.startsWith('select disabled,role'))
       return { rows: [{ disabled: options.disabled ?? false, role: options.accountRole ?? role }] }
     if (sql.startsWith('select id from runs')) return { rows: [], rowCount: options.active ? 1 : 0 }
@@ -62,13 +65,13 @@ function setup(
 }
 
 describe('teacher demonstration runs', () => {
-  it('queues the owning teacher’s saved snapshot without requiring student membership', async () => {
+  it('queues an assigned teacher’s saved snapshot using the teaching membership', async () => {
     const mock = setup()
     await expect(
       mock.controller.create(classId, { ...body, code: 'untrusted request code' }, mock.req),
     ).resolves.toMatchObject({ userId, code: 'saved teacher source', status: '排队' })
     expect(mock.exercise).toHaveBeenCalledWith(mock.req.actor, classId, exerciseId, true)
-    expect(mock.query.mock.calls.some(([sql]) => sql.includes('from memberships'))).toBe(false)
+    expect(mock.query.mock.calls.some(([sql]) => sql.includes('from memberships'))).toBe(true)
     expect(mock.query.mock.calls.find(([sql]) => sql.startsWith('insert into runs'))?.[1]).toEqual([
       classId,
       exerciseId,
@@ -102,7 +105,7 @@ describe('teacher demonstration runs', () => {
   })
 
   it.each([
-    { owner: 'another-teacher' },
+    { classroomRole: 'ta' },
     { disabled: true },
     { accountRole: 'student' },
     { status: '已归档' },

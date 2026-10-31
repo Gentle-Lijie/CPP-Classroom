@@ -38,6 +38,11 @@ describe.skipIf(!connectionString)('student deletion with PostgreSQL', () => {
         )
       for (const id of [first, second])
         await db.query(
+          "insert into memberships(classroom_id,user_id,role,status) values($1,$2,'teacher','active')",
+          [id, teacher],
+        )
+      for (const id of [first, second])
+        await db.query(
           "insert into memberships(classroom_id,user_id,status) values($1,$2,'active')",
           [id, student],
         )

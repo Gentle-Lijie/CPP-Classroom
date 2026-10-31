@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Form } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import {
   Plus,
   Search,
@@ -20,11 +20,10 @@ import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
-import { classrooms, tone, notify, selectClass, reportError } from '@/data/demo'
+import { classrooms, tone, notify, selectClass, reportError, canCreateClassroom } from '@/data/demo'
 import { api } from '@/lib/api'
-const route = useRoute()
+import { classroomRoleLabels } from '@classroom/contracts'
 const router = useRouter()
-const student = computed(() => route.path.startsWith('/student'))
 const search = ref('')
 const filter = ref('全部课堂')
 const create = ref(false)
@@ -79,7 +78,10 @@ async function enter(id: string) {
   entering.value = id
   try {
     await selectClass(id)
-    await router.push(student.value ? '/student/workspace' : '/teacher/overview')
+    const target = classrooms.find((c) => c.id === id)
+    await router.push(
+      target?.classroomRole === 'student' ? '/student/workspace' : '/teacher/overview',
+    )
   } catch (e) {
     reportError(e)
   } finally {
@@ -91,17 +93,22 @@ useActionFeedback(error)
 <template>
   <div class="page-heading">
     <div>
-      <div class="heading-meta">{{ student ? '学生工作台' : '教师工作台' }}</div>
+      <div class="heading-meta">课堂列表 · 按课堂身份进入</div>
       <h1>
         我的课堂
         <span class="heading-count">{{ classrooms.length }}</span>
       </h1>
     </div>
-    <Button data-guide="class-add" @click="student ? router.push('/join') : openCreate()">
-      <KeyRound v-if="student" />
-      <Plus v-else />
-      {{ student ? '加入课堂' : '创建课堂' }}
-    </Button>
+    <div class="flex gap-2">
+      <Button variant="outline" @click="router.push('/join')">
+        <KeyRound />
+        加入课堂
+      </Button>
+      <Button v-if="canCreateClassroom" data-guide="class-add" @click="openCreate">
+        <Plus />
+        创建课堂
+      </Button>
+    </div>
   </div>
   <div class="class-toolbar">
     <div class="segmented">
@@ -129,7 +136,9 @@ useActionFeedback(error)
         </span>
       </div>
       <div class="class-card-body">
-        <span class="muted text-xs">{{ c.teacher ?? '课堂教师' }}</span>
+        <span class="muted text-xs">
+          {{ c.teacher ?? '课堂教师' }} · 我的身份：{{ classroomRoleLabels[c.classroomRole] }}
+        </span>
         <h2>{{ c.name }}</h2>
         <p>{{ c.description }}</p>
         <div class="class-card-meta">
@@ -157,7 +166,11 @@ useActionFeedback(error)
           </span>
           <Button
             variant="outline"
-            :disabled="!!entering || c.membershipStatus === 'pending' || (student && !c.exercises)"
+            :disabled="
+              !!entering ||
+              c.membershipStatus === 'pending' ||
+              (c.classroomRole === 'student' && !c.exercises)
+            "
             :data-disabled-reason="
               entering
                 ? '正在进入课堂，请稍候'
@@ -172,7 +185,7 @@ useActionFeedback(error)
                 ? '正在进入…'
                 : c.membershipStatus === 'pending'
                   ? '等待教师审批'
-                  : student && !c.exercises
+                  : c.classroomRole === 'student' && !c.exercises
                     ? '等待教师发布练习'
                     : c.status === '已归档' || c.status === '已关闭'
                       ? '查看作品'
@@ -184,7 +197,7 @@ useActionFeedback(error)
       </div>
     </article>
     <Button
-      v-if="!student && visible.length"
+      v-if="canCreateClassroom && visible.length"
       variant="plain"
       class="create-class-card"
       @click="openCreate">
@@ -207,15 +220,13 @@ useActionFeedback(error)
     <h3>{{ search || filter !== '全部课堂' ? '没有找到匹配的课堂' : '这里还没有课堂' }}</h3>
     <p>
       {{
-        student
-          ? '通过教师提供的课堂码申请加入，或调整筛选条件。'
-          : '调整筛选条件，或者创建你的第一个课堂。'
+        canCreateClassroom
+          ? '调整筛选条件，或创建课堂、使用课堂码申请加入。'
+          : '通过教师提供的课堂码申请加入，或调整筛选条件。'
       }}
     </p>
-    <Button
-      v-if="!search && filter === '全部课堂'"
-      @click="student ? router.push('/join') : openCreate()">
-      {{ student ? '申请加入课堂' : '创建第一个课堂' }}
+    <Button v-if="!search && filter === '全部课堂'" @click="router.push('/join')">
+      申请加入课堂
     </Button>
   </div>
 

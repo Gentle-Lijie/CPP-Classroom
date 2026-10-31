@@ -189,13 +189,6 @@ export class AdminController {
       ).rows[0]
       if (!target) throw new NotFoundException('账号不存在')
       if (data.role && target.role === 'admin') throw new ConflictException('不能更改管理员身份')
-      if (data.role && data.role !== target.role) {
-        const linked = await client.query(
-          'select 1 from classrooms where owner_id=$1 union all select 1 from memberships where user_id=$1 limit 1',
-          [id],
-        )
-        if (linked.rowCount) throw new ConflictException('账号已有课堂关联，不能更改身份')
-      }
       await client.query(
         'update users set disabled=coalesce($2,disabled),password_hash=coalesce($3,password_hash),name=coalesce($4,name),number=coalesce($5,number),username=coalesce($6,username),role=coalesce($7,role) where id=$1',
         [
@@ -273,7 +266,7 @@ export class AdminController {
     this.admin(req)
     return (
       await this.service.pool.query(
-        `select (select count(*)::int from classrooms where status='进行中') as classrooms,(select count(*)::int from memberships where status='active' and last_seen>now()-interval '15 seconds') as online,(select count(*)::int from runs where status='排队') as queued,(select count(*)::int from runs where status='平台执行失败') as failed`,
+        `select (select count(*)::int from classrooms where status='进行中') as classrooms,(select count(*)::int from memberships where role='student' and status='active' and last_seen>now()-interval '15 seconds') as online,(select count(*)::int from runs where status='排队') as queued,(select count(*)::int from runs where status='平台执行失败') as failed`,
       )
     ).rows[0]
   }

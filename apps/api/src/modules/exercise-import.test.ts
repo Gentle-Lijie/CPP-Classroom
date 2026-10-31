@@ -55,7 +55,7 @@ describe('atomic exercise batch import', () => {
         req,
       ),
     ).resolves.toEqual({ ids: ['new-1', 'new-2', 'new-3'] })
-    expect(mock.access).toHaveBeenCalledWith(req.actor, classId, true)
+    expect(mock.access).toHaveBeenCalledWith(req.actor, classId, 'teacher')
     expect(mock.writes.map((write) => write.slice(1, 4))).toEqual([
       ['sum.cpp', '草稿', 8],
       ['', '草稿', 9],

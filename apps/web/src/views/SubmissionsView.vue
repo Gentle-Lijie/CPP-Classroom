@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isTeacher } from '@/data/demo'
 import { exerciseSourceFilename, type SourceLanguage } from '@classroom/contracts'
 import PythonBeta from '@/components/classroom/PythonBeta.vue'
 import { sourceLanguage } from '@/lib/source-language'
@@ -223,7 +224,7 @@ useActionFeedback(exportError)
   <div class="page-heading">
     <div>
       <div class="heading-meta">课堂作品</div>
-      <h1>提交与导出</h1>
+      <h1>{{ isTeacher ? '提交与导出' : '学生提交' }}</h1>
     </div>
     <Button
       variant="outline"
@@ -234,7 +235,7 @@ useActionFeedback(exportError)
       {{ loading ? '正在刷新…' : '刷新提交' }}
     </Button>
   </div>
-  <section class="panel export-panel">
+  <section v-if="isTeacher" class="panel export-panel">
     <div class="export-heading">
       <FileCode2 :size="22" />
       <div>

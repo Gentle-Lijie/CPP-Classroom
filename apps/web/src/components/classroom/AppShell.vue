@@ -37,6 +37,8 @@ import {
 } from '@lucide/vue'
 import {
   activeClassroom,
+  workspaceRole,
+  classroomRole,
   classrooms,
   counts,
   currentUser,
@@ -69,7 +71,7 @@ async function switchClass(id: string) {
     // Let page leave guards finish before replacing the current classroom data.
     if (route.path !== classesPath.value && (await router.push(classesPath.value))) return
     await selectClass(id)
-    await router.push(role.value === 'teacher' ? '/teacher/overview' : '/student/classes')
+    await router.push(workspaceRole.value === 'teacher' ? '/teacher/overview' : '/student/classes')
   } catch (error) {
     reportError(error)
   } finally {
@@ -92,7 +94,7 @@ useGuideSurfaces({
     }
   },
 })
-const role = computed(() => currentUser.value?.role ?? 'student')
+const role = computed(() => (route.path.startsWith('/admin/') ? 'admin' : workspaceRole.value))
 function openAccount() {
   accountOpen.value = true
   roleMenu.value = false
@@ -101,11 +103,23 @@ const links = computed(() =>
   role.value === 'teacher'
     ? [
         { to: '/teacher/overview', title: '课堂总览', icon: LayoutDashboard },
-        { to: '/teacher/teach', title: '教师授课', icon: Monitor },
-        { to: '/teacher/exercises', title: '练习管理', icon: BookOpen },
-        { to: '/teacher/roster', title: '学生名册', icon: Users },
-        { to: '/teacher/submissions', title: '提交与导出', icon: GraduationCap },
-        { to: '/teacher/settings', title: '课堂设置', icon: Settings2 },
+        ...(classroomRole.value === 'teacher'
+          ? [{ to: '/teacher/teach', title: '教师授课', icon: Monitor }]
+          : [{ to: '/teacher/monitor', title: '课堂巡视', icon: Monitor }]),
+        ...(classroomRole.value === 'teacher'
+          ? [
+              { to: '/teacher/exercises', title: '练习管理', icon: BookOpen },
+              { to: '/teacher/roster', title: '课堂人员', icon: Users },
+            ]
+          : []),
+        {
+          to: '/teacher/submissions',
+          title: classroomRole.value === 'ta' ? '学生提交' : '提交与导出',
+          icon: GraduationCap,
+        },
+        ...(classroomRole.value === 'teacher'
+          ? [{ to: '/teacher/settings', title: '课堂设置', icon: Settings2 }]
+          : []),
       ]
     : role.value === 'student'
       ? [
@@ -116,6 +130,7 @@ const links = computed(() =>
       : [
           { to: '/admin/health', title: '平台概况', icon: LayoutDashboard },
           { to: '/admin/teachers', title: '账号管理', icon: Users },
+          { to: '/admin/classes', title: '课堂人员分配', icon: GraduationCap },
           { to: '/admin/settings', title: '平台配置', icon: Settings2 },
           { to: '/admin/tasks', title: '失败任务', icon: Monitor },
           { to: '/admin/backups', title: '备份与记录', icon: ShieldCheck },
@@ -263,6 +278,16 @@ async function signOut() {
         <div class="profile-wrap">
           <div v-if="roleMenu" class="role-menu">
             <p>{{ currentUser?.username }}</p>
+            <RouterLink to="/teacher/classes" class="nav-item" @click="roleMenu = false">
+              我的课堂
+            </RouterLink>
+            <RouterLink
+              v-if="currentUser?.role === 'admin'"
+              to="/admin/health"
+              class="nav-item"
+              @click="roleMenu = false">
+              平台管理
+            </RouterLink>
             <Button variant="plain" data-guide="account-open" @click="openAccount">
               <KeyRound :size="14" />
               账号与密码
@@ -282,7 +307,15 @@ async function signOut() {
             <span>
               {{ currentUser?.name ?? '' }}
               <small>
-                {{ role === 'teacher' ? '教师账号' : role === 'student' ? '学生账号' : '运维账号' }}
+                {{
+                  role === 'admin'
+                    ? '平台管理员'
+                    : classroomRole === 'ta'
+                      ? '当前课堂助教'
+                      : role === 'teacher'
+                        ? '当前课堂教师'
+                        : '当前课堂学生'
+                }}
               </small>
             </span>
             <Ellipsis :size="15" />

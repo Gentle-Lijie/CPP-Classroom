@@ -495,7 +495,12 @@ const busyReason = ref('正在处理请求，请稍候')
               @click="archive = true">
               {{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}
             </Button>
-            <Button variant="destructive" class="self-start" :disabled="busy" @click="deleteClass">
+            <Button
+              v-if="activeClassroom.canManageStaff"
+              variant="destructive"
+              class="self-start"
+              :disabled="busy"
+              @click="deleteClass">
               永久删除课堂
             </Button>
           </div>

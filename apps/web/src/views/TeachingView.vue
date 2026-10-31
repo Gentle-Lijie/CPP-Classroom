@@ -54,12 +54,14 @@ const router = useRouter()
 const initial = String(route.query.exercise ?? demo.recommended)
 const selected = ref(exercises.some((e) => e.id === initial) ? initial : (exercises[0]?.id ?? ''))
 const language = ref<SourceLanguage>(
-  preferredLanguage(
-    currentUser.value?.id,
-    demo.classroomId,
-    selected.value,
-    sourceLanguage(exercises.find((e) => e.id === selected.value)),
-  ),
+  route.query.language === 'python' || route.query.language === 'cpp'
+    ? route.query.language
+    : preferredLanguage(
+        currentUser.value?.id,
+        demo.classroomId,
+        selected.value,
+        sourceLanguage(exercises.find((e) => e.id === selected.value)),
+      ),
 )
 const runtimeProfile = computed(() =>
   language.value === 'python' ? 'cpython3-stdlib' : executionSettings.compilerProfile,

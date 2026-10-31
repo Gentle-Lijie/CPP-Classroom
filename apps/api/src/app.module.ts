@@ -1,4 +1,5 @@
 import { AdminController } from './modules/admin.js'
+import { AssignmentsController, AdminClassesController } from './modules/assignments.js'
 import { TeachingController } from './modules/teaching.js'
 import { RunsController } from './modules/runs.js'
 import { WorkspaceController } from './modules/workspace.js'
@@ -21,6 +22,8 @@ import { HealthController } from './health.controller.js'
     RunsController,
     TeachingController,
     AdminController,
+    AssignmentsController,
+    AdminClassesController,
   ],
   providers: [
     { provide: ENVIRONMENT, useFactory: loadEnvironment },

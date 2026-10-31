@@ -1,6 +1,6 @@
 import { nextTick, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { bootstrapError, currentUser } from '@/data/demo'
+import { bootstrapError, currentUser, classroomRole, workspaceRole } from '@/data/demo'
 import { guideVisits, isGuideRole, isGuideWorkspace } from '@/lib/guide-visit'
 import { spotlight } from '@/lib/spotlight'
 import { startUserGuide } from '@/lib/user-guide'
@@ -10,7 +10,7 @@ export function useFirstVisitGuide(blocked: Readonly<Ref<boolean>>) {
   watch(
     () => [
       currentUser.value?.id,
-      currentUser.value?.role,
+      classroomRole.value,
       route.path,
       bootstrapError.value,
       blocked.value,
@@ -23,15 +23,17 @@ export function useFirstVisitGuide(blocked: Readonly<Ref<boolean>>) {
       // Wait for the routed page and the global spotlight component to finish mounting.
       await nextTick()
       const user = currentUser.value
+      const role = route.path.startsWith('/admin/') ? 'admin' : workspaceRole.value
       if (
         cancelled ||
         bootstrapError.value ||
         blocked.value ||
         spotlight.active ||
+        route.query.returnRun === '1' ||
         !user ||
-        !isGuideRole(user.role) ||
-        !isGuideWorkspace(user.role, route.path) ||
-        guideVisits.hasSeen({ id: user.id, role: user.role })
+        !isGuideRole(role) ||
+        !isGuideWorkspace(role, route.path) ||
+        guideVisits.hasSeen({ id: user.id, role })
       )
         return
       startUserGuide()

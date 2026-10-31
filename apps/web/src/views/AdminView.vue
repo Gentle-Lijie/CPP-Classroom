@@ -11,7 +11,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { computed, ref, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
-import { Database, RefreshCw, Search, Download, KeyRound, Eye, EyeOff } from '@lucide/vue'
+import { Database, RefreshCw, Search, Download, KeyRound, Eye, EyeOff, Ellipsis } from '@lucide/vue'
+import {
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from 'reka-ui'
 import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { api } from '@/lib/api'
@@ -328,6 +336,10 @@ function openEdit(u: User) {
   editRole.value = u.role
   error.value = ''
 }
+function openToggle(u: User) {
+  error.value = ''
+  toggleUser.value = u
+}
 async function saveUser() {
   const u = editTarget.value
   if (!u || busy.value) return
@@ -516,8 +528,8 @@ const busyReason = ref('正在处理请求，请稍候')
       <div class="inline-items">
         <Select v-model="roleFilter" aria-label="筛选身份">
           <SelectOption value="all">全部身份</SelectOption>
-          <SelectOption value="teacher">教师</SelectOption>
-          <SelectOption value="student">学生</SelectOption>
+          <SelectOption value="teacher">可创建课堂</SelectOption>
+          <SelectOption value="student">普通账号</SelectOption>
           <SelectOption value="admin">管理员</SelectOption>
         </Select>
         <Select v-model="statusFilter" aria-label="筛选状态">
@@ -546,31 +558,45 @@ const busyReason = ref('正在处理请求，请稍候')
           <tr v-for="u in userPages.paged.value" :key="u.id">
             <td>{{ u.name }}</td>
             <td class="admin-account">{{ u.username }}</td>
-            <td>{{ { admin: '管理员', teacher: '教师', student: '学生' }[u.role] ?? u.role }}</td>
+            <td>
+              {{
+                { admin: '管理员', teacher: '可创建课堂', student: '普通账号' }[u.role] ?? u.role
+              }}
+            </td>
             <td>
               <span class="status" :class="u.disabled ? 'red' : 'positive'">
                 {{ u.disabled ? '停用' : '正常' }}
               </span>
             </td>
             <td>
-              <template v-if="u.id !== currentUser?.id">
-                <Button size="sm" variant="ghost" @click="openEdit(u)">编辑</Button>
-                <Button size="sm" variant="destructive" @click="deleteUser(u)">删除</Button>
-                <Button
-                  size="sm"
-                  :variant="u.disabled ? 'success' : 'outline'"
-                  @click="
-                    () => {
-                      error = ''
-                      toggleUser = u
-                    }
-                  ">
-                  {{ u.disabled ? '启用' : '停用' }}
-                </Button>
-                <Button class="ml-2" size="sm" variant="ghost" @click="openReset(u)">
-                  重设密码
-                </Button>
-              </template>
+              <DropdownMenuRoot v-if="u.id !== currentUser?.id">
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    :aria-label="'管理账号 ' + u.name"
+                    :disabled="busy">
+                    <Ellipsis />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent class="ui-menu-content" align="end" :side-offset="5">
+                    <DropdownMenuItem class="ui-menu-item" @select="openEdit(u)">
+                      编辑资料
+                    </DropdownMenuItem>
+                    <DropdownMenuItem class="ui-menu-item" @select="openReset(u)">
+                      重设密码
+                    </DropdownMenuItem>
+                    <DropdownMenuItem class="ui-menu-item" @select="openToggle(u)">
+                      {{ u.disabled ? '启用账号' : '停用账号' }}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator class="account-menu-separator" />
+                    <DropdownMenuItem class="ui-menu-item danger-text" @select="deleteUser(u)">
+                      删除账号
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenuRoot>
               <span v-else class="muted">当前账号 · 在个人设置改密</span>
             </td>
           </tr>
@@ -733,8 +759,8 @@ const busyReason = ref('正在处理请求，请稍候')
       <label v-if="editTarget?.role !== 'admin'">
         身份
         <Select v-model="editRole">
-          <SelectOption value="teacher">教师</SelectOption>
-          <SelectOption value="student">学生</SelectOption>
+          <SelectOption value="teacher">可创建课堂</SelectOption>
+          <SelectOption value="student">普通账号</SelectOption>
         </Select>
       </label>
       <p v-if="error" role="alert">{{ error }}</p>
@@ -763,8 +789,8 @@ const busyReason = ref('正在处理请求，请稍候')
       <label>
         身份
         <Select v-model="userRole">
-          <SelectOption value="teacher">教师</SelectOption>
-          <SelectOption value="student">学生</SelectOption>
+          <SelectOption value="teacher">可创建课堂</SelectOption>
+          <SelectOption value="student">普通账号</SelectOption>
         </Select>
       </label>
       <label>
@@ -1005,6 +1031,11 @@ const busyReason = ref('正在处理请求，请稍候')
   max-width: 260px;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+.account-menu-separator {
+  height: 1px;
+  margin: 5px 0;
+  background: var(--ui-line);
 }
 .table-controls .ui-select-trigger {
   font-size: 15px;

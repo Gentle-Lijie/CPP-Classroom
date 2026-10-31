@@ -14,7 +14,7 @@ import {
 import { z } from 'zod'
 import { exerciseSourceFilename, executionSnapshot, sourceLanguages } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
-import { actor, parse, role, type AuthRequest } from './common.js'
+import { actor, parse, type AuthRequest } from './common.js'
 export const activeStatuses = ['排队', '编译中', '运行中／可输入']
 export function runDto(r: Record<string, unknown>) {
   return {
@@ -54,7 +54,6 @@ export class RunsController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    role(user, 'student', 'teacher')
     const data = parse(
       z.object({
         exerciseId: z.uuid(),
@@ -86,15 +85,12 @@ export class RunsController {
           [id, e.id],
         )
       ).rows[0]
-      const membership =
-        user.role === 'student'
-          ? (
-              await client.query(
-                'select status from memberships where classroom_id=$1 and user_id=$2 for share',
-                [id, user.id],
-              )
-            ).rows[0]
-          : undefined
+      const membership = (
+        await client.query(
+          'select status,role from memberships where classroom_id=$1 and user_id=$2 for share',
+          [id, user.id],
+        )
+      ).rows[0]
       const account = (
         await client.query('select disabled,role from users where id=$1 for update', [user.id])
       ).rows[0]
@@ -102,9 +98,8 @@ export class RunsController {
         !account ||
         account.disabled ||
         account.role !== user.role ||
-        (user.role === 'teacher'
-          ? classroom?.owner_id !== user.id
-          : membership?.status !== 'active')
+        membership?.status !== 'active' ||
+        !['student', 'teacher'].includes(membership.role)
       )
         throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
       if (
@@ -238,6 +233,7 @@ export class RunsController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, false, true, client)
       const r = (await client.query('select * from runs where id=$1 for update', [runId])).rows[0]
       if (r.status !== '运行中／可输入' || !r.interactive || r.eof)
         throw new ConflictException('当前无法输入或已发送 EOF')

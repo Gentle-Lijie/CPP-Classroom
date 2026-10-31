@@ -25,9 +25,19 @@ function setup(handler: (sql: string, params: unknown[]) => unknown = () => unde
   )
   const client = { query, release: vi.fn() }
   const service = {
-    access: vi.fn(),
+    withAccess: async (
+      _user: unknown,
+      _id: string,
+      _permission: unknown,
+      operation: (connection: typeof client) => Promise<unknown>,
+    ) => operation(client),
+    access: vi.fn(async () => ({ classroomRole: 'student' })),
     exercise: vi.fn(async () => ({ e: exercise })),
-    lockWritable: vi.fn(async () => ({ status: '进行中', settings: { allowResubmit: false } })),
+    lockWritable: vi.fn(async () => ({
+      classroomRole: 'student',
+      status: '进行中',
+      settings: { allowResubmit: false },
+    })),
     pool: { query, connect: vi.fn(async () => client) },
   } as unknown as ClassroomService
   return {

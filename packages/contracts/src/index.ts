@@ -1,5 +1,56 @@
 export type DependencyState = 'healthy' | 'unavailable' | 'unconfigured'
 
+export const classroomRoles = ['student', 'teacher', 'ta'] as const
+export type ClassroomRole = (typeof classroomRoles)[number]
+export const classroomRoleLabels: Record<ClassroomRole, string> = {
+  student: '学生',
+  teacher: '教师',
+  ta: '助教',
+}
+export type ClassroomPermission =
+  | 'classroom.read'
+  | 'workspace.own.write'
+  | 'submission.own.create'
+  | 'students.observe'
+  | 'help.resolve'
+  | 'projection.manage'
+  | 'exercises.manage'
+  | 'classroom.manage'
+  | 'students.manage'
+  | 'classroom.export'
+  | 'assignments.manage'
+  | 'classroom.delete'
+  | 'classroom.transfer'
+
+export function classroomPermissions(role: ClassroomRole, owner = false): ClassroomPermission[] {
+  if (role === 'student') return ['classroom.read', 'workspace.own.write', 'submission.own.create']
+  const permissions: ClassroomPermission[] = [
+    'classroom.read',
+    'students.observe',
+    'help.resolve',
+    'projection.manage',
+  ]
+  if (role === 'teacher')
+    permissions.push(
+      'workspace.own.write',
+      'exercises.manage',
+      'classroom.manage',
+      'students.manage',
+      'classroom.export',
+    )
+  if (role === 'teacher' && owner)
+    permissions.push('assignments.manage', 'classroom.delete', 'classroom.transfer')
+  return permissions
+}
+
+export function platformPermissions(role: string) {
+  return role === 'admin'
+    ? ['platform.manage', 'classroom.create']
+    : role === 'teacher'
+      ? ['classroom.create']
+      : []
+}
+
 // Leave headroom below the API and reverse proxy's 512 KiB JSON body limit.
 export const exerciseImportLimits = {
   files: 50,

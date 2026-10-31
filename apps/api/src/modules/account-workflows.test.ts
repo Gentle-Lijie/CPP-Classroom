@@ -174,8 +174,10 @@ describe('exercise publication validation', () => {
 describe('teacher classroom write policy', () => {
   it('keeps lesson content read-only outside an active class while allowing classroom management', async () => {
     const { ClassroomService } = await import('./classroom.js')
-    const query = vi.fn(async () => ({
-      rows: [{ id: classId, owner_id: teacherId, status: '已归档', settings: {} }],
+    const query = vi.fn(async (sql: string) => ({
+      rows: sql.includes('from memberships')
+        ? [{ status: 'active', role: 'teacher' }]
+        : [{ id: classId, owner_id: teacherId, status: '已归档', settings: {} }],
       rowCount: 1,
     }))
     const classroom = new ClassroomService({
@@ -202,12 +204,14 @@ describe('adding a single student with optional credentials', () => {
     return vi.fn(async (sql: string) => {
       if (sql.startsWith('select settings')) return { rows: [{ settings: {} }], rowCount: 1 }
       if (sql.startsWith('select count(*)')) return { rows: [{ count: 0 }], rowCount: 1 }
-      if (sql.includes('from users where number'))
+      if (sql.includes('from users u where u.number'))
         return overrides.user ?? { rows: [], rowCount: 0 }
       if (sql.includes('from users where username'))
         return overrides.taken ?? { rows: [], rowCount: 0 }
       if (sql.includes('from memberships where classroom_id=$1 and user_id=$2'))
         return overrides.member ?? { rows: [], rowCount: 0 }
+      if (sql.startsWith('insert into memberships'))
+        return { rows: [{ id: studentId }], rowCount: 1 }
       if (sql.startsWith('insert into users')) return overrides.insert ?? { rows: [], rowCount: 0 }
       return { rows: [], rowCount: 0 }
     })
@@ -280,6 +284,32 @@ describe('adding a single student with optional credentials', () => {
       number: body.number,
       canResetPassword: true,
     })
+    expect(query.mock.calls.some(([sql]) => sql.startsWith('insert into users'))).toBe(false)
+  })
+  it('reuses a promoted account without granting the teacher password-reset permission', async () => {
+    const query = memberQueries({
+      user: {
+        rows: [
+          {
+            id: studentId,
+            username: 'student.existing',
+            role: 'teacher',
+            name: body.name,
+            number: body.number,
+            disabled: false,
+            created_by: teacherId,
+          },
+        ],
+        rowCount: 1,
+      },
+    })
+    const result = await new ClassroomController(service(query).value).addMember(
+      classId,
+      { ...body, username: 'different', password: 'ignored' },
+      req(),
+    )
+    expect(result).toMatchObject({ id: studentId, created: false, canResetPassword: false })
+    expect(result).not.toHaveProperty('password')
     expect(query.mock.calls.some(([sql]) => sql.startsWith('insert into users'))).toBe(false)
   })
   it('still derives the username and generates a password when none is requested', async () => {

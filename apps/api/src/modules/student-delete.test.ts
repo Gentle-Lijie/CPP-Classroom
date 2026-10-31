@@ -38,7 +38,7 @@ describe('teacher permanent student account deletion', () => {
     await expect(m.controller.deleteStudentAccount(classroom, student, request)).resolves.toEqual({
       ok: true,
     })
-    expect(m.access).toHaveBeenCalledWith(request.actor, classroom, true)
+    expect(m.access).toHaveBeenCalledWith(request.actor, classroom, 'teacher')
     const calls = m.query.mock.calls.map(([sql]) => sql)
     for (const table of [
       'runs',

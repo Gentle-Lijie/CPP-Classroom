@@ -15,7 +15,7 @@ import {
 import { z } from 'zod'
 import { exerciseSourceFilename, exerciseStarterCode, sourceLanguages } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
-import { actor, parse, role, text, type AuthRequest } from './common.js'
+import { actor, parse, text, type AuthRequest } from './common.js'
 
 const selectionSchema = z.object({
   exercise: z.uuid().optional(),
@@ -42,7 +42,7 @@ export class TeachingController {
         from memberships m join users u on u.id=m.user_id join classrooms c on c.id=m.classroom_id
         left join lateral(select status,exit from runs where classroom_id=m.classroom_id and user_id=u.id and exercise_id=m.exercise_id and language=m.language order by created_at desc,id desc limit 1) r on true
         left join lateral(select id,message,created_at,exercise_id,language from help_requests where classroom_id=m.classroom_id and user_id=u.id and not resolved order by created_at desc,id desc limit 1) h on true
-        where m.classroom_id=$1 and m.status='active' order by u.number,u.name,u.id`,
+        where m.classroom_id=$1 and m.status='active' and m.role='student' order by u.number,u.name,u.id`,
         [id],
       )
     ).rows
@@ -54,7 +54,7 @@ export class TeachingController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    role(user, 'student')
+    await this.service.access(user, id, 'student')
     const data = parse(
       z.object({
         exerciseId: z.uuid(),
@@ -71,7 +71,9 @@ export class TeachingController {
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
         `help:${id}:${user.id}:${data.exerciseId}:${language}`,
       ])
-      await this.service.lockWritable(client, user, id, data.exerciseId)
+      const writable = await this.service.lockWritable(client, user, id, data.exerciseId)
+      if (writable.classroomRole !== 'student')
+        throw new ForbiddenException('当前身份不能发起学生求助')
       const existing = (
         await client.query(
           'select id from help_requests where classroom_id=$1 and user_id=$2 and exercise_id=$3 and language=$4 and not resolved order by created_at desc limit 1 for update',
@@ -103,9 +105,9 @@ export class TeachingController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    await this.service.access(user, id)
+    const classroom = await this.service.access(user, id)
     const data = parse(selectionSchema, query)
-    const student = user.role === 'student' ? user.id : (data.student ?? null)
+    const student = classroom.classroomRole === 'student' ? user.id : (data.student ?? null)
     return (
       await this.service.pool.query(
         "select h.*,e.content->>'title' as title from help_requests h join exercises e on e.id=h.exercise_id where h.classroom_id=$1 and ($2::uuid is null or h.user_id=$2) and ($3::uuid is null or h.exercise_id=$3) and ($4::text is null or h.language=$4) order by h.created_at desc,h.id desc limit 200",
@@ -127,9 +129,11 @@ export class TeachingController {
         .refine((value) => !!value.requestId || !!value.exerciseId, '请指定要处理的求助或练习'),
       body,
     )
-    const result = await this.service.pool.query(
-      'update help_requests set resolved=true where classroom_id=$1 and user_id=$2 and ($3::uuid is null or id=$3) and ($4::uuid is null or exercise_id=$4) and not resolved returning id',
-      [id, parse(z.uuid(), student), data.requestId ?? null, data.exerciseId ?? null],
+    const result = await this.service.withAccess(actor(req), id, true, (client) =>
+      client.query(
+        'update help_requests set resolved=true where classroom_id=$1 and user_id=$2 and ($3::uuid is null or id=$3) and ($4::uuid is null or exercise_id=$4) and not resolved returning id',
+        [id, parse(z.uuid(), student), data.requestId ?? null, data.exerciseId ?? null],
+      ),
     )
     return { ok: true, resolved: result.rowCount }
   }
@@ -140,7 +144,7 @@ export class TeachingController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    role(user, 'student')
+    await this.service.access(user, id, 'student')
     const data = parse(
       z.object({
         exerciseId: z.uuid(),
@@ -158,6 +162,8 @@ export class TeachingController {
         `submit:${id}:${user.id}:${data.exerciseId}:${language}`,
       ])
       const classroom = await this.service.lockWritable(client, user, id, data.exerciseId)
+      if (classroom.classroomRole !== 'student')
+        throw new ForbiddenException('当前身份不能提交学生作业')
       const exercise = (
         await client.query(
           'select id,status,filename,language from exercises where classroom_id=$1 and id=$2 for share',
@@ -207,7 +213,7 @@ export class TeachingController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    await this.service.access(user, id)
+    const classroom = await this.service.access(user, id)
     const data = parse(
       selectionSchema.extend({
         page: z.coerce.number().int().min(1).optional(),
@@ -220,7 +226,7 @@ export class TeachingController {
     )
     const values = [
       id,
-      user.role === 'student' ? user.id : (data.student ?? null),
+      classroom.classroomRole === 'student' ? user.id : (data.student ?? null),
       data.exerciseId ?? data.exercise ?? null,
       data.search?.trim() ?? '',
       data.submissionId ?? null,
@@ -266,7 +272,7 @@ export class TeachingController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    await this.service.access(user, id, true)
+    await this.service.access(user, id, 'teacher')
     const data = parse(
       selectionSchema.extend({
         includeRuns: z.enum(['true', 'false']).optional(),
@@ -327,7 +333,7 @@ export class TeachingController {
       }
       result.roster = (
         await client.query(
-          'select u.id,u.name,u.number,m.status from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 and ($2::uuid is null or u.id=$2) order by u.number,u.id',
+          "select u.id,u.name,u.number,m.status from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 and m.role='student' and ($2::uuid is null or u.id=$2) order by u.number,u.id",
           [id, data.student ?? null],
         )
       ).rows
@@ -364,7 +370,7 @@ export class TeachingController {
     const language = data.language ?? e.language ?? 'cpp'
     const member = (
       await this.service.pool.query(
-        'select 1 from memberships where classroom_id=$1 and user_id=$2',
+        "select 1 from memberships where classroom_id=$1 and user_id=$2 and role='student'",
         [id, data.student],
       )
     ).rowCount
@@ -410,12 +416,18 @@ export class TeachingController {
         title: e.content.title,
       }
     }
-    return (
-      await this.service.pool.query(
-        `insert into projections(classroom_id,user_id,snapshot,expires_at) values($1,$2,$3,now()+interval '2 hours') returning id`,
-        [id, data.student, JSON.stringify({ ...snapshot, exerciseId: data.exerciseId })],
-      )
-    ).rows[0]
+    return this.service.withAccess(
+      actor(req),
+      id,
+      true,
+      async (client) =>
+        (
+          await client.query(
+            `insert into projections(classroom_id,user_id,snapshot,expires_at) values($1,$2,$3,now()+interval '2 hours') returning id`,
+            [id, data.student, JSON.stringify({ ...snapshot, exerciseId: data.exerciseId })],
+          )
+        ).rows[0],
+    )
   }
 
   @Get('projections/:projection') async projection(
@@ -440,9 +452,11 @@ export class TeachingController {
     @Req() req: AuthRequest,
   ) {
     await this.service.access(actor(req), id, true)
-    await this.service.pool.query(
-      'update projections set revoked=true where id=$1 and classroom_id=$2',
-      [parse(z.uuid(), projection), id],
+    await this.service.withAccess(actor(req), id, true, (client) =>
+      client.query('update projections set revoked=true where id=$1 and classroom_id=$2', [
+        parse(z.uuid(), projection),
+        id,
+      ]),
     )
     return { ok: true }
   }

@@ -17,7 +17,10 @@ import {
 } from '@nestjs/common'
 import { z } from 'zod'
 import {
+  classroomPermissions,
   exerciseImportLimits,
+  type ClassroomRole,
+  type ClassroomPermission,
   exerciseStarterCode,
   sourceLanguages,
   validSourceFilename,
@@ -93,7 +96,9 @@ export interface ClassroomRow {
   invite_expires_at: Date
   settings: typeof defaults
   recommended: string | null
+  classroomRole: ClassroomRole
 }
+export type ClassroomRequirement = boolean | 'teacher' | 'student' | 'owner' | ClassroomPermission
 @Injectable()
 export class ClassroomService {
   constructor(@Inject(DatabaseService) readonly database: DatabaseService) {}
@@ -109,15 +114,12 @@ export class ClassroomService {
         exerciseId,
       ])
     ).rows[0]
-    const member =
-      user.role === 'student'
-        ? (
-            await client.query(
-              'select status from memberships where classroom_id=$1 and user_id=$2 for share',
-              [classId, user.id],
-            )
-          ).rows[0]
-        : undefined
+    const member = (
+      await client.query(
+        'select status,role from memberships where classroom_id=$1 and user_id=$2 for share',
+        [classId, user.id],
+      )
+    ).rows[0]
     const account = (
       await client.query('select disabled,role from users where id=$1 for share', [user.id])
     ).rows[0]
@@ -126,36 +128,73 @@ export class ClassroomService {
       account.disabled ||
       account.role !== user.role ||
       !c ||
-      (user.role === 'teacher'
-        ? c.owner_id !== user.id
-        : user.role !== 'student' || member?.status !== 'active')
+      member?.status !== 'active' ||
+      !['teacher', 'student'].includes(member.role)
     )
       throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
+    c.classroomRole = member.role
     if (c.status !== '进行中' || e?.status !== '已发布')
       throw new ForbiddenException('课堂或练习当前只读')
     c.settings = { ...defaults, ...c.settings }
     return c
   }
-  async access(user: Actor, id: string, teacher = false, write = false): Promise<ClassroomRow> {
+  async access(
+    user: Actor,
+    id: string,
+    permission: ClassroomRequirement = false,
+    write = false,
+    client?: PoolClient,
+  ): Promise<ClassroomRow> {
     parse(z.uuid(), id)
-    const c = (await this.pool.query('select * from classrooms where id=$1', [id])).rows[0] as
-      ClassroomRow | undefined
+    const query = client ?? this.pool
+    const c = (
+      await query.query('select * from classrooms where id=$1' + (client ? ' for update' : ''), [
+        id,
+      ])
+    ).rows[0] as ClassroomRow | undefined
     if (!c) throw new NotFoundException('课堂不存在')
     c.settings = { ...defaults, ...c.settings }
-    if (user.role === 'teacher' && c.owner_id === user.id) {
-      if (write && c.status !== '进行中')
-        throw new ForbiddenException('课堂当前只读，请先开始或恢复课堂')
-      return c
+    const member = (
+      await query.query(
+        'select status,role from memberships where classroom_id=$1 and user_id=$2' +
+          (client ? ' for share' : ''),
+        [id, user.id],
+      )
+    ).rows[0]
+    if (client) {
+      const account = (
+        await client.query('select disabled,role from users where id=$1 for share', [user.id])
+      ).rows[0]
+      if (!account || account.disabled || account.role !== user.role)
+        throw new ForbiddenException('账号访问权限已变更，请刷新')
     }
-    if (teacher || user.role !== 'student') throw new ForbiddenException('无权访问此课堂')
-    const member = await this.pool.query(
-      "select 1 from memberships where classroom_id=$1 and user_id=$2 and status='active'",
-      [id, user.id],
-    )
-    if (!member.rowCount) throw new ForbiddenException('尚未加入课堂或已被移除')
-    if (c.status === '已归档' && !c.settings.readonly)
+    c.classroomRole = member?.role
+    const ownerOperation =
+      permission === 'owner' ||
+      ['assignments.manage', 'classroom.delete', 'classroom.transfer'].includes(String(permission))
+    if (ownerOperation && user.role === 'admin') return c
+    if (member?.status !== 'active') throw new ForbiddenException('尚未加入课堂或已被移除')
+    if (ownerOperation && (c.owner_id !== user.id || member.role !== 'teacher'))
+      throw new ForbiddenException('仅课堂负责人或管理员可执行此操作')
+    if (!['student', 'teacher', 'ta'].includes(member.role))
+      throw new ForbiddenException('无效的课堂身份')
+    const permissions = classroomPermissions(member.role, c.owner_id === user.id)
+    const required =
+      permission === true
+        ? 'students.observe'
+        : permission === 'teacher'
+          ? 'classroom.manage'
+          : permission === 'student'
+            ? 'submission.own.create'
+            : permission === 'owner'
+              ? 'assignments.manage'
+              : permission
+    if (required && !permissions.includes(required))
+      throw new ForbiddenException('当前课堂身份无权执行此操作')
+    if (member.role === 'student' && c.status === '已归档' && !c.settings.readonly)
       throw new ForbiddenException('归档作品访问已关闭')
-    if (write && c.status !== '进行中') throw new ForbiddenException('课堂当前只读')
+    if (write && (c.status !== '进行中' || !permissions.includes('workspace.own.write')))
+      throw new ForbiddenException('课堂当前只读或当前身份无写入权限')
     return c
   }
   async exercise(user: Actor, classId: string, exerciseId: string, write = false) {
@@ -167,10 +206,30 @@ export class ClassroomService {
         exerciseId,
       ])
     ).rows[0]
-    if (!e || (user.role === 'student' && e.status === '草稿'))
+    if (!e || (c.classroomRole === 'student' && e.status === '草稿'))
       throw new NotFoundException('练习不可访问')
     if (write && e.status !== '已发布') throw new ForbiddenException('练习已关闭')
     return { c, e }
+  }
+  async withAccess<T>(
+    user: Actor,
+    id: string,
+    permission: ClassroomRequirement,
+    operation: (client: PoolClient) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect()
+    try {
+      await client.query('begin')
+      await this.access(user, id, permission, false, client)
+      const result = await operation(client)
+      await client.query('commit')
+      return result
+    } catch (error) {
+      await client.query('rollback').catch(() => {})
+      throw error
+    } finally {
+      client.release()
+    }
   }
   async audit(user: Actor, event: string, details: Record<string, unknown>) {
     await this.pool.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
@@ -186,13 +245,13 @@ export class ClassroomController {
   @Get() async list(@Req() req: AuthRequest) {
     const user = actor(req)
     const rows = await this.service.pool.query(
-      `select c.*,u.name as teacher,m.status as membership_status,
-      (select count(*)::int from memberships mm where mm.classroom_id=c.id and mm.status='active') as students,
-      case when c.owner_id=$1 or m.status='active' then (select count(*)::int from exercises e where e.classroom_id=c.id and ($2='teacher' or e.status<>'草稿')) else 0 end as exercises
+      `select c.*,u.name as teacher,m.status as membership_status,m.role as classroom_role,
+      (select count(*)::int from memberships mm where mm.classroom_id=c.id and mm.status='active' and mm.role='student') as students,
+      case when m.status='active' then (select count(*)::int from exercises e where e.classroom_id=c.id and (m.role in ('teacher','ta') or e.status<>'草稿')) else 0 end as exercises
       from classrooms c join users u on u.id=c.owner_id
-      left join memberships m on m.classroom_id=c.id and m.user_id=$1
-      where c.owner_id=$1 or m.status in ('active','pending') order by c.created_at desc`,
-      [user.id, user.role],
+      join memberships m on m.classroom_id=c.id and m.user_id=$1
+      where m.status in ('active','pending') order by c.created_at desc`,
+      [user.id],
     )
     return rows.rows.map((c) => ({
       id: c.id,
@@ -203,10 +262,17 @@ export class ClassroomController {
       exercises: c.exercises,
       teacher: c.teacher,
       color: 'green',
-      membershipStatus: c.owner_id === user.id ? 'active' : c.membership_status,
+      membershipStatus: c.membership_status,
+      classroomRole: c.classroom_role,
+      ownerId: c.owner_id,
+      canManageStaff: c.owner_id === user.id || user.role === 'admin',
+      permissions:
+        c.membership_status === 'active'
+          ? classroomPermissions(c.classroom_role, c.owner_id === user.id || user.role === 'admin')
+          : [],
       settings: { ...defaults, ...c.settings },
       recommended: c.membership_status === 'pending' ? null : c.recommended,
-      ...(c.owner_id === user.id
+      ...(c.classroom_role === 'teacher' && c.membership_status === 'active'
         ? { inviteCode: c.invite_code, inviteExpiresAt: c.invite_expires_at }
         : {}),
     }))
@@ -214,27 +280,50 @@ export class ClassroomController {
 
   @Post() async create(@Body() body: unknown, @Req() req: AuthRequest) {
     const user = actor(req)
-    role(user, 'teacher')
+    role(user, 'teacher', 'admin')
     const data = parse(
       z.object({ name: text(100), description: z.string().max(5000).default('') }),
       body,
     )
-    const result = await this.service.pool.query(
-      `insert into classrooms(owner_id,name,description,invite_code,invite_expires_at,settings) values($1,$2,$3,$4,now()+interval '7 days',$5) returning id`,
-      [
+    const client = await this.service.pool.connect()
+    try {
+      await client.query('begin')
+      const account = (
+        await client.query('select disabled,role from users where id=$1 for share', [user.id])
+      ).rows[0]
+      if (!account || account.disabled || !['teacher', 'admin'].includes(account.role))
+        throw new ForbiddenException('创建课堂权限已变更')
+      const result = await client.query(
+        `insert into classrooms(owner_id,name,description,invite_code,invite_expires_at,settings) values($1,$2,$3,$4,now()+interval '7 days',$5) returning id`,
+        [
+          user.id,
+          data.name,
+          data.description,
+          randomBytes(6).toString('hex').toUpperCase(),
+          JSON.stringify(defaults),
+        ],
+      )
+      const id = result.rows[0].id
+      await client.query(
+        "insert into memberships(classroom_id,user_id,role,status) values($1,$2,'teacher','active')",
+        [id, user.id],
+      )
+      await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
+        'classroom.created',
         user.id,
-        data.name,
-        data.description,
-        randomBytes(6).toString('hex').toUpperCase(),
-        JSON.stringify(defaults),
-      ],
-    )
-    await this.service.audit(user, 'classroom.created', { classroomId: result.rows[0].id })
-    return result.rows[0]
+        JSON.stringify({ classroomId: id }),
+      ])
+      await client.query('commit')
+      return { id }
+    } catch (error) {
+      await client.query('rollback').catch(() => {})
+      throw error
+    } finally {
+      client.release()
+    }
   }
   @Post('join') async join(@Body() body: unknown, @Req() req: AuthRequest) {
     const user = actor(req)
-    role(user, 'student')
     const data = parse(z.object({ code: text(30) }), body)
     const client = await this.service.pool.connect()
     try {
@@ -255,13 +344,14 @@ export class ClassroomController {
           user.id,
         ])
       ).rows[0]
+      if (member && member.role !== 'student') throw new ConflictException('你已是此课堂教师或助教')
       if (member?.status === 'removed') throw new ForbiddenException('已移除，请联系教师重新授权')
       if (settings.access === 'roster' && member?.status !== 'active')
         throw new ForbiddenException('不在教师名册中')
       if (!member) {
         const count = (
           await client.query(
-            "select count(*)::int as count from memberships where classroom_id=$1 and status='active'",
+            "select count(*)::int as count from memberships where classroom_id=$1 and role='student' and status='active'",
             [c.id],
           )
         ).rows[0].count
@@ -287,7 +377,7 @@ export class ClassroomController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    await this.service.access(user, id, true)
+    await this.service.access(user, id, 'teacher')
     const data = parse(
       z.object({
         name: text(100).optional(),
@@ -301,6 +391,7 @@ export class ClassroomController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       const current = (await client.query('select * from classrooms where id=$1 for update', [id]))
         .rows[0] as ClassroomRow
       if (
@@ -316,7 +407,7 @@ export class ClassroomController {
       if (data.settings?.capacity !== undefined) {
         const count = (
           await client.query(
-            "select count(*)::int as count from memberships where classroom_id=$1 and status='active'",
+            "select count(*)::int as count from memberships where classroom_id=$1 and role='student' and status='active'",
             [id],
           )
         ).rows[0].count
@@ -355,14 +446,12 @@ export class ClassroomController {
   }
   @Delete(':id') async deleteClass(@Param('id') id: string, @Req() req: AuthRequest) {
     const user = actor(req)
-    await this.service.access(user, id, true)
+    await this.service.access(user, id, 'owner')
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
-      const classroom = await client.query(
-        'select id from classrooms where id=$1 and owner_id=$2 for update',
-        [id, user.id],
-      )
+      await this.service.access(actor(req), id, 'owner', false, client)
+      const classroom = await client.query('select id from classrooms where id=$1 for update', [id])
       if (!classroom.rowCount) throw new NotFoundException('课堂不存在')
       const active = await client.query(
         "select 1 from runs where classroom_id=$1 and status in ('排队','编译中','运行中／可输入') limit 1",
@@ -399,19 +488,25 @@ export class ClassroomController {
     }
   }
   @Post(':id/invite') async invite(@Param('id') id: string, @Req() req: AuthRequest) {
-    await this.service.access(actor(req), id, true)
-    return (
-      await this.service.pool.query(
-        `update classrooms set invite_code=$2,invite_expires_at=now()+interval '7 days' where id=$1 returning invite_code as "inviteCode",invite_expires_at as "inviteExpiresAt"`,
-        [id, randomBytes(6).toString('hex').toUpperCase()],
-      )
-    ).rows[0]
+    await this.service.access(actor(req), id, 'teacher')
+    return this.service.withAccess(
+      actor(req),
+      id,
+      'teacher',
+      async (client) =>
+        (
+          await client.query(
+            `update classrooms set invite_code=$2,invite_expires_at=now()+interval '7 days' where id=$1 returning invite_code as "inviteCode",invite_expires_at as "inviteExpiresAt"`,
+            [id, randomBytes(6).toString('hex').toUpperCase()],
+          )
+        ).rows[0],
+    )
   }
   @Get(':id/members') async members(@Param('id') id: string, @Req() req: AuthRequest) {
-    await this.service.access(actor(req), id, true)
+    await this.service.access(actor(req), id, 'teacher')
     return (
       await this.service.pool.query(
-        `select u.id,u.name,u.username,u.number,u.disabled,coalesce((u.created_by=$2 and not u.disabled),false) as "canResetPassword",coalesce((u.created_by=$2 and u.role='student'),false) as "canDeleteAccount",m.status as membership,m.exercise_id as "exerciseId",m.last_seen as "lastSeen",coalesce(m.last_seen>now()-interval '15 seconds',false) as online from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 order by u.number,u.name`,
+        `select u.id,u.name,u.username,u.number,u.disabled,coalesce((u.created_by=$2 and u.role='student' and not u.disabled and not exists(select 1 from memberships staff where staff.user_id=u.id and staff.role<>'student')),false) as "canResetPassword",coalesce((u.created_by=$2 and u.role='student' and exists(select 1 from classrooms owned where owned.id=m.classroom_id and owned.owner_id=$2) and not exists(select 1 from memberships staff where staff.user_id=u.id and staff.role<>'student')),false) as "canDeleteAccount",m.status as membership,m.exercise_id as "exerciseId",m.last_seen as "lastSeen",coalesce(m.last_seen>now()-interval '15 seconds',false) as online from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 and m.role='student' order by u.number,u.name`,
         [id, actor(req).id],
       )
     ).rows
@@ -422,7 +517,7 @@ export class ClassroomController {
     @Req() req: AuthRequest,
   ) {
     const teacher = actor(req)
-    await this.service.access(teacher, id, true)
+    await this.service.access(teacher, id, 'teacher')
     const data = parse(
       z.object({
         name: text(50),
@@ -437,11 +532,12 @@ export class ClassroomController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       const c = (await client.query('select settings from classrooms where id=$1 for update', [id]))
         .rows[0]
       const size = (
         await client.query(
-          "select count(*)::int as count from memberships where classroom_id=$1 and status='active'",
+          "select count(*)::int as count from memberships where classroom_id=$1 and role='student' and status='active'",
           [id],
         )
       ).rows[0].count
@@ -453,7 +549,9 @@ export class ClassroomController {
       await client.query('select pg_advisory_xact_lock(hashtext($1))', [username])
       let user = (
         await client.query(
-          "select id,username,role,name,number,disabled,created_by from users where number=$1 and created_by=$2 and role='student'",
+          `select u.id,u.username,u.role,u.name,u.number,u.disabled,u.created_by,
+            exists(select 1 from memberships staff where staff.user_id=u.id and staff.role<>'student') as has_staff
+           from users u where u.number=$1 and u.created_by=$2 and u.role in ('student','teacher') for share of u`,
           [data.number, teacher.id],
         )
       ).rows[0]
@@ -473,7 +571,7 @@ export class ClassroomController {
         user &&
         (
           await client.query(
-            "select 1 from memberships where classroom_id=$1 and user_id=$2 and status='active'",
+            "select 1 from memberships where classroom_id=$1 and user_id=$2 and role='student' and status='active'",
             [id, user.id],
           )
         ).rowCount
@@ -492,11 +590,12 @@ export class ClassroomController {
             ],
           )
         ).rows[0]
-      if (user.role !== 'student') throw new ConflictException('账号类型不匹配')
-      await client.query(
-        `insert into memberships(classroom_id,user_id,status) values($1,$2,'active') on conflict(classroom_id,user_id) do update set status='active'`,
+      const assigned = await client.query(
+        `insert into memberships(classroom_id,user_id,status) values($1,$2,'active') on conflict(classroom_id,user_id) do update set status='active' where memberships.role='student' returning id`,
         [id, user.id],
       )
+      if (!assigned.rowCount)
+        throw new ConflictException('该账号已是课堂教师或助教，请使用人员分配调整身份')
       await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
         'membership.added',
         actor(req).id,
@@ -509,7 +608,7 @@ export class ClassroomController {
         created,
         name: user.name,
         number: user.number,
-        canResetPassword: true,
+        canResetPassword: user.role === 'student' && !user.has_staff,
         ...(created ? { password: data.password ?? password } : {}),
       }
     } catch (e) {
@@ -525,11 +624,12 @@ export class ClassroomController {
     @Req() req: AuthRequest,
   ) {
     const teacher = actor(req)
-    await this.service.access(teacher, id, true)
+    await this.service.access(teacher, id, 'teacher')
     parse(z.uuid(), userId)
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       const classroom = await client.query(
         'select id from classrooms where id=$1 and owner_id=$2 for update',
         [id, teacher.id],
@@ -542,6 +642,12 @@ export class ClassroomController {
         )
       ).rows[0]
       if (!student) throw new ForbiddenException('只能删除由你创建的学生账号')
+      const teaching = await client.query(
+        "select 1 from memberships where user_id=$1 and role<>'student' limit 1",
+        [userId],
+      )
+      if (teaching.rowCount)
+        throw new ConflictException('该账号有关联的教师或助教身份，请联系管理员')
       const member = await client.query(
         'select id from memberships where classroom_id=$1 and user_id=$2',
         [id, userId],
@@ -605,16 +711,17 @@ export class ClassroomController {
     @Req() req: AuthRequest,
   ) {
     const teacher = actor(req)
-    await this.service.access(teacher, id, true)
+    await this.service.access(teacher, id, 'teacher')
     const data = parse(z.object({ userIds: z.array(z.uuid()).min(1).max(50) }), body)
     const ids = [...new Set(data.userIds)]
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       const users = (
         await client.query(
-          "select u.id,u.name,u.number,u.username from users u join memberships m on m.user_id=u.id where m.classroom_id=$1 and m.status='active' and u.role='student' and u.created_by=$3 and not u.disabled and u.id=any($2::uuid[]) order by u.id for update of u",
+          "select u.id,u.name,u.number,u.username from users u join memberships m on m.user_id=u.id where m.classroom_id=$1 and m.status='active' and m.role='student' and u.role='student' and u.created_by=$3 and not u.disabled and u.id=any($2::uuid[]) and not exists(select 1 from memberships staff where staff.user_id=u.id and staff.role<>'student') order by u.id for update of u",
           [id, ids, teacher.id],
         )
       ).rows
@@ -622,6 +729,14 @@ export class ClassroomController {
         throw new ForbiddenException(
           '仅可重置由你创建且未停用的当前课堂学生；其他或历史账号请联系管理员',
         )
+      // Recheck after the account locks: another classroom's staff assignment may
+      // have committed while the preceding SELECT FOR UPDATE was waiting.
+      const teaching = await client.query(
+        "select 1 from memberships where user_id=any($1::uuid[]) and role<>'student' limit 1",
+        [ids],
+      )
+      if (teaching.rows.length)
+        throw new ForbiddenException('该账号已有教师或助教身份，请联系管理员重置密码')
       const credentials = []
       for (const user of users) {
         const password = randomBytes(12).toString('base64url')
@@ -656,7 +771,7 @@ export class ClassroomController {
     @Body() body: unknown,
     @Req() req: AuthRequest,
   ) {
-    await this.service.access(actor(req), id, true)
+    await this.service.access(actor(req), id, 'teacher')
     const data = parse(
       z.object({
         status: z.enum(['active', 'removed']),
@@ -668,15 +783,17 @@ export class ClassroomController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       const c = (await client.query('select settings from classrooms where id=$1 for update', [id]))
         .rows[0]
       const membership = (
         await client.query(
-          'select status from memberships where classroom_id=$1 and user_id=$2 for update',
+          'select status,role from memberships where classroom_id=$1 and user_id=$2 for update',
           [id, userId],
         )
       ).rows[0]
-      if (!membership) throw new NotFoundException('成员不存在')
+      if (!membership || membership.role !== 'student')
+        throw new NotFoundException('学生成员不存在')
       if (data.action === 'reject' && membership.status !== 'pending')
         throw new ConflictException('申请状态已改变，请刷新后重试')
       if (data.status === 'active') {
@@ -686,7 +803,7 @@ export class ClassroomController {
           throw new ConflictException('该学生账号已停用，请联系管理员恢复后审批')
         const n = (
           await client.query(
-            "select count(*)::int as count from memberships where classroom_id=$1 and status='active' and user_id<>$2",
+            "select count(*)::int as count from memberships where classroom_id=$1 and role='student' and status='active' and user_id<>$2",
             [id, userId],
           )
         ).rows[0].count
@@ -707,7 +824,7 @@ export class ClassroomController {
         return { ok: true }
       }
       const result = await client.query(
-        'update memberships set status=$3 where classroom_id=$1 and user_id=$2 returning id',
+        "update memberships set status=$3 where classroom_id=$1 and user_id=$2 and role='student' returning id",
         [id, userId, data.status],
       )
       if (!result.rowCount) throw new NotFoundException('成员不存在')
@@ -732,11 +849,11 @@ export class ClassroomController {
   }
   @Get(':id/exercises') async exercises(@Param('id') id: string, @Req() req: AuthRequest) {
     const user = actor(req)
-    await this.service.access(user, id)
+    const classroom = await this.service.access(user, id)
     return (
       await this.service.pool.query(
-        "select * from exercises where classroom_id=$1 and ($2='teacher' or status<>'草稿') order by position,updated_at",
-        [id, user.role],
+        "select * from exercises where classroom_id=$1 and ($2 in ('teacher','ta') or status<>'草稿') order by position,updated_at",
+        [id, classroom.classroomRole],
       )
     ).rows.map((e) => ({
       ...e.content,
@@ -755,11 +872,12 @@ export class ClassroomController {
     @Body() body: unknown,
     @Req() req: AuthRequest,
   ) {
-    await this.service.access(actor(req), id, true)
+    await this.service.access(actor(req), id, 'teacher')
     const data = parse(exerciseSchema, body)
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       if (
         data.filename &&
@@ -809,7 +927,7 @@ export class ClassroomController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    await this.service.access(user, id, true)
+    await this.service.access(user, id, 'teacher')
     if (Buffer.byteLength(JSON.stringify(body) ?? '') > exerciseImportLimits.bodyBytes)
       throw new BadRequestException('导入内容超过 500 KiB，请减少所选文件后分批导入')
     const { exercises } = parse(
@@ -833,6 +951,7 @@ export class ClassroomController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       const existing = (
         await client.query('select filename from exercises where classroom_id=$1', [id])
@@ -893,11 +1012,12 @@ export class ClassroomController {
     @Body() body: unknown,
     @Req() req: AuthRequest,
   ) {
-    await this.service.access(actor(req), id, true)
+    await this.service.access(actor(req), id, 'teacher')
     const data = parse(z.object({ ids: z.array(z.uuid()).max(500) }), body)
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       const existing = (
         await client.query('select id from exercises where classroom_id=$1', [id])
@@ -932,7 +1052,7 @@ export class ClassroomController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    await this.service.access(user, id, true)
+    await this.service.access(user, id, 'teacher')
     const { exercises, changes } = parse(
       z.object({
         exercises: z
@@ -965,6 +1085,7 @@ export class ClassroomController {
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       const current = (
         await client.query(
@@ -1009,12 +1130,13 @@ export class ClassroomController {
     @Body() body: unknown,
     @Req() req: AuthRequest,
   ) {
-    await this.service.access(actor(req), id, true)
+    await this.service.access(actor(req), id, 'teacher')
     const data = parse(exerciseSchema, body)
     parse(z.uuid(), exerciseId)
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       if (
         data.filename &&
@@ -1080,11 +1202,12 @@ export class ClassroomController {
     @Req() req: AuthRequest,
   ) {
     const user = actor(req)
-    await this.service.access(user, id, true)
+    await this.service.access(user, id, 'teacher')
     parse(z.uuid(), exerciseId)
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       const exercise = await client.query(
         'select id from exercises where classroom_id=$1 and id=$2 for update',
@@ -1140,10 +1263,11 @@ export class ClassroomController {
     @Param('exerciseId') exerciseId: string,
     @Req() req: AuthRequest,
   ) {
-    await this.service.access(actor(req), id, true)
+    await this.service.access(actor(req), id, 'teacher')
     const client = await this.service.pool.connect()
     try {
       await client.query('begin')
+      await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       const result = await client.query(
         "update exercises set status='已关闭',version=version+1,updated_at=now() where classroom_id=$1 and id=$2 returning id",

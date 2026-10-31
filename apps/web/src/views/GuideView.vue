@@ -3,7 +3,7 @@ import { Alert } from '@/components/ui/alert'
 import { computed } from 'vue'
 import { ArrowRight, ScanLine, BookOpen, LockKeyhole } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-import { currentUser, demo, exercises } from '@/data/demo'
+import { currentUser, demo, exercises, workspaceRole, classroomRole } from '@/data/demo'
 import {
   chapterAvailable,
   guideCatalog,
@@ -13,8 +13,15 @@ import {
 } from '@/lib/guide-catalog'
 import { guideVisits } from '@/lib/guide-visit'
 import { startGuide } from '@/lib/spotlight'
-const role = computed(() => (currentUser.value?.role ?? 'student') as GuideRole)
-const chapters = computed(() => guideCatalog[role.value])
+const role = computed(
+  () => (currentUser.value?.role === 'admin' ? 'admin' : workspaceRole.value) as GuideRole,
+)
+const chapters = computed(() =>
+  guideCatalog[role.value].filter(
+    (chapter) =>
+      role.value === 'admin' || classroomRole.value !== 'ta' || chapter.id === 'overview',
+  ),
+)
 const available = (chapter: GuideChapter) =>
   chapterAvailable(chapter, !!demo.classroomId, exercises.length > 0)
 const ready = computed(() => chapters.value.filter(available))

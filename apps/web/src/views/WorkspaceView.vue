@@ -601,8 +601,9 @@ async function returnToRunning() {
   if (router.currentRoute.value.path !== '/student/classes') return
   await selectClass(target.classroomId)
   await router.push({
-    path: '/student/workspace',
-    query: { exercise: target.exerciseId, language: sourceLanguage(target) },
+    path:
+      activeClassroom.value.classroomRole === 'teacher' ? '/teacher/teach' : '/student/workspace',
+    query: { exercise: target.exerciseId, language: sourceLanguage(target), returnRun: '1' },
   })
 }
 async function changeLanguage(value: SourceLanguage) {
