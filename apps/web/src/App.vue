@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ServiceUnavailable from '@/components/classroom/ServiceUnavailable.vue'
 import Notification from '@/components/ui/alert/Notification.vue'
@@ -10,44 +10,11 @@ import SpotlightGuide from '@/components/classroom/SpotlightGuide.vue'
 import ResolutionNotice from '@/components/classroom/ResolutionNotice.vue'
 import AppShell from '@/components/classroom/AppShell.vue'
 import DisabledButtonHint from '@/components/ui/button/DisabledButtonHint.vue'
-import WelcomePoster from '@/components/classroom/WelcomePoster.vue'
 import { demo, currentUser, refresh, clearSession, notify, bootstrapError } from '@/data/demo'
 import { api, ApiError } from '@/lib/api'
 const route = useRoute()
 const router = useRouter()
-const posterOpen = ref(false)
-const seenPosters = new Set<string>()
-const posterKey = (id: string) => `codemia:welcome-poster:v1:${encodeURIComponent(id)}`
-watch(
-  () => [currentUser.value?.id, route.path, bootstrapError.value] as const,
-  ([id, path, error]) => {
-    if (!id || error || ['/login', '/recover', '/join'].includes(path)) {
-      posterOpen.value = false
-      return
-    }
-    const key = posterKey(id)
-    try {
-      posterOpen.value = !seenPosters.has(key) && localStorage.getItem(key) !== '1'
-    } catch {
-      posterOpen.value = !seenPosters.has(key)
-    }
-  },
-  { immediate: true, flush: 'sync' },
-)
-function closePoster() {
-  const id = currentUser.value?.id
-  if (id) {
-    const key = posterKey(id)
-    seenPosters.add(key)
-    try {
-      localStorage.setItem(key, '1')
-    } catch {
-      // Keep the poster dismissed for this page session if storage is unavailable.
-    }
-  }
-  posterOpen.value = false
-}
-useFirstVisitGuide(posterOpen)
+useFirstVisitGuide()
 let poll: ReturnType<typeof setInterval>
 let expiring = false
 async function expireSession() {
@@ -95,7 +62,6 @@ async function retryBootstrap() {
   <ServiceUnavailable v-if="bootstrapError" :busy="reconnecting" @retry="retryBootstrap" />
   <RouterView v-else-if="standalone" :key="pageKey" />
   <AppShell v-else><RouterView :key="pageKey" /></AppShell>
-  <WelcomePoster :open="posterOpen" @close="closePoster" />
   <ConfirmationDialog />
   <SpotlightGuide />
   <ResolutionNotice />
