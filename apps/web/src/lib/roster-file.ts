@@ -9,8 +9,12 @@ export async function rosterExcelTemplate() {
   sheet.columns = [
     { header: '姓名', key: 'name', width: 20, style: { numFmt: '@' } },
     { header: '学号', key: 'number', width: 28, style: { numFmt: '@' } },
+    { header: '用户名', key: 'username', width: 28, style: { numFmt: '@' } },
+    { header: '密码', key: 'password', width: 28, style: { numFmt: '@' } },
   ]
-  sheet.addRow({ name: '张三', number: '0012026001' })
+  sheet.addRow({ name: '张三', number: '0012026001', username: 'zhangsan', password: 'Class2026!' })
+  sheet.getCell('C1').note = '可选；留空自动生成。最多 80 字，仅限字母、数字和 . _ @ -。'
+  sheet.getCell('D1').note = '可选；留空自动生成。最多 200 字。已有账号保留原用户名和密码。'
   sheet.getRow(1).font = { bold: true }
   sheet.views = [{ state: 'frozen', ySplit: 1 }]
   const buffer = await workbook.xlsx.writeBuffer()
@@ -18,8 +22,9 @@ export async function rosterExcelTemplate() {
 }
 
 export function rosterCsvTemplate() {
-  // Fixed GB2312 bytes for 姓名,学号\r\n张三,0012026001\r\n. No UTF-8 BOM.
-  const encoded = '\xd0\xd5\xc3\xfb,\xd1\xa7\xba\xc5\r\n\xd5\xc5\xc8\xfd,0012026001\r\n'
+  // Fixed GB2312 bytes for the four-column template. No UTF-8 BOM.
+  const encoded =
+    '\xd0\xd5\xc3\xfb,\xd1\xa7\xba\xc5,\xd3\xc3\xbb\xa7\xc3\xfb,\xc3\xdc\xc2\xeb\r\n\xd5\xc5\xc8\xfd,0012026001,zhangsan,Class2026!\r\n'
   return new Blob([Uint8Array.from(encoded, (char) => char.charCodeAt(0))], {
     type: 'text/csv;charset=gb2312',
   })
@@ -64,15 +69,16 @@ export async function readRosterFile(file: Pick<File, 'name' | 'size' | 'arrayBu
       const cells = ['', '']
       row.eachCell((cell, column) => {
         if (cell.value === null || cell.value === '') return
-        if (column > 2) throw new Error('名单仅支持姓名、学号两列，请使用模板')
+        if (column > 4) throw new Error('名单最多支持姓名、学号、用户名、密码四列，请使用模板')
         if (typeof cell.value !== 'string' && typeof cell.value !== 'number')
-          throw new Error(`第 ${row.number} 行请使用姓名、学号文本，不要使用公式或日期`)
+          throw new Error(`第 ${row.number} 行请使用文本或整数，不要使用公式或日期`)
         if (typeof cell.value === 'number' && !Number.isSafeInteger(cell.value))
-          throw new Error(`第 ${row.number} 行学号必须为文本或安全范围内的整数`)
+          throw new Error(`第 ${row.number} 行必须为文本或安全范围内的整数`)
         let value = String(cell.value)
         // Excel can store 00123 as the number 123 with the custom format 00000.
-        if (column === 2 && typeof cell.value === 'number' && /^0{1,50}$/.test(cell.numFmt))
+        if (column >= 2 && typeof cell.value === 'number' && /^0{1,200}$/.test(cell.numFmt))
           value = value.padStart(cell.numFmt.length, '0')
+        while (cells.length < column) cells.push('')
         cells[column - 1] = value
       })
       if (cells.some((cell) => cell.trim())) rows.push(cells)

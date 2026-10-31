@@ -46,7 +46,7 @@ import {
 } from '@/data/demo'
 import { api } from '@/lib/api'
 import { confirmAction } from '@/lib/confirm'
-import { csvDocument, parseRoster } from '@/lib/csv'
+import { csvDocument, parseRoster, rosterContent, type RosterRow } from '@/lib/csv'
 import { readRosterFile, rosterCsvTemplate, rosterExcelTemplate } from '@/lib/roster-file'
 import { downloadBlob } from '@/lib/source-archive'
 interface Member {
@@ -361,7 +361,7 @@ async function decide(id: string, status: string) {
 async function importRows() {
   if (busy.value) return
   error.value = ''
-  let rows: { name: string; number: string }[]
+  let rows: RosterRow[]
   try {
     rows = parseRoster(csv.value)
   } catch (e) {
@@ -372,19 +372,26 @@ async function importRows() {
   busyReason.value = '正在导入学生名单，请稍候'
   busy.value = true
   importResults.value = []
+  const failedRows: RosterRow[] = []
   try {
     for (const row of rows) {
       try {
-        const result = await addMember(row.name, row.number, classId)
-        importResults.value.push({ ...row, created: result.created })
+        const result = await addMember(row.name, row.number, classId, {
+          username: row.username,
+          password: row.password,
+        })
+        importResults.value.push({ name: row.name, number: row.number, created: result.created })
       } catch (e) {
-        importResults.value.push({ ...row, error: (e as Error).message })
+        failedRows.push(row)
+        importResults.value.push({
+          name: row.name,
+          number: row.number,
+          error: (e as Error).message,
+        })
       }
     }
     const failed = importResults.value.filter((r) => r.error)
-    csv.value = failed
-      .map((r) => [r.name, r.number].map((s) => '"' + s.replaceAll('"', '""') + '"').join(','))
-      .join('\n')
+    csv.value = rosterContent(failedRows)
     if (failed.length)
       error.value = `成功 ${rows.length - failed.length} 位，失败 ${failed.length} 位。已保留失败行，可导出成功账号后重试。`
     else {
@@ -902,7 +909,7 @@ const busyReason = ref('正在处理请求，请稍候')
     v-model:open="importing"
     :dismissible="!busy"
     title="导入学生名单"
-    description="支持 Excel（.xlsx，读取首个工作表）、UTF-8 / GB2312 CSV，或从 Excel 粘贴姓名、学号两列。可包含表头，每批最多 50 人。">
+    description="支持 Excel（.xlsx，读取首个工作表）、UTF-8 / GB2312 CSV，或直接填写、从 Excel 粘贴名单。列顺序为姓名、学号、用户名、密码；后两列可选。可包含表头，每批最多 50 人。">
     <Form class="form-stack" @submit.prevent="importRows">
       <div class="inline-items roster-import-files">
         <Button
@@ -930,8 +937,8 @@ const busyReason = ref('正在处理请求，请稍候')
         </FileUpload>
       </div>
       <p class="form-hint">
-        请替换模板中的示例学生。学号列请保持文本格式以保留前导零；CSV 含中文时请使用 GB2312
-        编码保存。
+        请替换模板中的示例学生。学号、用户名和密码列请保持文本格式以保留前导零。用户名仅限 80
+        字以内的字母、数字和 . _ @ -，密码最多 200 字；留空的用户名或密码会自动生成。
       </p>
       <label>
         名单内容
@@ -941,7 +948,7 @@ const busyReason = ref('正在处理请求，请稍候')
           :data-disabled-reason="busyReason"
           rows="7"
           required
-          placeholder="姓名,学号&#10;刘亦安,2026013&#10;方可欣,2026014" />
+          placeholder="姓名,学号,用户名,密码&#10;刘亦安,2026013,liuyian,Class2026!&#10;方可欣,2026014,," />
       </label>
 
       <div v-if="importResults.length" class="import-results">
@@ -959,7 +966,7 @@ const busyReason = ref('正在处理请求，请稍候')
         导出已成功账号凭据
       </Button>
       <p class="form-hint">
-        已有账号不会修改密码。部分失败时保留成功结果与凭据，重试只处理失败行。
+        仍支持仅填写姓名、学号两列。已有账号保留原用户名和密码；部分失败时保留成功凭据及失败行的用户名、密码，重试只处理失败行。
       </p>
       <div class="modal-actions">
         <Button

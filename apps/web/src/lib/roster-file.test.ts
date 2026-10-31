@@ -30,8 +30,16 @@ describe('roster file templates and import', () => {
     const sheet = workbook.worksheets[0]!
     expect(sheet.getCell('B2').value).toBe('0012026001')
     expect(sheet.getColumn(2).numFmt).toBe('@')
+    expect(sheet.getColumn(3).numFmt).toBe('@')
+    expect(sheet.getColumn(4).numFmt).toBe('@')
+    expect([1, 2, 3, 4].map((column) => sheet.getCell(1, column).value)).toEqual([
+      '姓名',
+      '学号',
+      '用户名',
+      '密码',
+    ])
     expect(parseRoster(await readRosterFile(file('名单.xlsx', blob)))).toEqual([
-      { name: '张三', number: '0012026001' },
+      { name: '张三', number: '0012026001', username: 'zhangsan', password: 'Class2026!' },
     ])
   })
 
@@ -41,10 +49,10 @@ describe('roster file templates and import', () => {
     const buffer = await blob.arrayBuffer()
     expect([...new Uint8Array(buffer).slice(0, 4)]).toEqual([0xd0, 0xd5, 0xc3, 0xfb])
     expect(new TextDecoder('gb2312', { fatal: true }).decode(buffer)).toBe(
-      '姓名,学号\r\n张三,0012026001\r\n',
+      '姓名,学号,用户名,密码\r\n张三,0012026001,zhangsan,Class2026!\r\n',
     )
     expect(parseRoster(await readRosterFile(file('名单.csv', blob)))).toEqual([
-      { name: '张三', number: '0012026001' },
+      { name: '张三', number: '0012026001', username: 'zhangsan', password: 'Class2026!' },
     ])
   })
 
@@ -70,6 +78,47 @@ describe('roster file templates and import', () => {
     ])
   })
 
+  it('reads optional credentials in spreadsheets and encoded text without losing characters', async () => {
+    const rows = [
+      { name: '王明', number: '00123', username: 'wang.ming', password: '  pass,"word"  ' },
+      { name: '李四', number: '002', password: '001234' },
+      { name: '张三', number: '003', username: 'zhang.san' },
+      { name: '赵六', number: '004' },
+    ]
+    const input = await excelFile([
+      ['姓名', '学号', '用户名', '密码'],
+      ...rows.map((row) => [row.name, row.number, row.username ?? '', row.password ?? '']),
+    ])
+    expect(parseRoster(await readRosterFile(input))).toEqual(rows)
+    for (const name of ['名单.csv', '名单.tsv', '名单.txt']) {
+      const delimiter = name.endsWith('.csv') ? ',' : '\t'
+      const content = [
+        ['姓名', '学号', '用户名', '密码'],
+        ['王明', '00123', 'wang.ming', '001234'],
+      ]
+        .map((row) => row.join(delimiter))
+        .join('\r\n')
+      expect(parseRoster(await readRosterFile(file(name, new Blob([content]))))).toEqual([
+        { name: '王明', number: '00123', username: 'wang.ming', password: '001234' },
+      ])
+    }
+  })
+
+  it('preserves number formatting for spreadsheet usernames and passwords', async () => {
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('名单')
+    sheet.addRows([
+      ['姓名', '学号', '用户名', '密码'],
+      ['王明', '00123', 12, 1234],
+    ])
+    sheet.getCell('C2').numFmt = '00000'
+    sheet.getCell('D2').numFmt = '000000'
+    const buffer = await workbook.xlsx.writeBuffer()
+    expect(
+      parseRoster(await readRosterFile(file('名单.xlsx', new Blob([new Uint8Array(buffer)])))),
+    ).toEqual([{ name: '王明', number: '00123', username: '00012', password: '001234' }])
+  })
+
   it('validates every spreadsheet row before accounts can be created', async () => {
     const cases: [ExcelJS.CellValue[][], string][] = [
       [
@@ -90,9 +139,9 @@ describe('roster file templates and import', () => {
       [
         [
           ['姓名', '学号'],
-          ['张三', '1', '多余列'],
+          ['张三', '1', 'account', 'password', '多余列'],
         ],
-        '两列',
+        '四列',
       ],
       [
         [
