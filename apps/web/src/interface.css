@@ -765,10 +765,6 @@ th {
 .inline-menu {
   border-radius: 8px;
 }
-.role-menu button:hover,
-.role-menu a:hover {
-  background: var(--ui-hover);
-}
 @media (max-width: 760px) {
   .stat-card {
     padding: 15px;
@@ -788,13 +784,6 @@ th {
 .monitor-window,
 .projection-page {
   background: var(--ui-canvas);
-}
-.role-menu p {
-  overflow-wrap: anywhere;
-}
-.role-menu button {
-  font-size: 15px;
-  min-height: 36px;
 }
 .profile > span:nth-child(2) {
   min-width: 0;

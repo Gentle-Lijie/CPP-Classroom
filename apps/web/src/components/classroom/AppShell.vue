@@ -2,7 +2,7 @@
 import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
 import { Button } from '@/components/ui/button'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   DropdownMenuRoot,
@@ -58,6 +58,12 @@ const roleMenu = ref(false)
 const accountOpen = ref(false)
 const signingOut = ref(false)
 const switchingClass = ref(false)
+watch(
+  () => route.fullPath,
+  () => {
+    roleMenu.value = false
+  },
+)
 const availableClassrooms = computed(() =>
   classrooms.filter((classroom) => classroom.membershipStatus !== 'pending'),
 )
@@ -275,52 +281,70 @@ async function signOut() {
           <HelpCircle :size="18" />
           使用导览
         </Button>
-        <div class="profile-wrap">
-          <div v-if="roleMenu" class="role-menu">
-            <p>{{ currentUser?.username }}</p>
-            <RouterLink to="/teacher/classes" class="nav-item" @click="roleMenu = false">
-              我的课堂
-            </RouterLink>
-            <RouterLink
-              v-if="currentUser?.role === 'admin'"
-              to="/admin/health"
-              class="nav-item"
-              @click="roleMenu = false">
-              平台管理
-            </RouterLink>
-            <Button variant="plain" data-guide="account-open" @click="openAccount">
-              <KeyRound :size="14" />
-              账号与密码
-            </Button>
-            <Button
-              variant="plain"
-              data-guide="sign-out"
-              :disabled="signingOut"
-              data-disabled-reason="正在退出登录，请稍候"
-              @click="signOut">
-              <LogOut :size="14" />
-              {{ signingOut ? '退出中…' : '退出登录' }}
-            </Button>
+        <DropdownMenuRoot v-model:open="roleMenu" :modal="false">
+          <div class="profile-wrap">
+            <DropdownMenuTrigger as-child>
+              <Button variant="plain" class="profile" aria-label="账号菜单">
+                <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
+                <span>
+                  {{ currentUser?.name ?? '' }}
+                  <small>
+                    {{
+                      role === 'admin'
+                        ? '平台管理员'
+                        : classroomRole === 'ta'
+                          ? '当前课堂助教'
+                          : role === 'teacher'
+                            ? '当前课堂教师'
+                            : '当前课堂学生'
+                    }}
+                  </small>
+                </span>
+                <Ellipsis :size="15" />
+              </Button>
+            </DropdownMenuTrigger>
           </div>
-          <Button variant="plain" class="profile" @click="roleMenu = !roleMenu">
-            <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
-            <span>
-              {{ currentUser?.name ?? '' }}
-              <small>
-                {{
-                  role === 'admin'
-                    ? '平台管理员'
-                    : classroomRole === 'ta'
-                      ? '当前课堂助教'
-                      : role === 'teacher'
-                        ? '当前课堂教师'
-                        : '当前课堂学生'
-                }}
-              </small>
-            </span>
-            <Ellipsis :size="15" />
-          </Button>
-        </div>
+          <DropdownMenuPortal>
+            <DropdownMenuContent
+              class="ui-menu-content role-menu"
+              side="top"
+              align="start"
+              :side-offset="8"
+              :collision-padding="12">
+              <DropdownMenuLabel class="account-menu-label">
+                {{ currentUser?.username }}
+              </DropdownMenuLabel>
+              <DropdownMenuItem as-child>
+                <RouterLink to="/teacher/classes" class="ui-menu-item">
+                  <LayoutDashboard :size="14" />
+                  我的课堂
+                </RouterLink>
+              </DropdownMenuItem>
+              <DropdownMenuItem v-if="currentUser?.role === 'admin'" as-child>
+                <RouterLink to="/admin/health" class="ui-menu-item">
+                  <ShieldCheck :size="14" />
+                  平台管理
+                </RouterLink>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator class="class-switch-separator" />
+              <DropdownMenuItem
+                class="ui-menu-item"
+                data-guide="account-open"
+                @select="openAccount">
+                <KeyRound :size="14" />
+                账号与密码
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                class="ui-menu-item"
+                data-guide="sign-out"
+                :disabled="signingOut"
+                @select.prevent="signOut">
+                <LogOut :size="14" />
+                {{ signingOut ? '退出中…' : '退出登录' }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenuRoot>
       </div>
     </aside>
     <div

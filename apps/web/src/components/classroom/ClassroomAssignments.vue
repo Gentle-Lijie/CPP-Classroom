@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -29,6 +30,8 @@ import { confirmAction } from '@/lib/confirm'
 import { usePagination } from '@/composables/usePagination'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { runMemberBatch, memberBatchMessage, type MemberBatchResult } from '@/lib/member-batch'
 import { Alert } from '@/components/ui/alert'
 import { Form } from '@/components/ui/form'
 import Modal from './Modal.vue'
@@ -55,6 +58,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   changed: [assignment?: { role: ClassroomRole; status: 'active' | 'removed' }]
+  'batch-finished': [succeededIds: string[]]
 }>()
 const members = ref<Assignment[]>([])
 const candidates = ref<Account[]>([])
@@ -72,6 +76,16 @@ const searching = ref(false)
 const searched = ref(false)
 const error = ref('')
 const dialogError = ref('')
+const selectedIds = ref<string[]>([])
+const editTargets = ref<Assignment[]>([])
+const batchError = ref('')
+const batchProgress = ref({ completed: 0, total: 0 })
+let mounted = true
+onBeforeRouteLeave(() => {
+  if (!busy.value) return true
+  notify('正在更新课堂人员，请等待操作完成后离开', 'error')
+  return false
+})
 let generation = 0
 let searchGeneration = 0
 let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -134,6 +148,48 @@ const visible = computed(() =>
     ),
 )
 const { page, pageSize, paged } = usePagination(visible, [filter, memberSearch])
+const selectablePage = computed(() => paged.value.filter((m) => !m.owner))
+const selectedMembers = computed(() =>
+  scopedMembers.value.filter((m) => selectedIds.value.includes(m.id) && !m.owner),
+)
+const allPageSelected = computed(
+  () =>
+    selectablePage.value.length > 0 &&
+    selectablePage.value.every((m) => selectedIds.value.includes(m.id)),
+)
+const somePageSelected = computed(() =>
+  selectablePage.value.some((m) => selectedIds.value.includes(m.id)),
+)
+const canEditSelected = computed(
+  () => selectedMembers.value.length > 0 && selectedMembers.value.every((m) => !m.disabled),
+)
+const canRemoveSelected = computed(
+  () =>
+    selectedMembers.value.length > 0 && selectedMembers.value.every((m) => m.status !== 'removed'),
+)
+const canRestoreSelected = computed(
+  () =>
+    selectedMembers.value.length > 0 &&
+    selectedMembers.value.every((m) => m.status === 'removed' && !m.disabled),
+)
+const canTransferSelected = computed(
+  () =>
+    selectedMembers.value.length === 1 &&
+    selectedMembers.value[0]?.role === 'teacher' &&
+    selectedMembers.value[0]?.status === 'active' &&
+    !selectedMembers.value[0]?.disabled,
+)
+function selectPage() {
+  if (busy.value || loading.value) return
+  const ids = selectablePage.value.map((m) => m.id)
+  selectedIds.value = allPageSelected.value
+    ? selectedIds.value.filter((id) => !ids.includes(id))
+    : [...new Set([...selectedIds.value, ...ids])]
+}
+watch([filter, memberSearch, () => props.staffOnly, () => props.showList], () => {
+  selectedIds.value = []
+  batchError.value = ''
+})
 const roles: { value: ClassroomRole; description: string }[] = [
   { value: 'teacher', description: '管理题目和课堂' },
   { value: 'ta', description: '巡视和协助答疑' },
@@ -166,7 +222,12 @@ async function load() {
   error.value = ''
   try {
     const rows = await api<Assignment[]>(`/classes/${id}/assignments`)
-    if (token === generation) members.value = rows
+    if (token === generation) {
+      members.value = rows
+      selectedIds.value = selectedIds.value.filter((id) =>
+        rows.some((m) => m.id === id && !m.owner),
+      )
+    }
   } catch (e) {
     if (token === generation) error.value = e instanceof Error ? e.message : '人员读取失败'
   } finally {
@@ -189,6 +250,9 @@ watch(
     memberSearch.value = ''
     filter.value = 'all'
     members.value = []
+    selectedIds.value = []
+    editTargets.value = []
+    batchError.value = ''
     void load()
   },
   { immediate: true },
@@ -218,6 +282,7 @@ watch(
   { flush: 'post' },
 )
 onBeforeUnmount(() => {
+  mounted = false
   cancelSearch()
   cancelAnimationFrame(focusFrame)
   generation++
@@ -249,6 +314,7 @@ async function find() {
 function openAdd() {
   cancelSearch()
   dialogMode.value = 'add'
+  editTargets.value = []
   target.value = undefined
   search.value = ''
   candidates.value = []
@@ -264,6 +330,7 @@ function choose(account: Account) {
   dialogError.value = ''
 }
 function edit(member: Assignment) {
+  editTargets.value = []
   choose(member)
   dialogMode.value = 'edit'
   dialogOpen.value = true
@@ -274,7 +341,103 @@ async function editMember(id: string) {
   if (member) edit(member)
   else error.value = '成员信息已变化，请刷新后重试'
 }
-defineExpose({ openAdd, editMember })
+async function editMembers(ids: string[]) {
+  if (busy.value) return
+  const id = props.classroomId
+  await load()
+  if (!mounted || id !== props.classroomId) return
+  const unique = [...new Set(ids)]
+  const targets = unique
+    .map((id) => existing(id))
+    .filter((m): m is Assignment => !!m && !m.owner && !m.disabled)
+  if (!targets.length || targets.length !== unique.length) {
+    notify('所选成员已变化、包含负责人或已停用账号，请刷新后重新选择', 'error')
+    return
+  }
+  choose(targets[0]!)
+  editTargets.value = targets
+  nextRole.value = targets.every((m) => m.role === targets[0]!.role) ? targets[0]!.role : 'ta'
+  dialogMode.value = 'edit'
+  dialogOpen.value = true
+}
+defineExpose({ openAdd, editMember, editMembers })
+
+async function applyBatch(
+  targets: Assignment[],
+  operation: (member: Assignment) => Promise<unknown>,
+  role?: ClassroomRole,
+): Promise<MemberBatchResult<Assignment> | undefined> {
+  if (busy.value || !targets.length) return
+  const id = props.classroomId
+  const current = () => mounted && id === props.classroomId
+  busy.value = true
+  error.value = ''
+  batchError.value = ''
+  dialogError.value = ''
+  batchProgress.value = { completed: 0, total: targets.length }
+  try {
+    const result = await runMemberBatch(targets, operation, {
+      current,
+      progress: (completed) => {
+        if (current()) batchProgress.value.completed = completed
+      },
+    })
+    if (!current()) return result
+    const succeededIds = result.succeeded.map((m) => m.id)
+    selectedIds.value = selectedIds.value.filter((id) => !succeededIds.includes(id))
+    if (role) {
+      editTargets.value = [...result.failed.map((f) => f.member), ...result.pending]
+      target.value = editTargets.value[0]
+      if (!editTargets.value.length) dialogOpen.value = false
+    }
+    await load()
+    if (result.failed.length || result.pending.length) {
+      if (role) dialogError.value = memberBatchMessage(result)
+      else batchError.value = memberBatchMessage(result)
+    } else notify(`已更新 ${result.succeeded.length} 位成员`)
+    emit('batch-finished', succeededIds)
+    if (succeededIds.length)
+      emit(
+        'changed',
+        role && !result.failed.length && !result.pending.length
+          ? { role, status: 'active' }
+          : undefined,
+      )
+    return result
+  } finally {
+    busy.value = false
+    batchProgress.value = { completed: 0, total: 0 }
+  }
+}
+async function saveRole() {
+  if (!target.value) return
+  if (!editTargets.value.length) return assign(target.value, nextRole.value)
+  const id = props.classroomId
+  const role = nextRole.value
+  await applyBatch(
+    [...editTargets.value],
+    (member) =>
+      api(`/classes/${id}/assignments`, 'POST', { userId: member.id, role, status: 'active' }),
+    role,
+  )
+}
+async function batchStatus(status: 'active' | 'removed') {
+  if (busy.value || (status === 'removed' ? !canRemoveSelected.value : !canRestoreSelected.value))
+    return
+  const id = props.classroomId
+  const targets = [...selectedMembers.value]
+  if (
+    !(await confirmAction(
+      `${status === 'removed' ? '移出' : '恢复'}已选的 ${targets.length} 位课堂成员？${status === 'removed' ? '账号和历史作品会保留。' : '将恢复其原有课堂身份。'}`,
+      { destructive: status === 'removed' },
+    ))
+  )
+    return
+  if (!mounted || id !== props.classroomId) return
+  await applyBatch(targets, (member) =>
+    api(`/classes/${id}/assignments`, 'POST', { userId: member.id, role: member.role, status }),
+  )
+}
 function chooseAgain() {
   target.value = undefined
   dialogError.value = ''
@@ -297,9 +460,11 @@ async function assign(
   if (id !== props.classroomId) return
   busy.value = true
   dialogError.value = ''
+  batchError.value = ''
   error.value = ''
   try {
     await api(`/classes/${id}/assignments`, 'POST', { userId: account.id, role, status })
+    selectedIds.value = selectedIds.value.filter((id) => id !== account.id)
     notify(
       status === 'removed'
         ? '已移除课堂访问权限'
@@ -348,6 +513,7 @@ async function transfer(member: Assignment) {
 <template>
   <div class="members-view" :class="{ 'fill-stack': showList !== false }">
     <Alert v-if="error" type="error">{{ error }}</Alert>
+    <Alert v-if="batchError" type="error">{{ batchError }}</Alert>
     <ContentPanel
       v-show="showList !== false"
       as="section"
@@ -361,6 +527,7 @@ async function transfer(member: Assignment) {
             :key="tab.value"
             variant="plain"
             :aria-pressed="filter === tab.value"
+            :disabled="busy"
             :class="{ selected: filter === tab.value }"
             @click="filter = tab.value">
             {{ tab.label }}
@@ -374,6 +541,7 @@ async function transfer(member: Assignment) {
             <Search :size="16" />
             <Input
               v-model="memberSearch"
+              :disabled="busy"
               aria-label="搜索课堂成员"
               placeholder="搜索姓名、账号或学号" />
           </label>
@@ -392,9 +560,58 @@ async function transfer(member: Assignment) {
           </Button>
         </div>
       </template>
+      <div v-if="selectedMembers.length" class="table-controls" aria-label="成员批量操作">
+        <div class="inline-items">
+          <span class="muted">
+            {{
+              busy && batchProgress.total
+                ? `正在处理 ${batchProgress.completed}/${batchProgress.total}`
+                : `已选 ${selectedMembers.length} 位`
+            }}
+          </span>
+          <Button variant="plain" class="text-button" :disabled="busy" @click="selectedIds = []">
+            取消选择
+          </Button>
+        </div>
+        <div class="inline-items">
+          <Button
+            size="sm"
+            variant="outline"
+            :disabled="busy || !canEditSelected"
+            data-disabled-reason="所选成员包含已停用账号，无法调整身份"
+            @click="editMembers(selectedIds)">
+            调整身份
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            :disabled="busy || !canTransferSelected"
+            data-disabled-reason="请仅选择一位未停用、在任的教师作为新负责人"
+            @click="selectedMembers[0] && transfer(selectedMembers[0])">
+            设为负责人
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            :disabled="busy || !canRestoreSelected"
+            data-disabled-reason="仅支持恢复全部已移除且未停用的成员"
+            @click="batchStatus('active')">
+            恢复加入
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            :disabled="busy || !canRemoveSelected"
+            data-disabled-reason="所选成员包含已移除人员"
+            @click="batchStatus('removed')">
+            移出课堂
+          </Button>
+        </div>
+      </div>
       <div class="table-scroll">
         <table class="members-table" :aria-busy="loading">
           <colgroup>
+            <col class="selection-column" />
             <col class="person-column" />
             <col class="account-column" />
             <col class="role-column" />
@@ -403,6 +620,14 @@ async function transfer(member: Assignment) {
           </colgroup>
           <thead>
             <tr>
+              <th>
+                <Checkbox
+                  aria-label="选择本页课堂成员"
+                  :checked="allPageSelected"
+                  :indeterminate="somePageSelected && !allPageSelected"
+                  :disabled="busy || loading || !selectablePage.length"
+                  @change="selectPage" />
+              </th>
               <th>成员</th>
               <th>登录账号</th>
               <th>课堂身份</th>
@@ -412,6 +637,16 @@ async function transfer(member: Assignment) {
           </thead>
           <tbody>
             <tr v-for="member in paged" :key="member.id">
+              <td>
+                <Checkbox
+                  v-model="selectedIds"
+                  :value="member.id"
+                  :aria-label="'选择' + member.name"
+                  :disabled="busy || loading || member.owner"
+                  :data-disabled-reason="
+                    member.owner ? '请先转移负责人，再调整原负责人的身份' : '正在更新成员，请稍候'
+                  " />
+              </td>
               <td>
                 <div class="member-person">
                   <span class="person-avatar" :class="'is-' + member.role" aria-hidden="true">
@@ -526,13 +761,19 @@ async function transfer(member: Assignment) {
         v-model:page="page"
         v-model:page-size="pageSize"
         :total="visible.length"
-        :busy="loading"
+        :busy="loading || busy"
         unit="位成员" />
     </ContentPanel>
 
     <Modal
       v-model:open="dialogOpen"
-      :title="dialogMode === 'add' ? '添加课堂成员' : '调整课堂身份'"
+      :title="
+        dialogMode === 'add'
+          ? '添加课堂成员'
+          : editTargets.length > 1
+            ? '批量调整课堂身份'
+            : '调整课堂身份'
+      "
       :description="!target ? '搜索已有账号，选择要加入课堂的人。' : undefined"
       :busy="busy">
       <div class="member-dialog">
@@ -599,12 +840,23 @@ async function transfer(member: Assignment) {
             </RouterLink>
           </div>
         </template>
-        <Form v-else class="member-role-form" @submit.prevent="assign(target, nextRole)">
+        <Form v-else class="member-role-form" @submit.prevent="saveRole">
           <div class="selected-person">
-            <span class="person-avatar" aria-hidden="true">{{ target.name.slice(-2) }}</span>
+            <span class="person-avatar" aria-hidden="true">
+              <Users v-if="editTargets.length > 1" :size="20" />
+              <template v-else>{{ target.name.slice(-2) }}</template>
+            </span>
             <span class="candidate-copy">
-              <strong>{{ target.name }}</strong>
-              <small>{{ target.username }}</small>
+              <strong>
+                {{ editTargets.length > 1 ? `已选 ${editTargets.length} 位成员` : target.name }}
+              </strong>
+              <small :title="editTargets.map((m) => m.name).join('、')">
+                {{
+                  editTargets.length > 1
+                    ? editTargets.map((m) => m.name).join('、')
+                    : target.username
+                }}
+              </small>
             </span>
             <Button
               v-if="dialogMode === 'add'"
@@ -639,12 +891,23 @@ async function transfer(member: Assignment) {
             </RadioGroupRoot>
           </fieldset>
           <p class="role-hint">{{ roleHint }}</p>
+          <p v-if="editTargets.some((m) => m.status === 'removed')" class="role-hint">
+            保存身份后，已移除的成员将恢复加入。
+          </p>
           <div class="modal-actions">
             <Button type="button" variant="outline" :disabled="busy" @click="dialogOpen = false">
               取消
             </Button>
             <Button type="submit" :disabled="busy">
-              {{ busy ? '保存中…' : dialogMode === 'add' ? '添加成员' : '保存身份' }}
+              {{
+                busy
+                  ? editTargets.length
+                    ? `保存中 ${batchProgress.completed}/${batchProgress.total}…`
+                    : '保存中…'
+                  : dialogMode === 'add'
+                    ? '添加成员'
+                    : '保存身份'
+              }}
             </Button>
           </div>
         </Form>
@@ -699,17 +962,20 @@ async function transfer(member: Assignment) {
   width: 100%;
   table-layout: fixed;
 }
+.selection-column {
+  width: 52px;
+}
 .person-column {
-  width: 28%;
+  width: 26%;
 }
 .account-column {
-  width: 32%;
+  width: 30%;
 }
 .role-column {
-  width: 17%;
+  width: 16%;
 }
 .status-column {
-  width: 15%;
+  width: 14%;
 }
 .actions-column {
   width: 8%;

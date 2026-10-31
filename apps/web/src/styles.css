@@ -399,38 +399,17 @@ code {
   font-size: 14px;
 }
 .role-menu {
-  position: absolute;
-  bottom: 65px;
-  left: 0;
-  right: 0;
-  background: var(--ui-page);
-  border: 1px solid var(--border);
-  box-shadow: 0 8px 30px var(--ui-shadow);
-  border-radius: 8px;
-  padding: 8px;
-  z-index: 50;
+  min-width: 220px;
 }
-.role-menu p {
+.account-menu-label {
+  padding: 7px 10px;
   font-size: 12px;
   color: var(--ui-muted);
-  padding: 5px 8px;
+  overflow-wrap: anywhere;
 }
-.role-menu button,
-.role-menu a {
-  border: 0;
-  background: none;
-  width: 100%;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px;
+.role-menu .ui-menu-item {
   font-size: 14px;
-  border-radius: 4px;
-}
-.role-menu button:hover,
-.role-menu a:hover {
-  background: var(--ui-surface);
+  min-height: 36px;
 }
 .shell-main {
   margin-left: 224px;

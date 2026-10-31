@@ -45,6 +45,7 @@ import {
   activeClassroom,
 } from '@/data/demo'
 import { api } from '@/lib/api'
+import { runMemberBatch, memberBatchMessage } from '@/lib/member-batch'
 import { confirmAction } from '@/lib/confirm'
 import { csvDocument, parseRoster, rosterContent, type RosterRow } from '@/lib/csv'
 import { readRosterFile, rosterCsvTemplate, rosterExcelTemplate } from '@/lib/roster-file'
@@ -93,6 +94,8 @@ const members = ref<Member[]>([]),
 const importResults = ref<{ name: string; number: string; error?: string; created?: boolean }[]>([])
 const credentialKey = computed(() => `cpp-credentials:${currentUser.value?.id}:${demo.classroomId}`)
 const credentials = ref<Credential[]>([])
+const batchProgress = ref({ completed: 0, total: 0 })
+let mounted = true
 const route = useRoute()
 const router = useRouter()
 const assignments = ref<InstanceType<typeof ClassroomAssignments>>()
@@ -178,14 +181,54 @@ const visible = computed(() => {
   ).filter((m) => `${m.name} ${m.number} ${m.username}`.toLowerCase().includes(query))
 })
 const { page, pageSize, paged } = usePagination(visible, [search, tab])
-const selectablePage = computed(() =>
-  paged.value.filter((m) => m.canResetPassword && m.membership === 'active'),
+const selectablePage = computed(() => paged.value)
+const selectedMembers = computed(() => members.value.filter((m) => selected.value.includes(m.id)))
+const hasSelection = computed(() => selectedMembers.value.length > 0)
+const canBatchReset = computed(
+  () =>
+    hasSelection.value &&
+    selectedMembers.value.every(
+      (m) => m.canResetPassword && m.membership === 'active' && !m.disabled,
+    ),
+)
+const canBatchEdit = computed(
+  () =>
+    hasSelection.value &&
+    activeClassroom.value.canManageStaff &&
+    selectedMembers.value.every((m) => !m.disabled && m.membership === 'active'),
+)
+const canBatchDelete = computed(
+  () =>
+    hasSelection.value &&
+    selectedMembers.value.every((m) => m.canDeleteAccount && m.membership === 'active'),
+)
+const canBatchRemove = computed(
+  () => hasSelection.value && selectedMembers.value.every((m) => m.membership === 'active'),
+)
+const canBatchApprove = computed(
+  () =>
+    hasSelection.value &&
+    selectedMembers.value.every((m) => m.membership === 'pending' && !m.disabled),
+)
+const canBatchReject = computed(
+  () => hasSelection.value && selectedMembers.value.every((m) => m.membership === 'pending'),
+)
+const canBatchRestore = computed(
+  () =>
+    hasSelection.value &&
+    selectedMembers.value.every((m) => m.membership === 'removed' && !m.disabled),
 )
 const allPageSelected = computed(
   () =>
     !!selectablePage.value.length &&
     selectablePage.value.every((m) => selected.value.includes(m.id)),
 )
+const somePageSelected = computed(() =>
+  selectablePage.value.some((m) => selected.value.includes(m.id)),
+)
+watch([search, tab, section], () => {
+  selected.value = []
+})
 function selectPage() {
   if (busy.value) return
   const ids = selectablePage.value.map((m) => m.id)
@@ -207,9 +250,7 @@ async function loadMembers(silent = false) {
     members.value = result
     loadError.value = ''
     updatedAt.value = new Date().toLocaleTimeString('zh-CN')
-    selected.value = selected.value.filter((id) =>
-      result.some((m) => m.id === id && m.membership === 'active' && m.canResetPassword),
-    )
+    selected.value = selected.value.filter((id) => result.some((m) => m.id === id))
   } catch (e) {
     if (id === demo.classroomId && token === generation)
       loadError.value = e instanceof Error ? e.message : '名册加载失败'
@@ -228,6 +269,7 @@ onMounted(() => {
   }, 5000)
 })
 onBeforeUnmount(() => {
+  mounted = false
   generation++
   if (poll) clearInterval(poll)
 })
@@ -474,6 +516,81 @@ function openReset(ids: string[]) {
   error.value = ''
   resetting.value = true
 }
+function assignmentBatchFinished(succeededIds: string[]) {
+  selected.value = selected.value.filter((id) => !succeededIds.includes(id))
+}
+async function batchStudents(action: 'remove' | 'delete' | 'approve' | 'reject' | 'restore') {
+  const allowed = {
+    remove: canBatchRemove.value,
+    delete: canBatchDelete.value,
+    approve: canBatchApprove.value,
+    reject: canBatchReject.value,
+    restore: canBatchRestore.value,
+  }
+  if (busy.value || !allowed[action]) return
+  const classId = demo.classroomId
+  const targets = [...selectedMembers.value]
+  const label = {
+    remove: '移除课堂成员',
+    delete: '永久删除账号',
+    approve: '批准加入课堂',
+    reject: '拒绝加入申请',
+    restore: '恢复课堂访问',
+  }[action]
+  const detail =
+    action === 'delete'
+      ? '这些账号及其在你所有课堂中的作品和记录将永久删除，无法恢复。请确认作品已导出。'
+      : action === 'remove'
+        ? '撤销当前课堂访问，账号和历史作品会保留。'
+        : action === 'reject'
+          ? '申请将被移除，学生之后可重新申请。'
+          : '学生将获得课堂访问权限。'
+  if (
+    !(await confirmAction(`对已选 ${targets.length} 位学生执行「${label}」？${detail}`, {
+      destructive: action === 'delete' || action === 'remove',
+    }))
+  )
+    return
+  const current = () => mounted && classId === demo.classroomId
+  if (!current()) return
+  busy.value = true
+  busyReason.value = `正在${label}，请稍候`
+  error.value = ''
+  batchProgress.value = { completed: 0, total: targets.length }
+  try {
+    const result = await runMemberBatch(
+      targets,
+      (member) =>
+        action === 'delete'
+          ? api(`/classes/${classId}/members/${member.id}/account`, 'DELETE')
+          : api(`/classes/${classId}/members/${member.id}`, 'PATCH', {
+              status: action === 'approve' || action === 'restore' ? 'active' : 'removed',
+              ...(action === 'remove'
+                ? { action: 'remove' }
+                : action === 'reject'
+                  ? { action: 'reject' }
+                  : {}),
+            }),
+      {
+        current,
+        progress: (completed) => {
+          if (current()) batchProgress.value.completed = completed
+        },
+      },
+    )
+    if (!current()) return
+    const succeeded = result.succeeded.map((m) => m.id)
+    selected.value = selected.value.filter((id) => !succeeded.includes(id))
+    if (action === 'delete' || action === 'remove')
+      credentials.value = credentials.value.filter((c) => !succeeded.includes(c.id))
+    await reloadAfterWrite(classId)
+    if (result.failed.length || result.pending.length) error.value = memberBatchMessage(result)
+    else notify(`已为 ${succeeded.length} 位学生完成${label}`)
+  } finally {
+    busy.value = false
+    batchProgress.value = { completed: 0, total: 0 }
+  }
+}
 async function resetPasswords() {
   if (busy.value) return
   const classId = demo.classroomId,
@@ -637,6 +754,7 @@ const busyReason = ref('正在处理请求，请稍候')
           :key="t"
           variant="plain"
           :class="{ selected: tab === t }"
+          :disabled="busy"
           @click="tab = t">
           {{ t }}
           <span>
@@ -681,15 +799,86 @@ const busyReason = ref('正在处理请求，请稍候')
     <div class="table-controls">
       <label class="search-field">
         <Search :size="16" />
-        <Input v-model="search" placeholder="搜索姓名、学号或账号…" aria-label="搜索名册" />
+        <Input
+          v-model="search"
+          :disabled="busy"
+          placeholder="搜索姓名、学号或账号…"
+          aria-label="搜索名册" />
       </label>
-      <div v-if="selected.length && tab !== '待审批' && tab !== '已移除'" class="inline-items">
-        <span class="muted">已选 {{ selected.length }} 位</span>
-        <Button variant="plain" class="text-button" @click="selected = []">取消选择</Button>
-        <Button size="sm" variant="warning" @click="openReset(selected)">
-          <KeyRound />
-          重置并生成凭据
+      <div v-if="selected.length" class="inline-items" aria-label="学生批量操作">
+        <span class="muted">
+          {{
+            busy && batchProgress.total
+              ? `正在处理 ${batchProgress.completed}/${batchProgress.total}`
+              : `已选 ${selected.length} 位`
+          }}
+        </span>
+        <Button variant="plain" class="text-button" :disabled="busy" @click="selected = []">
+          取消选择
         </Button>
+        <template v-if="tab === '待审批'">
+          <Button
+            size="sm"
+            variant="success"
+            :disabled="busy || !canBatchApprove"
+            data-disabled-reason="所选学生必须全部是未停用的待审批账号"
+            @click="batchStudents('approve')">
+            批准加入
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            :disabled="busy || !canBatchReject"
+            data-disabled-reason="所选成员必须全部处于待审批状态"
+            @click="batchStudents('reject')">
+            拒绝申请
+          </Button>
+        </template>
+        <Button
+          v-else-if="tab === '已移除'"
+          size="sm"
+          variant="outline"
+          :disabled="busy || !canBatchRestore"
+          data-disabled-reason="所选学生必须全部已移除且账号未停用"
+          @click="batchStudents('restore')">
+          恢复课堂访问
+        </Button>
+        <template v-else>
+          <Button
+            v-if="activeClassroom.canManageStaff"
+            size="sm"
+            variant="outline"
+            :disabled="busy || !canBatchEdit"
+            data-disabled-reason="所选学生必须全部是未停用的有效成员"
+            @click="assignments?.editMembers(selected)">
+            调整身份
+          </Button>
+          <Button
+            size="sm"
+            variant="warning"
+            :disabled="busy || !canBatchReset"
+            data-disabled-reason="仅可重置全部由你创建、未停用且可重置密码的学生"
+            @click="openReset(selected)">
+            <KeyRound />
+            重置密码
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            :disabled="busy || !canBatchRemove"
+            data-disabled-reason="所选学生必须全部是有效课堂成员"
+            @click="batchStudents('remove')">
+            移除课堂成员
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            :disabled="busy || !canBatchDelete"
+            data-disabled-reason="所选账号必须全部允许由你永久删除；有关联课堂或教学身份的账号请联系管理员"
+            @click="batchStudents('delete')">
+            永久删除账号
+          </Button>
+        </template>
       </div>
       <!-- <span v-else class="muted text-xs">{{
         tab === '待审批'
@@ -703,12 +892,13 @@ const busyReason = ref('正在处理请求，请稍候')
       <table class="roster-table">
         <thead>
           <tr>
-            <th v-if="tab !== '待审批' && tab !== '已移除'">
+            <th>
               <Checkbox
                 aria-label="选择本页学生"
-                :disabled="busy || !selectablePage.length"
-                :data-disabled-reason="busy ? busyReason : '本页没有可由你重置密码的学生'"
+                :disabled="busy || loading || !selectablePage.length"
+                :data-disabled-reason="busy ? busyReason : '本页没有可选择的学生'"
                 :checked="allPageSelected"
+                :indeterminate="somePageSelected && !allPageSelected"
                 @change="selectPage" />
             </th>
             <th>学生</th>
@@ -720,17 +910,11 @@ const busyReason = ref('正在处理请求，请稍候')
         </thead>
         <tbody>
           <tr v-for="m in paged" :key="m.id">
-            <td v-if="tab !== '待审批' && tab !== '已移除'">
+            <td>
               <Checkbox
                 v-model="selected"
-                :disabled="busy || !m.canResetPassword"
-                :data-disabled-reason="
-                  busy
-                    ? busyReason
-                    : m.disabled
-                      ? '账号已停用，请联系管理员启用'
-                      : '仅创建该账号的教师或管理员可以重置密码'
-                "
+                :disabled="busy || loading"
+                :data-disabled-reason="busyReason"
                 :value="m.id"
                 :aria-label="'选择' + m.name" />
             </td>
@@ -849,6 +1033,7 @@ const busyReason = ref('正在处理请求，请稍候')
       v-model:page="page"
       v-model:page-size="pageSize"
       :total="visible.length"
+      :busy="loading || busy"
       unit="位学生" />
   </ContentPanel>
   <ClassroomAssignments
@@ -857,6 +1042,7 @@ const busyReason = ref('正在处理请求，请稍候')
     :classroom-id="activeClassroom.id"
     :show-list="section === 'staff'"
     staff-only
+    @batch-finished="assignmentBatchFinished"
     @changed="assignmentsChanged" />
   <Modal
     v-model:open="add"
