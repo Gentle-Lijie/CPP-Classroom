@@ -42,7 +42,7 @@ export class TeachingController {
         from memberships m join users u on u.id=m.user_id join classrooms c on c.id=m.classroom_id
         left join lateral(select status,exit from runs where classroom_id=m.classroom_id and user_id=u.id and exercise_id=m.exercise_id and language=m.language order by created_at desc,id desc limit 1) r on true
         left join lateral(select id,message,created_at,exercise_id,language from help_requests where classroom_id=m.classroom_id and user_id=u.id and not resolved order by created_at desc,id desc limit 1) h on true
-        where m.classroom_id=$1 and m.status='active' and m.role='student' order by u.number,u.name,u.id`,
+        where m.classroom_id=$1 and m.status='active' and m.role in ('student','ta') order by u.number,u.name,u.id`,
         [id],
       )
     ).rows
@@ -72,7 +72,7 @@ export class TeachingController {
         `help:${id}:${user.id}:${data.exerciseId}:${language}`,
       ])
       const writable = await this.service.lockWritable(client, user, id, data.exerciseId)
-      if (writable.classroomRole !== 'student')
+      if (!['student', 'ta'].includes(writable.classroomRole))
         throw new ForbiddenException('当前身份不能发起学生求助')
       const existing = (
         await client.query(
@@ -162,7 +162,7 @@ export class TeachingController {
         `submit:${id}:${user.id}:${data.exerciseId}:${language}`,
       ])
       const classroom = await this.service.lockWritable(client, user, id, data.exerciseId)
-      if (classroom.classroomRole !== 'student')
+      if (!['student', 'ta'].includes(classroom.classroomRole))
         throw new ForbiddenException('当前身份不能提交学生作业')
       const exercise = (
         await client.query(
@@ -333,7 +333,7 @@ export class TeachingController {
       }
       result.roster = (
         await client.query(
-          "select u.id,u.name,u.number,m.status from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 and m.role='student' and ($2::uuid is null or u.id=$2) order by u.number,u.id",
+          "select u.id,u.name,u.number,m.status from memberships m join users u on u.id=m.user_id where m.classroom_id=$1 and m.role in ('student','ta') and ($2::uuid is null or u.id=$2) order by u.number,u.id",
           [id, data.student ?? null],
         )
       ).rows
@@ -370,7 +370,7 @@ export class TeachingController {
     const language = data.language ?? e.language ?? 'cpp'
     const member = (
       await this.service.pool.query(
-        "select 1 from memberships where classroom_id=$1 and user_id=$2 and role='student'",
+        "select 1 from memberships where classroom_id=$1 and user_id=$2 and role in ('student','ta')",
         [id, data.student],
       )
     ).rowCount

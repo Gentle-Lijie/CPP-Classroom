@@ -549,7 +549,15 @@ async function heartbeat() {
     const c = context()
     await api(path(c, '/heartbeat'), 'POST', { exerciseId: c.exercise, language: c.language })
     const requests = await api<{ message: string; resolved: boolean }[]>(
-      path(c, '/help?exerciseId=' + c.exercise + '&language=' + c.language),
+      path(
+        c,
+        '/help?exerciseId=' +
+          c.exercise +
+          '&language=' +
+          c.language +
+          '&student=' +
+          currentUser.value?.id,
+      ),
     )
     if (matches(c)) {
       const unresolved = requests.find((request) => !request.resolved)

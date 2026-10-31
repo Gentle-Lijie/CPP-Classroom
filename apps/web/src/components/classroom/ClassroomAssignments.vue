@@ -192,7 +192,7 @@ watch([filter, memberSearch, () => props.staffOnly, () => props.showList], () =>
 })
 const roles: { value: ClassroomRole; description: string }[] = [
   { value: 'teacher', description: '管理题目和课堂' },
-  { value: 'ta', description: '巡视和协助答疑' },
+  { value: 'ta', description: '学习、提交并巡视和协助答疑' },
   { value: 'student', description: '编程练习与提交' },
 ]
 const roleHint = computed(

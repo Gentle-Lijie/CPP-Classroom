@@ -109,9 +109,14 @@ router.beforeEach(async (to) => {
   if (to.path.endsWith('/classes')) return true
   if (['teacher', 'student'].includes(prefix!)) {
     if (!demo.classroomId) return `/${workspaceRole.value}/classes`
-    if (prefix !== workspaceRole.value) return `/${workspaceRole.value}/classes`
+    if (
+      prefix !== workspaceRole.value &&
+      !(activeClassroom.value.classroomRole === 'ta' && prefix === 'student')
+    )
+      return `/${workspaceRole.value}/classes`
     if (
       activeClassroom.value.classroomRole === 'ta' &&
+      prefix === 'teacher' &&
       !(
         /^\/teacher\/(overview|monitor|inspect\/[^/]+|students\/[^/]+|submissions)$/.test(
           to.path,

@@ -104,8 +104,14 @@ describe('teacher demonstration runs', () => {
     expect(mock.query.mock.calls.some(([sql]) => sql.includes('from memberships'))).toBe(true)
   })
 
+  it('allows an active TA to run their own saved work', async () => {
+    const mock = setup({ classroomRole: 'ta' })
+    await expect(mock.controller.create(classId, body, mock.req)).resolves.toMatchObject({
+      status: '排队',
+    })
+  })
+
   it.each([
-    { classroomRole: 'ta' },
     { disabled: true },
     { accountRole: 'student' },
     { status: '已归档' },

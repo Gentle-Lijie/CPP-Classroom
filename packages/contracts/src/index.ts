@@ -30,6 +30,7 @@ export function classroomPermissions(role: ClassroomRole, owner = false): Classr
     'help.resolve',
     'projection.manage',
   ]
+  if (role === 'ta') permissions.push('workspace.own.write', 'submission.own.create')
   if (role === 'teacher')
     permissions.push(
       'workspace.own.write',

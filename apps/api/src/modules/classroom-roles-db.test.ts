@@ -134,10 +134,19 @@ describe.skipIf(!connectionString)('classroom roles with PostgreSQL', () => {
     ).toBe('teacher')
   })
 
-  it('lets a TA observe students, read drafts, resolve help and project, but denies management and execution writes', async () => {
+  it('lets a TA observe students and complete their own work but denies management', async () => {
+    const draft = await classroom.createExercise(
+      id,
+      { filename: 'draft.cpp', status: '草稿' },
+      request(owner, 'teacher'),
+    )
+    expect((await classroom.exercises(id, request(ta))).some((e) => e.id === draft.id)).toBe(false)
+    await expect(service.exercise(request(ta).actor!, id, draft.id)).rejects.toThrow()
     await workspace.save(id, exerciseId, { code: 'student source', revision: 0 }, request(student))
     const help = await teaching.help(id, { exerciseId, message: 'Need help' }, request(student))
-    expect((await teaching.overview(id, request(ta))).map((s) => s.id)).toEqual([student])
+    expect((await teaching.overview(id, request(ta))).map((s) => s.id)).toEqual(
+      expect.arrayContaining([student, ta]),
+    )
     await expect(
       workspace.get(id, exerciseId, student, undefined, request(ta)),
     ).resolves.toMatchObject({ code: 'student source' })
@@ -148,14 +157,24 @@ describe.skipIf(!connectionString)('classroom roles with PostgreSQL', () => {
     await expect(teaching.projection(id, projection.id, request(ta))).resolves.toMatchObject({
       code: 'student source',
     })
+    await expect(
+      workspace.save(id, exerciseId, { code: 'TA work', revision: 0 }, request(ta)),
+    ).resolves.toMatchObject({ revision: 1 })
+    await expect(
+      teaching.submit(id, { exerciseId, revision: 1 }, request(ta)),
+    ).resolves.toMatchObject({ user_id: ta })
+    await expect(
+      teaching.help(id, { exerciseId, message: 'TA help' }, request(ta)),
+    ).resolves.toMatchObject({ user_id: ta })
+    await expect(
+      runs.create(id, { exerciseId, revision: 1, input: '' }, request(ta)),
+    ).resolves.toMatchObject({ user_id: ta })
     for (const action of [
       () => classroom.update(id, { name: 'Denied' }, request(ta)),
       () => classroom.createExercise(id, {}, request(ta)),
       () => classroom.addMember(id, { name: 'Denied', number: '001' }, request(ta)),
       () => classroom.deleteClass(id, request(ta)),
       () => assignments.assign(id, { userId: ta, role: 'teacher' }, request(ta)),
-      () => workspace.save(id, exerciseId, { code: 'Denied', revision: 0 }, request(ta)),
-      () => runs.create(id, { exerciseId, revision: 1, input: '' }, request(ta)),
       () => teaching.export(id, {}, request(ta)),
     ])
       await expect(action()).rejects.toBeInstanceOf(ForbiddenException)

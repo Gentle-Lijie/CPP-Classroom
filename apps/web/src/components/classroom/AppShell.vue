@@ -100,48 +100,62 @@ useGuideSurfaces({
     }
   },
 })
-const role = computed(() => (route.path.startsWith('/admin/') ? 'admin' : workspaceRole.value))
+const role = computed(() =>
+  route.path.startsWith('/admin/')
+    ? 'admin'
+    : route.path.startsWith('/student/')
+      ? 'student'
+      : workspaceRole.value,
+)
 function openAccount() {
   accountOpen.value = true
   roleMenu.value = false
 }
-const links = computed(() =>
-  role.value === 'teacher'
+const teachingLinks = computed(() => [
+  { to: '/teacher/overview', title: '课堂总览', icon: LayoutDashboard },
+  ...(classroomRole.value === 'teacher'
+    ? [{ to: '/teacher/teach', title: '教师授课', icon: Monitor }]
+    : [{ to: '/teacher/monitor', title: '课堂巡视', icon: Monitor }]),
+  ...(classroomRole.value === 'teacher'
     ? [
-        { to: '/teacher/overview', title: '课堂总览', icon: LayoutDashboard },
-        ...(classroomRole.value === 'teacher'
-          ? [{ to: '/teacher/teach', title: '教师授课', icon: Monitor }]
-          : [{ to: '/teacher/monitor', title: '课堂巡视', icon: Monitor }]),
-        ...(classroomRole.value === 'teacher'
-          ? [
-              { to: '/teacher/exercises', title: '练习管理', icon: BookOpen },
-              { to: '/teacher/roster', title: '课堂人员', icon: Users },
-            ]
-          : []),
-        {
-          to: '/teacher/submissions',
-          title: classroomRole.value === 'ta' ? '学生提交' : '提交与导出',
-          icon: GraduationCap,
-        },
-        ...(classroomRole.value === 'teacher'
-          ? [{ to: '/teacher/settings', title: '课堂设置', icon: Settings2 }]
-          : []),
+        { to: '/teacher/exercises', title: '练习管理', icon: BookOpen },
+        { to: '/teacher/roster', title: '课堂人员', icon: Users },
       ]
-    : role.value === 'student'
-      ? [
-          { to: '/student/classes', title: '我的课堂', icon: LayoutDashboard },
-          { to: '/student/workspace', title: '练习工作区', icon: CodeXml },
-          { to: '/student/history', title: '运行历史', icon: Monitor },
-        ]
-      : [
-          { to: '/admin/health', title: '平台概况', icon: LayoutDashboard },
-          { to: '/admin/teachers', title: '账号管理', icon: Users },
-          { to: '/admin/classes', title: '课堂人员分配', icon: GraduationCap },
-          { to: '/admin/settings', title: '平台配置', icon: Settings2 },
-          { to: '/admin/tasks', title: '失败任务', icon: Monitor },
-          { to: '/admin/backups', title: '备份与记录', icon: ShieldCheck },
-        ],
-)
+    : []),
+  {
+    to: '/teacher/submissions',
+    title: classroomRole.value === 'ta' ? '学生提交' : '提交与导出',
+    icon: GraduationCap,
+  },
+  ...(classroomRole.value === 'teacher'
+    ? [{ to: '/teacher/settings', title: '课堂设置', icon: Settings2 }]
+    : []),
+])
+const learningLinks = [
+  { to: '/student/classes', title: '我的课堂', icon: LayoutDashboard },
+  { to: '/student/workspace', title: '练习工作区', icon: CodeXml },
+  { to: '/student/history', title: '运行历史', icon: Monitor },
+]
+const adminLinks = [
+  { to: '/admin/health', title: '平台概况', icon: LayoutDashboard },
+  { to: '/admin/teachers', title: '账号管理', icon: Users },
+  { to: '/admin/classes', title: '课堂人员分配', icon: GraduationCap },
+  { to: '/admin/settings', title: '平台配置', icon: Settings2 },
+  { to: '/admin/tasks', title: '失败任务', icon: Monitor },
+  { to: '/admin/backups', title: '备份与记录', icon: ShieldCheck },
+]
+const navGroups = computed(() => {
+  const groups = []
+  if (currentUser.value?.role === 'admin') groups.push({ title: '平台管理', links: adminLinks })
+  if (role.value !== 'admin' || activeClassroom.value.id) {
+    if (workspaceRole.value === 'teacher')
+      groups.push({ title: '教学工作台', links: teachingLinks.value })
+    if (workspaceRole.value === 'student' || classroomRole.value === 'ta')
+      groups.push({ title: '学习工作台', links: learningLinks })
+  }
+  return groups
+})
+const links = computed(() => navGroups.value.flatMap((group) => group.links))
 const sectionTitle = computed(
   () =>
     links.value.find((x) => route.path.startsWith(x.to))?.title ??
@@ -249,33 +263,33 @@ async function signOut() {
           </DropdownMenuContent>
         </DropdownMenuPortal>
       </DropdownMenuRoot>
-      <div class="nav-caption">
-        {{ role === 'teacher' ? '教学工作台' : role === 'student' ? '学习工作台' : '平台管理' }}
-      </div>
-      <nav>
-        <RouterLink
-          v-for="link in links"
-          :key="link.to"
-          :to="link.to"
-          class="nav-item"
-          :class="{
-            active:
-              route.path.startsWith(link.to) ||
-              (link.to === '/teacher/overview' && route.path.includes('/students/')),
-          }"
-          @click="mobileOpen = false">
-          <component :is="link.icon" :size="18" />
-          <span>{{ link.title }}</span>
-          <div
-            v-if="link.title === '教师授课'"
-            style="margin-left: auto; display: inline-flex; align-items: center">
-            <ArrowUpRight :size="18" />
-          </div>
-          <span v-if="link.title === '课堂总览' && counts.help" class="nav-count">
-            {{ counts.help }}
-          </span>
-        </RouterLink>
-      </nav>
+      <template v-for="group in navGroups" :key="group.title">
+        <div class="nav-caption">{{ group.title }}</div>
+        <nav>
+          <RouterLink
+            v-for="link in group.links"
+            :key="link.to"
+            :to="link.to"
+            class="nav-item"
+            :class="{
+              active:
+                route.path.startsWith(link.to) ||
+                (link.to === '/teacher/overview' && route.path.includes('/students/')),
+            }"
+            @click="mobileOpen = false">
+            <component :is="link.icon" :size="18" />
+            <span>{{ link.title }}</span>
+            <div
+              v-if="link.title === '教师授课'"
+              style="margin-left: auto; display: inline-flex; align-items: center">
+              <ArrowUpRight :size="18" />
+            </div>
+            <span v-if="link.title === '课堂总览' && counts.help" class="nav-count">
+              {{ counts.help }}
+            </span>
+          </RouterLink>
+        </nav>
+      </template>
       <div class="sidebar-bottom">
         <Button variant="plain" class="nav-item w-full" @click="startUserGuide">
           <HelpCircle :size="18" />

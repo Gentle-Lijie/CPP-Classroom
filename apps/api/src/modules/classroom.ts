@@ -129,7 +129,7 @@ export class ClassroomService {
       account.role !== user.role ||
       !c ||
       member?.status !== 'active' ||
-      !['teacher', 'student'].includes(member.role)
+      !['teacher', 'student', 'ta'].includes(member.role)
     )
       throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
     c.classroomRole = member.role
@@ -206,7 +206,7 @@ export class ClassroomService {
         exerciseId,
       ])
     ).rows[0]
-    if (!e || (c.classroomRole === 'student' && e.status === '草稿'))
+    if (!e || (c.classroomRole !== 'teacher' && e.status === '草稿'))
       throw new NotFoundException('练习不可访问')
     if (write && e.status !== '已发布') throw new ForbiddenException('练习已关闭')
     return { c, e }
@@ -247,7 +247,7 @@ export class ClassroomController {
     const rows = await this.service.pool.query(
       `select c.*,u.name as teacher,m.status as membership_status,m.role as classroom_role,
       (select count(*)::int from memberships mm where mm.classroom_id=c.id and mm.status='active' and mm.role='student') as students,
-      case when m.status='active' then (select count(*)::int from exercises e where e.classroom_id=c.id and (m.role in ('teacher','ta') or e.status<>'草稿')) else 0 end as exercises
+      case when m.status='active' then (select count(*)::int from exercises e where e.classroom_id=c.id and (m.role='teacher' or e.status<>'草稿')) else 0 end as exercises
       from classrooms c join users u on u.id=c.owner_id
       join memberships m on m.classroom_id=c.id and m.user_id=$1
       where m.status in ('active','pending') order by c.created_at desc`,
@@ -852,7 +852,7 @@ export class ClassroomController {
     const classroom = await this.service.access(user, id)
     return (
       await this.service.pool.query(
-        "select * from exercises where classroom_id=$1 and ($2 in ('teacher','ta') or status<>'草稿') order by position,updated_at",
+        "select * from exercises where classroom_id=$1 and ($2='teacher' or status<>'草稿') order by position,updated_at",
         [id, classroom.classroomRole],
       )
     ).rows.map((e) => ({

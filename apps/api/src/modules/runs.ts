@@ -99,7 +99,7 @@ export class RunsController {
         account.disabled ||
         account.role !== user.role ||
         membership?.status !== 'active' ||
-        !['student', 'teacher'].includes(membership.role)
+        !['student', 'teacher', 'ta'].includes(membership.role)
       )
         throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
       if (

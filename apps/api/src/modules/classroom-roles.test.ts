@@ -45,7 +45,7 @@ describe('classroom role authorization', () => {
     })
     await expect(service.access(user, classId, true)).rejects.toBeInstanceOf(ForbiddenException)
   })
-  it('allows TA observation while denying teacher management and own execution writes', async () => {
+  it('allows TA observation and own work while denying teacher management', async () => {
     const { user, service } = setup('student', { role: 'ta', status: 'active' })
     await expect(service.access(user, classId, true)).resolves.toMatchObject({
       classroomRole: 'ta',
@@ -53,9 +53,12 @@ describe('classroom role authorization', () => {
     await expect(service.access(user, classId, 'teacher')).rejects.toBeInstanceOf(
       ForbiddenException,
     )
-    await expect(service.access(user, classId, false, true)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    )
+    await expect(service.access(user, classId, false, true)).resolves.toMatchObject({
+      classroomRole: 'ta',
+    })
+    await expect(service.access(user, classId, 'student')).resolves.toMatchObject({
+      classroomRole: 'ta',
+    })
   })
   it.each([
     undefined,
