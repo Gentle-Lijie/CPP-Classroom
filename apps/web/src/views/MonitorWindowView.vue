@@ -9,6 +9,7 @@ import { Users, Search, ArrowUpRight, Hand, X, Monitor, Check } from '@lucide/vu
 import { Button } from '@/components/ui/button'
 import { activeClassroom, demo, exercises, students, tone, type Student } from '@/data/demo'
 import Pagination from '@/components/classroom/Pagination.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import { usePagination } from '@/composables/usePagination'
 import { openTeachingWindow } from '@/lib/teaching-windows'
 const search = ref('')
@@ -104,35 +105,46 @@ function clearFilters() {
         </label>
       </div>
       <div class="monitor-student-grid">
-        <Button
+        <ContentPanel
           v-for="s in paged"
           :key="s.id"
-          variant="plain"
+          as="button"
+          type="button"
+          compact
+          interactive
           class="monitor-student-card"
+          content-class="monitor-card-content"
+          :aria-label="`查看${s.name}的课堂进度`"
           @click="inspect(s.id)">
           <div class="monitor-card-person">
             <span class="student-avatar">
               {{ s.name.slice(-2) }}
               <i class="online" />
             </span>
-            <span>
-              <strong>{{ s.name }}</strong>
-              <small>{{ s.number }}</small>
+            <span class="monitor-identity">
+              <strong :title="s.name">{{ s.name }}</strong>
+              <small :title="s.number">{{ s.number }}</small>
             </span>
             <ArrowUpRight :size="17" class="ml-auto" />
           </div>
-          <span class="monitor-exercise-name">
-            {{ exerciseTitle(s) }}
-            <span v-if="s.language === 'python'">
-              · Python
-              <PythonBeta />
+          <div class="monitor-card-work">
+            <div class="monitor-work-state">
+              <span class="monitor-exercise-name" :title="exerciseTitle(s)">
+                {{ exerciseTitle(s) }}
+                <span v-if="s.language === 'python'">
+                  · Python
+                  <PythonBeta />
+                </span>
+              </span>
+              <span class="status" :class="tone(s.status)">
+                <span class="status-dot" />
+                {{ s.status }}
+              </span>
+            </div>
+            <span v-if="s.summary" class="monitor-summary" :title="s.summary">
+              {{ s.summary }}
             </span>
-          </span>
-          <span class="status" :class="tone(s.status)">
-            <span class="status-dot" />
-            {{ s.status }}
-          </span>
-          <p>{{ s.summary }}</p>
+          </div>
           <div class="monitor-card-footer">
             <span v-if="s.help" class="help-label">
               <Hand :size="13" />
@@ -145,7 +157,7 @@ function clearFilters() {
             <span v-else>查看草稿</span>
             <span>{{ s.activity }}</span>
           </div>
-        </Button>
+        </ContentPanel>
       </div>
       <Pagination
         v-if="visible.length"
@@ -172,20 +184,66 @@ function clearFilters() {
 </template>
 
 <style scoped>
-.monitor-student-card:focus-visible {
-  outline: 3px solid var(--ui-focus);
-  outline-offset: 2px;
+.monitor-student-card {
+  aspect-ratio: 2 / 1;
+  min-height: 0;
+  overflow: hidden;
 }
-.monitor-student-card:hover {
-  border-color: var(--ui-action);
-  background: var(--ui-selection);
+.monitor-student-card :deep(.monitor-card-content) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+.monitor-card-person {
+  min-width: 0;
+}
+.monitor-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.monitor-identity strong,
+.monitor-identity small,
+.monitor-exercise-name,
+.monitor-summary {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.monitor-identity small {
+  max-width: 55%;
+}
+.monitor-card-work {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  align-self: center;
+}
+.monitor-work-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.monitor-exercise-name {
+  flex: 1;
+  min-width: 0;
+}
+.monitor-work-state .status {
+  flex-shrink: 0;
+}
+.monitor-summary {
+  display: block;
+  font-size: 14px;
+  color: var(--ui-secondary);
 }
 .monitor-card-person small,
 .monitor-card-footer {
   font-size: 14px;
-}
-.monitor-student-card > p {
-  font-size: 15px;
 }
 .monitor-controls {
   min-width: 0;

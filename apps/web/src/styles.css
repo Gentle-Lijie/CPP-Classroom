@@ -774,21 +774,21 @@ button.stat-card:hover {
   overflow-x: auto;
 }
 /* 撑满剩余视口的主面板：页面本身不滚动，列表滚动收敛到面板内部 */
-.shell-main:has(.panel-fill) {
+.shell-main:has(.panel-fill, .exercise-editor-page) {
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
 }
-.shell-main:has(.panel-fill) > :not(.page-content) {
+.shell-main:has(.panel-fill, .exercise-editor-page) > :not(.page-content) {
   flex-shrink: 0;
 }
-.page-content:has(.panel-fill) {
+.page-content:has(.panel-fill, .exercise-editor-page) {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }
-.page-content:has(.panel-fill) > :not(.panel-fill, .fill-stack) {
+.page-content:has(.panel-fill, .exercise-editor-page) > :not(.panel-fill, .fill-stack) {
   flex-shrink: 0;
 }
 .panel-fill {

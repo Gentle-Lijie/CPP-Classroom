@@ -16,12 +16,18 @@ const props = defineProps<{
   contentClass?: HTMLAttributes['class']
   as?: string
   direct?: boolean
+  compact?: boolean
+  interactive?: boolean
 }>()
 const titleId = useId()
 const slots = useSlots()
 </script>
 <template>
-  <Card :as="props.as" class="panel content-panel" :aria-labelledby="title ? titleId : undefined">
+  <Card
+    :as="props.as"
+    class="panel content-panel"
+    :class="{ 'content-panel-compact': compact, 'content-panel-interactive': interactive }"
+    :aria-labelledby="title ? titleId : undefined">
     <CardHeader v-if="title || slots.header" class="content-panel-header">
       <slot name="header">
         <div class="content-panel-heading">
@@ -48,6 +54,24 @@ const slots = useSlots()
   gap: 0;
   padding: 0;
   box-shadow: none;
+}
+.content-panel-compact .content-panel-body {
+  padding: 12px;
+  gap: 8px;
+}
+.content-panel-interactive {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.content-panel-interactive:hover {
+  border-color: var(--ui-line-strong);
+  background: var(--ui-hover);
+}
+.content-panel-interactive:focus-visible {
+  outline: 2px solid var(--ui-action);
+  outline-offset: 2px;
 }
 .content-panel-header {
   display: flex;

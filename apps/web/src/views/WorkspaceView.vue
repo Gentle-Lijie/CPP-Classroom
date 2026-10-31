@@ -1160,29 +1160,6 @@ useActionFeedback(actionError)
         </SplitterGroup>
       </SplitterPanel>
     </SplitterGroup>
-    <footer class="ide-statusbar">
-      <span>
-        <span
-          class="live-dot"
-          :class="{
-            'sync-unavailable':
-              !!loadError ||
-              conflict ||
-              dirty ||
-              saveState.includes('异常') ||
-              saveState.includes('无法') ||
-              saveState.includes('不可用'),
-          }" />
-        {{ loading ? '读取中' : readonly ? '只读工作区' : dirty ? '等待同步' : saveState }}
-      </span>
-      <span class="ml-auto">
-        UTF-8
-        <span class="desktop-only">
-          · {{ compilerLabel(runtimeProfile) }}
-          <PythonBeta v-if="language === 'python'" />
-        </span>
-      </span>
-    </footer>
   </div>
   <Modal v-model:open="help" title="告诉老师，你遇到了什么？">
     <Form class="form-stack" @submit.prevent="sendHelp">
@@ -1463,13 +1440,6 @@ useActionFeedback(actionError)
   min-height: 0;
   overflow: auto;
   padding: 12px;
-}
-.live-dot.sync-unavailable {
-  background: var(--ui-warning);
-}
-.ide-statusbar {
-  font-size: 14px;
-  line-height: 1.6;
 }
 .ide-problem {
   display: flex;

@@ -292,8 +292,7 @@ button:disabled > * {
   --primary-foreground: var(--ui-on-action);
 }
 :root.dark [data-slot='button'][data-variant='success'],
-:root.dark [data-slot='button'][data-variant='warning'],
-:root.dark [data-slot='button'][data-variant='destructive'] {
+:root.dark [data-slot='button'][data-variant='warning'] {
   color: var(--ui-on-action);
 }
 :root.dark

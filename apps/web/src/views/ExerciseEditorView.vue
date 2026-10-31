@@ -20,6 +20,7 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vu
 import { ArrowLeft, Save, Send, CodeXml, FileText, FileCode2, Download } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import MarkdownEditor from '@/components/classroom/MarkdownEditor.vue'
 import MarkdownContent from '@/components/classroom/MarkdownContent.vue'
 import CodeEditor from '@/components/classroom/CodeEditor.vue'
@@ -350,7 +351,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', saveShortcut, true))
 useActionFeedback(error)
 </script>
 <template>
-  <div v-if="!missing" class="exercise-editor-page">
+  <div v-if="!missing" class="exercise-editor-page fill-stack">
     <div class="page-heading">
       <div>
         <RouterLink to="/teacher/exercises" class="back-link">
@@ -389,128 +390,132 @@ useActionFeedback(error)
         <Button variant="ghost" size="sm" @click="restore = undefined">暂不恢复</Button>
       </template>
     </Alert>
-    <div class="draft-tools">
-      <FileUpload
-        accept=".md,.markdown"
-        :disabled="busy || readingMarkdown"
-        :disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
-        @change="importMarkdown">
-        {{ readingMarkdown ? '正在解析…' : '导入 Markdown' }}
-      </FileUpload>
-      <Button
-        variant="outline"
-        size="sm"
-        :disabled="busy"
-        data-disabled-reason="正在保存题目，请稍候"
-        @click="downloadDraft">
-        <Download />
-        下载题目备份
-      </Button>
-      <FileUpload
-        accept=".json"
-        :disabled="busy"
-        disabled-reason="正在保存题目，请稍候"
-        @change="importDraft">
-        导入备份
-      </FileUpload>
-      <span>未保存修改自动备份在本机浏览器</span>
-    </div>
-
-    <section class="panel exercise-meta-panel" :inert="busy">
-      <div class="exercise-meta-fields">
-        <label>
-          默认语言
-          <LanguageSelect
-            :model-value="draft.language ?? 'cpp'"
-            @update:model-value="changeDefaultLanguage" />
-        </label>
-        <label>
-          题目标题
-          <Input v-model="draft.title" maxlength="100" placeholder="例如：累加求和" />
-        </label>
-        <label>
-          知识点
-          <Input v-model="draft.topic" maxlength="100" placeholder="例如：for 循环" />
-        </label>
-        <label>
-          学生源文件名
-          <div class="filename-field">
-            <FileCode2 :size="16" />
-            <Input
-              v-model="draft.filename"
-              maxlength="80"
-              placeholder="例如：sum.cpp"
-              spellcheck="false" />
-          </div>
-        </label>
+    <div class="exercise-editor-body" role="region" aria-label="练习编辑内容" tabindex="0">
+      <div class="draft-tools">
+        <FileUpload
+          accept=".md,.markdown"
+          :disabled="busy || readingMarkdown"
+          :disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
+          @change="importMarkdown">
+          {{ readingMarkdown ? '正在解析…' : '导入 Markdown' }}
+        </FileUpload>
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="busy"
+          data-disabled-reason="正在保存题目，请稍候"
+          @click="downloadDraft">
+          <Download />
+          下载题目备份
+        </Button>
+        <FileUpload
+          accept=".json"
+          :disabled="busy"
+          disabled-reason="正在保存题目，请稍候"
+          @change="importDraft">
+          导入备份
+        </FileUpload>
+        <span>未保存修改自动备份在本机浏览器</span>
       </div>
-      <p class="form-hint">
-        学生可随时切换 C++ /
-        Python，两种语言分别保存草稿。默认语言只影响首次打开；初始代码可以分别编辑。源文件名留空时使用按题目编号生成的独立文件名。
-      </p>
-    </section>
-    <div class="editor-page-tabs">
-      <Button
-        variant="plain"
-        :class="{ selected: tab === '题面与样例' }"
-        @click="tab = '题面与样例'">
-        <FileText :size="16" />
-        题面与样例
-      </Button>
-      <Button variant="plain" :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
-        <CodeXml :size="16" />
-        初始代码
-      </Button>
-    </div>
-    <template v-if="tab === '题面与样例'">
-      <div :inert="busy"><MarkdownEditor v-model="draft.description" /></div>
-      <section class="panel exercise-samples-editor" :inert="busy">
-        <div class="form-grid">
+
+      <ContentPanel as="section" class="exercise-meta-panel" :inert="busy">
+        <div class="exercise-meta-fields">
           <label>
-            输入说明
-            <Textarea
-              v-model="draft.input"
-              rows="3"
-              placeholder="描述输入格式和数据范围；无输入可留空" />
+            默认语言
+            <LanguageSelect
+              :model-value="draft.language ?? 'cpp'"
+              @update:model-value="changeDefaultLanguage" />
           </label>
           <label>
-            输出说明
-            <Textarea v-model="draft.output" rows="3" placeholder="描述输出格式" />
+            题目标题
+            <Input v-model="draft.title" maxlength="100" placeholder="例如：累加求和" />
           </label>
           <label>
-            样例输入
-            <Textarea v-model="draft.sampleInput" rows="5" spellcheck="false" placeholder="5" />
+            知识点
+            <Input v-model="draft.topic" maxlength="100" placeholder="例如：for 循环" />
           </label>
           <label>
-            样例输出
-            <Textarea v-model="draft.sampleOutput" rows="5" spellcheck="false" placeholder="15" />
+            学生源文件名
+            <div class="filename-field">
+              <FileCode2 :size="16" />
+              <Input
+                v-model="draft.filename"
+                maxlength="80"
+                placeholder="例如：sum.cpp"
+                spellcheck="false" />
+            </div>
           </label>
         </div>
-      </section>
-    </template>
-    <section v-else class="panel initial-code-page" :inert="busy">
-      <div class="code-toolbar">
-        <CodeXml :size="15" />
-        <LanguageSelect v-model="editingLanguage" label="初始代码语言" />
-        {{ draft.filename ? exerciseSourceFilename(draft, editingLanguage) : '初始代码（可留空）' }}
-        <span class="language-label ml-auto">
-          {{
-            editingLanguage === 'python'
-              ? 'Python 3'
-              : executionSettings.compilerProfile === 'gcc13-cpp20'
-                ? 'C++20'
-                : 'C++17'
-          }}
-          · 初始代码
-          <PythonBeta v-if="editingLanguage === 'python'" />
-        </span>
+        <p class="form-hint">
+          学生可随时切换 C++ /
+          Python，两种语言分别保存草稿。默认语言只影响首次打开；初始代码可以分别编辑。源文件名留空时使用按题目编号生成的独立文件名。
+        </p>
+      </ContentPanel>
+      <div class="editor-page-tabs">
+        <Button
+          variant="plain"
+          :class="{ selected: tab === '题面与样例' }"
+          @click="tab = '题面与样例'">
+          <FileText :size="16" />
+          题面与样例
+        </Button>
+        <Button variant="plain" :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
+          <CodeXml :size="16" />
+          初始代码
+        </Button>
       </div>
-      <CodeEditor
-        v-model="starter"
-        :language="editingLanguage"
-        :filename="exerciseSourceFilename(draft, editingLanguage)" />
-      <Alert type="info">初始代码只用于创建学生的工作区，不会替换已经编辑的学生草稿。</Alert>
-    </section>
+      <template v-if="tab === '题面与样例'">
+        <div :inert="busy"><MarkdownEditor v-model="draft.description" /></div>
+        <ContentPanel as="section" class="exercise-samples-editor" :inert="busy">
+          <div class="form-grid">
+            <label>
+              输入说明
+              <Textarea
+                v-model="draft.input"
+                rows="3"
+                placeholder="描述输入格式和数据范围；无输入可留空" />
+            </label>
+            <label>
+              输出说明
+              <Textarea v-model="draft.output" rows="3" placeholder="描述输出格式" />
+            </label>
+            <label>
+              样例输入
+              <Textarea v-model="draft.sampleInput" rows="5" spellcheck="false" placeholder="5" />
+            </label>
+            <label>
+              样例输出
+              <Textarea v-model="draft.sampleOutput" rows="5" spellcheck="false" placeholder="15" />
+            </label>
+          </div>
+        </ContentPanel>
+      </template>
+      <ContentPanel v-else as="section" direct class="initial-code-page" :inert="busy">
+        <div class="code-toolbar">
+          <CodeXml :size="15" />
+          <LanguageSelect v-model="editingLanguage" label="初始代码语言" />
+          {{
+            draft.filename ? exerciseSourceFilename(draft, editingLanguage) : '初始代码（可留空）'
+          }}
+          <span class="language-label ml-auto">
+            {{
+              editingLanguage === 'python'
+                ? 'Python 3'
+                : executionSettings.compilerProfile === 'gcc13-cpp20'
+                  ? 'C++20'
+                  : 'C++17'
+            }}
+            · 初始代码
+            <PythonBeta v-if="editingLanguage === 'python'" />
+          </span>
+        </div>
+        <CodeEditor
+          v-model="starter"
+          :language="editingLanguage"
+          :filename="exerciseSourceFilename(draft, editingLanguage)" />
+        <Alert type="info">初始代码只用于创建学生的工作区，不会替换已经编辑的学生草稿。</Alert>
+      </ContentPanel>
+    </div>
   </div>
   <div v-else class="empty-state">
     <h1>没有找到这道练习</h1>
@@ -631,7 +636,6 @@ useActionFeedback(error)
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 18px;
 }
 .draft-tools > span {
   color: var(--ui-muted);
@@ -681,7 +685,25 @@ useActionFeedback(error)
   }
 }
 .exercise-editor-page {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
+}
+.exercise-editor-page > :not(.exercise-editor-body) {
+  flex-shrink: 0;
+}
+.exercise-editor-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  gap: 16px;
+}
+.exercise-editor-body > * {
+  flex-shrink: 0;
 }
 .exercise-meta-fields > label,
 .form-grid > label {

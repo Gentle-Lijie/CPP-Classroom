@@ -199,21 +199,20 @@ button.class-switch[data-state='open'] {
   border-color: var(--ui-line-strong);
 }
 [data-slot='button'][data-variant='destructive'] {
-  background: var(--ui-error);
-  color: var(--ui-page);
+  background: var(--ui-page);
+  border: 1px solid var(--ui-error);
+  color: var(--ui-error);
 }
 .panel,
 .stat-card,
 .class-card,
-.guide-grid a,
-.monitor-student-card {
+.guide-grid a {
   border-radius: 5px;
   border-color: var(--ui-line);
   box-shadow: none;
 }
 button.stat-card:hover,
-.guide-grid a:hover,
-.monitor-student-card:hover {
+.guide-grid a:hover {
   transform: none;
   border-color: var(--ui-line-strong);
 }
@@ -717,7 +716,6 @@ th {
 .monitor-card-person > svg {
   color: var(--ui-action);
 }
-.monitor-student-card > p,
 .monitor-exercise-name {
   color: var(--ui-secondary);
 }
@@ -984,7 +982,9 @@ th {
   background: var(--ui-warning-hover);
 }
 [data-slot='button'][data-variant='destructive']:hover {
-  background: var(--ui-error-hover);
+  background: var(--ui-error-bg);
+  border-color: var(--ui-error-hover);
+  color: var(--ui-error-hover);
 }
 [data-slot='button'][data-variant='ghost'] {
   color: var(--ui-secondary);
@@ -1003,8 +1003,7 @@ th {
 .panel,
 .stat-card,
 .class-card,
-.guide-grid a,
-.monitor-student-card {
+.guide-grid a {
   border-radius: 8px;
 }
 .panel-heading {
