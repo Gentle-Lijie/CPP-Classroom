@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '@/lib/api'
 import { refresh, reportError } from '@/data/demo'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Select, SelectOption } from '@/components/ui/select'
 import ClassroomAssignments from '@/components/classroom/ClassroomAssignments.vue'
+import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import { RefreshCw } from '@lucide/vue'
 interface Classroom {
   id: string
@@ -13,8 +15,9 @@ interface Classroom {
   status: string
   ownerName: string
 }
+const route = useRoute()
 const classes = ref<Classroom[]>([])
-const selected = ref('')
+const selected = ref(typeof route.query.classroom === 'string' ? route.query.classroom : '')
 const error = ref('')
 const loading = ref(false)
 async function load() {
@@ -59,7 +62,9 @@ onMounted(load)
     :classroom-id="selected"
     account-creation-path="/admin/teachers"
     @changed="changed" />
-  <p v-else-if="!loading" class="muted">暂无课堂。可从“我的课堂”创建课堂。</p>
+  <ContentPanel v-else-if="!loading" as="section">
+    <p>{{ error ? '无法读取课堂，请重试。' : '暂无课堂。' }}</p>
+  </ContentPanel>
 </template>
 <style scoped>
 .admin-classroom-picker {

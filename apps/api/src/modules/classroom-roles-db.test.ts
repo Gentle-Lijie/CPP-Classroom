@@ -113,6 +113,24 @@ describe.skipIf(!connectionString)('classroom roles with PostgreSQL', () => {
     expect(list.find((c) => c.id === id)).toMatchObject({ students: 1, classroomRole: 'teacher' })
   })
 
+  it('lists classroom owners and invitation details only for platform administrators', async () => {
+    const listing = new AdminClassesController(service)
+    await expect(listing.list(request(student))).rejects.toBeInstanceOf(ForbiddenException)
+    const entry = (await listing.list(request(admin, 'admin'))).find((c) => c.id === id)
+    expect(entry).toMatchObject({
+      ownerId: owner,
+      ownerUsername: `role-test-${owner}`,
+      studentCount: 2,
+    })
+    expect(entry.creatorUsername).toBe(`role-test-${owner}`)
+    await assignments.transfer(id, { userId: coTeacher }, request(owner, 'teacher'))
+    const transferred = (await listing.list(request(admin, 'admin'))).find((c) => c.id === id)
+    expect(transferred).toMatchObject({ ownerId: coTeacher, creatorUsername: `role-test-${owner}` })
+    expect(entry.inviteCode).toBeTruthy()
+    expect(entry.inviteExpiresAt).toBeTruthy()
+    expect(entry.createdAt).toBeTruthy()
+  })
+
   it('permits an assigned administrator to teach while an unassigned administrator has only assignment administration', async () => {
     await expect(service.access(request(admin, 'admin').actor!, id)).rejects.toBeInstanceOf(
       ForbiddenException,

@@ -171,8 +171,19 @@ export class AdminClassesController {
     role(actor(req), 'admin')
     return (
       await this.service.pool.query(
-        `select c.id,c.name,c.status,c.owner_id as "ownerId",u.name as "ownerName"
-       from classrooms c join users u on u.id=c.owner_id order by c.created_at desc,c.id`,
+        `select c.id,c.name,c.status,c.owner_id as "ownerId",u.name as "ownerName",
+              u.username as "ownerUsername",creator.name as "creatorName",creator.username as "creatorUsername",
+              c.invite_code as "inviteCode",
+              c.invite_expires_at as "inviteExpiresAt",c.created_at as "createdAt",
+              (select count(*)::int from memberships m where m.classroom_id=c.id and m.status='active' and m.role in ('student','ta')) as "studentCount"
+       from classrooms c join users u on u.id=c.owner_id
+       left join (
+         select distinct on (details->>'classroomId') details->>'classroomId' as classroom_id, source
+         from audit_events where event='classroom.created'
+         order by details->>'classroomId',created_at,id
+       ) creation on creation.classroom_id=c.id::text
+       left join users creator on creator.id::text=creation.source
+       order by c.created_at desc,c.id`,
       )
     ).rows
   }

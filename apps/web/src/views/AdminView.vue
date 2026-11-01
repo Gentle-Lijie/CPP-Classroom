@@ -4,6 +4,8 @@ import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Alert } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { runMemberBatch, memberBatchMessage } from '@/lib/member-batch'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Disclosure } from '@/components/ui/disclosure'
 import { Form } from '@/components/ui/form'
@@ -137,6 +139,29 @@ const userTotal = ref(0),
   auditTotal = ref(0),
   recoveryTotal = ref(0)
 const userPages = { page: ref(1), pageSize: ref(20), paged: users }
+const selectedUserIds = ref<string[]>([])
+const batchRole = ref<'teacher' | 'student'>('student')
+const batchError = ref('')
+const batchProgress = ref({ completed: 0, total: 0 })
+const selectableUsers = computed(() => users.value.filter((u) => u.id !== currentUser.value?.id))
+const selectedUsers = computed(() =>
+  selectableUsers.value.filter((u) => selectedUserIds.value.includes(u.id)),
+)
+const allUsersSelected = computed(
+  () =>
+    selectableUsers.value.length > 0 &&
+    selectableUsers.value.every((u) => selectedUserIds.value.includes(u.id)),
+)
+const someUsersSelected = computed(() =>
+  selectableUsers.value.some((u) => selectedUserIds.value.includes(u.id)),
+)
+function selectUserPage() {
+  selectedUserIds.value = allUsersSelected.value ? [] : selectableUsers.value.map((u) => u.id)
+}
+watch([search, roleFilter, statusFilter, userPages.page, userPages.pageSize, section], () => {
+  selectedUserIds.value = []
+  batchError.value = ''
+})
 const taskPages = { page: ref(1), pageSize: ref(20), paged: tasks }
 const auditPages = { page: ref(1), pageSize: ref(20), paged: audit }
 const recoveryPage = ref(1),
@@ -362,6 +387,85 @@ async function saveUser() {
     busy.value = false
   }
 }
+async function batchUsers(action: 'enable' | 'disable' | 'reset' | 'delete' | 'role') {
+  if (busy.value || !selectedUsers.value.length) return
+  const targets = [...selectedUsers.value]
+  const labels = {
+    enable: '启用',
+    disable: '停用',
+    reset: '重置密码',
+    delete: '永久删除',
+    role: '调整平台身份',
+  }
+  const consequence =
+    action === 'delete'
+      ? '有关联课堂或作品的账号不能删除；失败的账号会保留。'
+      : action === 'disable'
+        ? '停用后账号无法登录，旧会话失效并停止运行中的程序。'
+        : action === 'reset'
+          ? '每个账号将生成独立的新密码，请导出凭据并安全交付。'
+          : action === 'role'
+            ? `将设为${batchRole.value === 'teacher' ? '可创建课堂' : '普通账号'}；旧会话失效，课堂中的身份不会改变。`
+            : '账号将恢复登录。'
+  if (
+    !(await confirmAction(`${labels[action]}选中的 ${targets.length} 个账号？${consequence}`, {
+      destructive: action === 'delete' || action === 'disable',
+    }))
+  )
+    return
+  busy.value = true
+  busyReason.value = '正在批量处理账号，请稍候'
+  batchError.value = ''
+  batchProgress.value = { completed: 0, total: targets.length }
+  const newCredentials: Credential[] = []
+  try {
+    const result = await runMemberBatch(
+      targets,
+      async (u) => {
+        if (action === 'delete') await api('/admin/users/' + u.id, 'DELETE')
+        else if (action === 'reset') {
+          const bytes = crypto.getRandomValues(new Uint8Array(16))
+          const password = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+          await api('/admin/users/' + u.id, 'PATCH', { password })
+          newCredentials.push({
+            name: u.name,
+            username: u.username,
+            password,
+            generatedAt: new Date().toISOString(),
+          })
+        } else if (action === 'role')
+          await api('/admin/users/' + u.id, 'PATCH', { role: batchRole.value })
+        else await api('/admin/users/' + u.id, 'PATCH', { disabled: action === 'disable' })
+      },
+      {
+        progress: (completed) => {
+          batchProgress.value.completed = completed
+        },
+      },
+    )
+    if (newCredentials.length) {
+      const names = new Set(newCredentials.map((c) => c.username))
+      credentials.value = [
+        ...credentials.value.filter((c) => !names.has(c.username)),
+        ...newCredentials,
+      ]
+      credentialsOpen.value = true
+    }
+    selectedUserIds.value = [
+      ...result.failed.map((item) => item.member.id),
+      ...result.pending.map((u) => u.id),
+    ]
+    if (result.failed.length || result.pending.length) batchError.value = memberBatchMessage(result)
+    else
+      notify(
+        `已${labels[action]} ${result.succeeded.length} 个账号${action === 'reset' ? '，请导出并交付凭据' : ''}`,
+      )
+    await load()
+  } finally {
+    busy.value = false
+    batchProgress.value = { completed: 0, total: 0 }
+  }
+}
 async function deleteUser(u: User) {
   if (
     busy.value ||
@@ -523,16 +627,20 @@ const busyReason = ref('正在处理请求，请稍候')
     <div class="table-controls">
       <label class="search-field">
         <Search :size="16" />
-        <Input v-model="search" aria-label="搜索账号" placeholder="搜索姓名或登录账号…" />
+        <Input
+          v-model="search"
+          :disabled="busy"
+          aria-label="搜索账号"
+          placeholder="搜索姓名或登录账号…" />
       </label>
       <div class="inline-items">
-        <Select v-model="roleFilter" aria-label="筛选身份">
+        <Select v-model="roleFilter" :disabled="busy" aria-label="筛选身份">
           <SelectOption value="all">全部身份</SelectOption>
           <SelectOption value="teacher">可创建课堂</SelectOption>
           <SelectOption value="student">普通账号</SelectOption>
           <SelectOption value="admin">管理员</SelectOption>
         </Select>
-        <Select v-model="statusFilter" aria-label="筛选状态">
+        <Select v-model="statusFilter" :disabled="busy" aria-label="筛选状态">
           <SelectOption value="all">全部状态</SelectOption>
           <SelectOption value="active">正常</SelectOption>
           <SelectOption value="disabled">停用</SelectOption>
@@ -543,10 +651,64 @@ const busyReason = ref('正在处理请求，请稍候')
         查看 / 导出凭据
       </Button>
     </div>
+    <Alert v-if="batchError" type="error">{{ batchError }}</Alert>
+    <div v-if="selectedUsers.length" class="table-controls" aria-label="账号批量操作">
+      <div class="inline-items">
+        <span class="muted">
+          {{
+            busy && batchProgress.total
+              ? `正在处理 ${batchProgress.completed}/${batchProgress.total}`
+              : `已选 ${selectedUsers.length} 个账号`
+          }}
+        </span>
+        <Button variant="plain" class="text-button" :disabled="busy" @click="selectedUserIds = []">
+          取消选择
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          :disabled="busy || selectedUsers.some((u) => !u.disabled)"
+          @click="batchUsers('enable')">
+          批量启用
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          :disabled="busy || selectedUsers.some((u) => u.disabled)"
+          @click="batchUsers('disable')">
+          批量停用
+        </Button>
+        <Select v-model="batchRole" :disabled="busy" aria-label="批量设置平台身份">
+          <SelectOption value="student">普通账号</SelectOption>
+          <SelectOption value="teacher">可创建课堂</SelectOption>
+        </Select>
+        <Button
+          size="sm"
+          variant="outline"
+          :disabled="busy || selectedUsers.some((u) => u.role === 'admin')"
+          @click="batchUsers('role')">
+          调整身份
+        </Button>
+        <Button size="sm" variant="warning" :disabled="busy" @click="batchUsers('reset')">
+          批量重置密码
+        </Button>
+        <Button size="sm" variant="destructive" :disabled="busy" @click="batchUsers('delete')">
+          批量删除
+        </Button>
+      </div>
+    </div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
+            <th>
+              <Checkbox
+                aria-label="选择本页账号"
+                :disabled="busy || loading || !selectableUsers.length"
+                :checked="allUsersSelected"
+                :indeterminate="someUsersSelected && !allUsersSelected"
+                @change="selectUserPage" />
+            </th>
             <th>姓名</th>
             <th>账号</th>
             <th>身份</th>
@@ -556,6 +718,13 @@ const busyReason = ref('正在处理请求，请稍候')
         </thead>
         <tbody>
           <tr v-for="u in userPages.paged.value" :key="u.id">
+            <td>
+              <Checkbox
+                v-model="selectedUserIds"
+                :value="u.id"
+                :aria-label="'选择账号 ' + u.name"
+                :disabled="busy || loading || u.id === currentUser?.id" />
+            </td>
             <td>{{ u.name }}</td>
             <td class="admin-account">{{ u.username }}</td>
             <td>
@@ -610,6 +779,7 @@ const busyReason = ref('正在处理请求，请稍候')
       v-model:page="userPages.page.value"
       v-model:page-size="userPages.pageSize.value"
       :total="userTotal"
+      :busy="busy || loading"
       unit="个账号" />
     <div v-if="recoveryTotal" class="admin-recovery-content form-stack">
       <h3 data-guide="recovery-requests">待核实身份的恢复申请</h3>

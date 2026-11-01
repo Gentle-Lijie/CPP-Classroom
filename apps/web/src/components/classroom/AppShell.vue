@@ -139,6 +139,7 @@ const learningLinks = [
 const adminLinks = [
   { to: '/admin/health', title: '平台概况', icon: LayoutDashboard },
   { to: '/admin/teachers', title: '账号管理', icon: Users },
+  { to: '/admin/classrooms', title: '课堂管理', icon: BookOpen },
   { to: '/admin/classes', title: '课堂人员分配', icon: GraduationCap },
   { to: '/admin/settings', title: '平台配置', icon: Settings2 },
   { to: '/admin/tasks', title: '失败任务', icon: Monitor },

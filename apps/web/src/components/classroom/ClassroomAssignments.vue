@@ -50,12 +50,15 @@ interface Assignment extends Account {
   owner: boolean
   disabled: boolean
 }
-const props = defineProps<{
-  classroomId: string
-  accountCreationPath?: string
-  staffOnly?: boolean
-  showList?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    classroomId: string
+    accountCreationPath?: string
+    staffOnly?: boolean
+    showList?: boolean
+  }>(),
+  { showList: true },
+)
 const emit = defineEmits<{
   changed: [assignment?: { role: ClassroomRole; status: 'active' | 'removed' }]
   'batch-finished': [succeededIds: string[]]

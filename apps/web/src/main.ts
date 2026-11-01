@@ -78,6 +78,7 @@ const router = createRouter({
       meta: { standalone: true },
     },
     { path: '/admin/classes', component: () => import('./views/AdminClassesView.vue') },
+    { path: '/admin/classrooms', component: () => import('./views/AdminClassroomsView.vue') },
     { path: '/admin/settings', component: () => import('./views/PlatformSettingsView.vue') },
     { path: '/admin/environment', redirect: '/admin/settings?section=execution' },
     { path: '/admin/:section', component: () => import('./views/AdminView.vue') },
@@ -95,9 +96,16 @@ router.beforeEach(async (to) => {
   if (to.path === '/guide') return true
   if (
     to.path.startsWith('/admin/') &&
-    !['health', 'teachers', 'classes', 'settings', 'environment', 'tasks', 'backups'].includes(
-      to.path.split('/')[2]!,
-    )
+    ![
+      'health',
+      'teachers',
+      'classes',
+      'classrooms',
+      'settings',
+      'environment',
+      'tasks',
+      'backups',
+    ].includes(to.path.split('/')[2]!)
   )
     return '/admin/health'
   if (to.path === '/join') return true
