@@ -1,17 +1,73 @@
 import MarkdownIt from 'markdown-it'
+import { t } from '../i18n'
 import type { SourceLanguage } from '@classroom/contracts'
 import { validSourceFilename } from './source-file'
 
+// Labels resolve lazily so they follow the active locale.
 export const exerciseFields = [
-  { key: 'title', label: '题目标题', limit: 100 },
-  { key: 'topic', label: '知识点', limit: 100 },
-  { key: 'filename', label: '学生源文件名', limit: 80 },
-  { key: 'description', label: '题面', limit: 100000 },
-  { key: 'input', label: '输入说明', limit: 10000 },
-  { key: 'output', label: '输出说明', limit: 10000 },
-  { key: 'sampleInput', label: '样例输入', limit: 65536 },
-  { key: 'sampleOutput', label: '样例输出', limit: 65536 },
-  { key: 'code', label: '初始代码', limit: 100000 },
+  {
+    key: 'title',
+    get label() {
+      return t('lib.fields.title')
+    },
+    limit: 100,
+  },
+  {
+    key: 'topic',
+    get label() {
+      return t('lib.fields.topic')
+    },
+    limit: 100,
+  },
+  {
+    key: 'filename',
+    get label() {
+      return t('lib.fields.filename')
+    },
+    limit: 80,
+  },
+  {
+    key: 'description',
+    get label() {
+      return t('lib.fields.description')
+    },
+    limit: 100000,
+  },
+  {
+    key: 'input',
+    get label() {
+      return t('lib.fields.input')
+    },
+    limit: 10000,
+  },
+  {
+    key: 'output',
+    get label() {
+      return t('lib.fields.output')
+    },
+    limit: 10000,
+  },
+  {
+    key: 'sampleInput',
+    get label() {
+      return t('lib.fields.sampleInput')
+    },
+    limit: 65536,
+  },
+  {
+    key: 'sampleOutput',
+    get label() {
+      return t('lib.fields.sampleOutput')
+    },
+    limit: 65536,
+  },
+  {
+    key: 'code',
+    get label() {
+      return t('lib.fields.code')
+    },
+    limit: 100000,
+  },
 ] as const
 export type ExerciseField = (typeof exerciseFields)[number]['key']
 export interface MarkdownImport {
@@ -101,7 +157,9 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
         content = blocks.map((token) => token.content.replace(/\n$/, '')).join('\n\n')
         if (sections.some((token) => token.type === 'paragraph_open'))
           warnings.push(
-            `「${exerciseFields.find((item) => item.key === field)!.label}」中的说明文字已略过，仅导入代码块，请核对。`,
+            t('lib.markdown.skippedProse', {
+              label: exerciseFields.find((item) => item.key === field)!.label,
+            }),
           )
         if (field === 'code' && !language) {
           const info = blocks
@@ -117,7 +175,9 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
     if (fields[field] !== undefined) {
       if (field !== 'description')
         warnings.push(
-          `「${exerciseFields.find((item) => item.key === field)!.label}」出现多次，已按顺序合并，请核对。`,
+          t('lib.markdown.mergedSections', {
+            label: exerciseFields.find((item) => item.key === field)!.label,
+          }),
         )
       fields[field] += '\n\n' + content
     } else fields[field] = content
@@ -186,7 +246,7 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
           const value = languageLine[1]!.trim().toLowerCase()
           if (['python', 'py', 'python3'].includes(value)) language = 'python'
           else if (['cpp', 'c++', 'c++17', 'c++20'].includes(value)) language = 'cpp'
-          else errors.push('不支持的编程语言，请使用 C++ 或 Python。')
+          else errors.push(t('lib.markdown.unsupportedLanguage'))
           return false
         }
         const match = line.match(
@@ -202,13 +262,11 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
   }
   for (const { key, label, limit } of exerciseFields) {
     if ((fields[key]?.length ?? 0) > limit)
-      errors.push(`${label}超过 ${limit} 字符，请拆分或缩短后重新上传。`)
+      errors.push(t('lib.markdown.fieldLimit', { label, limit }))
   }
   language ??= /\.py$/i.test(fields.filename ?? '') ? 'python' : undefined
   if (fields.filename && !validSourceFilename(fields.filename, language))
-    errors.push(
-      '源文件名格式无效，请使用 C++ 的 .cpp、.cc、.cxx 或 Python 的 .py 文件名后重新上传。',
-    )
-  if (!Object.keys(fields).length) errors.push('文件没有可导入的内容。')
+    errors.push(t('lib.markdown.filenameInvalid'))
+  if (!Object.keys(fields).length) errors.push(t('lib.markdown.empty'))
   return { fields, warnings: [...new Set(warnings)], errors, ...(language ? { language } : {}) }
 }

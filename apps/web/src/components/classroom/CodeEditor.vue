@@ -8,6 +8,7 @@ import type * as Monaco from 'monaco-editor'
 import type { SourceLanguage } from '@classroom/contracts'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { RefreshCw } from '@lucide/vue'
+import { t } from '@/i18n'
 import { resolvedTheme } from '@/lib/theme'
 import { lightEditorTheme, monokaiEditorTheme } from '@/lib/editor-themes'
 import { validSourceFilename } from '@/lib/source-file'
@@ -69,7 +70,7 @@ async function startLanguageService() {
     state: 'loading',
     errors: 0,
     warnings: 0,
-    message: `正在准备浏览器 ${languageServiceLabel.value}…`,
+    message: t('runner.editor.preparingService', { service: languageServiceLabel.value }),
   }
   function fail(error: unknown) {
     if (generation !== languageGeneration || disposed) return
@@ -79,13 +80,13 @@ async function startLanguageService() {
       state: 'error',
       errors: 0,
       warnings: 0,
-      message: error instanceof Error ? error.message : '语言服务加载失败，请重试',
+      message: error instanceof Error ? error.message : t('runner.editor.serviceLoadFailed'),
     }
   }
   const aborted = () => fail(controller.signal.reason)
   controller.signal.addEventListener('abort', aborted, { once: true })
   const timer = setTimeout(
-    () => controller.abort(new Error('语言服务加载超时，请检查网络后重试')),
+    () => controller.abort(new Error(t('runner.editor.serviceTimeout'))),
     120000,
   )
   try {
@@ -208,7 +209,7 @@ async function initializeEditor() {
     const currentEditor = editor
     currentEditor.addAction({
       id: 'classroom.format-document',
-      label: '格式化文档',
+      label: t('runner.editor.formatAction'),
       precondition: '!editorReadonly',
       contextMenuGroupId: '1_modification',
       contextMenuOrder: 1.5,
@@ -230,7 +231,7 @@ async function initializeEditor() {
             currentEditor.getModel() !== model ||
             model.getVersionId() !== version
           ) {
-            formatError.value = '格式化期间代码已更改，请重试。'
+            formatError.value = t('runner.editor.formatChanged')
             return
           }
           if (formatted !== source) {
@@ -242,7 +243,9 @@ async function initializeEditor() {
           }
         } catch (error) {
           if (!disposed)
-            formatError.value = `格式化失败：${error instanceof Error ? error.message : '请重试'}`
+            formatError.value =
+              t('runner.editor.formatFailedPrefix') +
+              (error instanceof Error ? error.message : t('runner.editor.formatRetry'))
         }
       },
     })
@@ -252,7 +255,7 @@ async function initializeEditor() {
     markError()
     if (!props.readonly && languagePreferred.value) void startLanguageService()
   } catch (error) {
-    editorError.value = error instanceof Error ? error.message : '编辑器资源加载失败'
+    editorError.value = error instanceof Error ? error.message : t('runner.editor.loadFailed')
     const failedModel = editor?.getModel()
     editor?.setModel(null)
     editor?.dispose()
@@ -323,10 +326,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="code-editor-shell">
     <Alert v-if="editorError" class="editor-resource-alert" role="alert" type="error">
-      <strong>代码编辑器加载失败</strong>
+      <strong>{{ t('runner.editor.failedTitle') }}</strong>
       <p>{{ editorError }}</p>
 
-      <p>草稿内容仍保留在页面，重试不会清空。</p>
+      <p>{{ t('runner.editor.draftKept') }}</p>
 
       <template #actions>
         <Button
@@ -334,30 +337,34 @@ onBeforeUnmount(() => {
           class="text-button"
           data-guide="editor-reload"
           @click="initializeEditor">
-          重新加载编辑器
+          {{ t('runner.editor.reload') }}
         </Button>
       </template>
     </Alert>
     <Alert v-else-if="editorLoading" class="editor-resource-alert" role="status" type="info">
-      正在加载代码编辑器…
+      {{ t('runner.editor.loading') }}
     </Alert>
     <div
       ref="container"
       class="code-editor"
-      :aria-label="readonly ? `${languageLabel} 代码，只读` : `${languageLabel} 代码编辑器`" />
+      :aria-label="
+        readonly
+          ? t('runner.editor.codeReadonly', { language: languageLabel })
+          : t('runner.editor.codeEditor', { language: languageLabel })
+      " />
     <Alert v-if="formatError" role="alert" type="error">{{ formatError }}</Alert>
     <div v-if="!readonly" class="editor-language-bar">
-      <label
-        class="editor-language-toggle"
-        title="此语言的开关状态保存在本机浏览器。首次开启需下载语言服务资源，分析在浏览器内完成。">
+      <label class="editor-language-toggle" :title="t('runner.editor.languageToggleTitle')">
         <Switch
           :model-value="languagePreferred"
           :disabled="editorLoading || !!editorError"
           :data-disabled-reason="
-            editorLoading ? '编辑器正在加载，请稍候' : '编辑器加载失败，请重试后开启语言服务'
+            editorLoading
+              ? t('runner.editor.languageDisabledLoading')
+              : t('runner.editor.languageDisabledError')
           "
           :aria-busy="languagePending"
-          :aria-label="`${languageServiceLabel} 语言服务`"
+          :aria-label="t('runner.editor.languageServiceAria', { service: languageServiceLabel })"
           :aria-describedby="languageStatusId"
           @update:model-value="toggleLanguageService" />
         <span>{{ languageServiceLabel }}</span>
@@ -375,10 +382,13 @@ onBeforeUnmount(() => {
         :title="languageStatus?.message">
         {{
           languagePending
-            ? '正在启动 · ' + languageStatus?.message
+            ? t('runner.editor.starting', { message: languageStatus?.message })
             : languageStatus?.state === 'ready'
-              ? `浏览器分析 · ${languageStatus.errors} 个错误 / ${languageStatus.warnings} 个警告`
-              : (languageStatus?.message ?? '补全与诊断已关闭')
+              ? t('runner.editor.ready', {
+                  errors: languageStatus.errors,
+                  warnings: languageStatus.warnings,
+                })
+              : (languageStatus?.message ?? t('runner.editor.serviceOff'))
         }}
       </span>
       <Button
@@ -388,9 +398,11 @@ onBeforeUnmount(() => {
         class="text-button"
         data-guide="language-retry"
         @click="startLanguageService">
-        重试
+        {{ t('common.retry') }}
       </Button>
-      <span v-if="languageEnabled" class="editor-local-indicator">浏览器内分析</span>
+      <span v-if="languageEnabled" class="editor-local-indicator">
+        {{ t('runner.editor.localAnalysis') }}
+      </span>
     </div>
   </div>
 </template>

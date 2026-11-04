@@ -14,6 +14,7 @@ import { Select, SelectOption } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Form } from '@/components/ui/form'
+import { useI18n } from 'vue-i18n'
 import { computed, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
@@ -64,6 +65,10 @@ import { studentGuideActive, useGuideSurfaces } from '@/lib/spotlight'
 import { startUserGuide } from '@/lib/user-guide'
 const route = useRoute(),
   router = useRouter()
+const { t, locale } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
+const formatTime = (value: string | number | Date, hour12 = false) =>
+  new Date(value).toLocaleString(locale.value === 'en' ? 'en-US' : 'zh-CN', { hour12 })
 const initial = String(route.query.exercise ?? demo.recommended ?? '')
 const selected = ref(exercises.some((e) => e.id === initial) ? initial : (exercises[0]?.id ?? ''))
 const language = ref<SourceLanguage>(
@@ -88,7 +93,7 @@ const exercise = computed(() => {
     ? {
         ...found,
         filename: exerciseSourceFilename(found, language.value),
-        title: found.title || '未命名题目',
+        title: found.title || t('workspace.untitled'),
       }
     : undefined
 })
@@ -149,9 +154,14 @@ const historyPage = ref(1),
   historySize = ref(10),
   historyTotal = ref(0),
   historyError = ref('')
-const saveState = ref('读取中…'),
+const saveState = ref('loading'),
   loadError = ref(''),
   actionError = ref('')
+// 保存状态以 locale 键存储，错误态通过键集合判断，避免依赖译文文本
+const saveErrorStates = new Set(['backupUnavailable', 'networkError', 'disconnected'])
+const saveError = computed(
+  () => conflict.value || !!loadError.value || saveErrorStates.has(saveState.value),
+)
 const revision = ref(0),
   conflict = ref(false),
   loading = ref(true),
@@ -172,7 +182,7 @@ const pendingExercise = ref(''),
   switching = ref(false)
 const directoryPanel = ref<InstanceType<typeof LocalDirectoryPanel>>()
 const isArchived = computed(
-  () => activeClassroom.value.status !== '进行中' || exercise.value?.status !== '已发布',
+  () => activeClassroom.value.status !== 'ongoing' || exercise.value?.status !== 'published',
 )
 const readonly = computed(
   () =>
@@ -184,17 +194,17 @@ const readonly = computed(
     switching.value,
 )
 const readonlyReason = computed(() => {
-  if (loading.value) return '正在读取练习，请稍候'
-  if (loadError.value) return '练习读取失败，请重试后再操作'
-  if (viewing.value) return '当前正在查看历史快照，请先返回编辑器'
-  if (activeClassroom.value.status !== '进行中') return '课堂未在进行中，暂时不能操作'
-  if (exercise.value?.status !== '已发布') return '当前练习未发布或已关闭'
-  if (conflict.value) return '代码存在版本冲突，请先处理冲突'
-  if (switching.value) return '正在切换练习，请稍候'
+  if (loading.value) return t('workspace.reasons.loading')
+  if (loadError.value) return t('workspace.reasons.loadFailed')
+  if (viewing.value) return t('workspace.reasons.viewing')
+  if (activeClassroom.value.status !== 'ongoing') return t('workspace.reasons.classNotActive')
+  if (exercise.value?.status !== 'published') return t('workspace.reasons.notPublished')
+  if (conflict.value) return t('workspace.reasons.conflict')
+  if (switching.value) return t('workspace.reasons.switching')
   return ''
 })
-const runtime = computed(() => run.value?.status === '运行中／可输入')
-const active = () => !!run.value && ['排队', '编译中', '运行中／可输入'].includes(run.value.status)
+const runtime = computed(() => run.value?.status === 'running')
+const active = () => !!run.value && ['queued', 'compiling', 'running'].includes(run.value.status)
 let generation = 0,
   saving: Promise<boolean> | undefined
 let saveTimer: ReturnType<typeof setTimeout>
@@ -222,7 +232,7 @@ function backup() {
       JSON.stringify({ code: code.value, revision: revision.value, pending: dirty.value }),
     )
   } catch {
-    saveState.value = '本机备份不可用，正在尝试服务器保存'
+    saveState.value = 'backupUnavailable'
   }
 }
 async function loadHistory() {
@@ -242,7 +252,7 @@ async function loadHistory() {
     }
   } catch (e) {
     if (matches(c) && request === historyGeneration)
-      historyError.value = e instanceof Error ? e.message : '历史加载失败'
+      historyError.value = e instanceof Error ? e.message : t('workspace.errors.historyFailed')
   }
 }
 async function loadCode() {
@@ -264,10 +274,10 @@ async function loadCode() {
   history.value = []
   historyPage.value = 1
   input.value = exercise.value?.sampleInput ?? ''
-  saveState.value = '读取中…'
+  saveState.value = 'loading'
   if (!c.exercise) {
     loading.value = false
-    loadError.value = '课堂还没有可访问的练习'
+    loadError.value = t('workspace.errors.noExercises')
     return
   }
   try {
@@ -294,13 +304,13 @@ async function loadCode() {
         dirty.value = true
         if (local.revision !== remote.revision) {
           conflict.value = true
-          saveState.value = '版本冲突：本机修改已保留'
+          saveState.value = 'conflictKeep'
         }
       }
     } catch {
       /* Server content remains usable if browser storage is unavailable. */
     }
-    if (!conflict.value) saveState.value = dirty.value ? '本机修改待同步' : '已同步到服务器'
+    if (!conflict.value) saveState.value = dirty.value ? 'localPending' : 'synced'
     const activeRuns = await api<(RunRecord & { classroomId?: string })[]>(
       path(c, '/runs?active=true&scope=all'),
     )
@@ -314,8 +324,8 @@ async function loadCode() {
     await loadHistory()
   } catch (e) {
     if (matches(c)) {
-      loadError.value = e instanceof Error ? e.message : '读取失败，请重试'
-      saveState.value = '读取失败'
+      loadError.value = e instanceof Error ? e.message : t('workspace.save.loadRetryFailed')
+      saveState.value = 'loadFailed'
       code.value = ''
     }
   } finally {
@@ -340,7 +350,7 @@ async function saveNow(): Promise<boolean> {
   const c = context(),
     content = code.value,
     expectedRevision = revision.value
-  saveState.value = '同步中…'
+  saveState.value = 'syncing'
   saving = (async () => {
     try {
       const result = await api<{ revision: number }>(
@@ -355,16 +365,13 @@ async function saveNow(): Promise<boolean> {
       if (!matches(c)) return false
       revision.value = result.revision
       dirty.value = code.value !== content
-      saveState.value = dirty.value ? '待同步' : '已同步到服务器'
+      saveState.value = dirty.value ? 'pending' : 'synced'
       backup()
       return true
     } catch (e) {
       if (!matches(c)) return false
       backup()
-      saveState.value =
-        e instanceof ApiError && e.status === 409
-          ? '版本冲突：请先下载本机修改再读取服务器版本'
-          : '网络异常：等待重试，请保留本页面'
+      saveState.value = e instanceof ApiError && e.status === 409 ? 'conflictRetry' : 'networkError'
       if (e instanceof ApiError && e.status === 409) conflict.value = true
       return false
     }
@@ -376,7 +383,7 @@ async function saveNow(): Promise<boolean> {
 watch(code, () => {
   if (loading.value || readonly.value) return
   dirty.value = true
-  saveState.value = '待同步'
+  saveState.value = 'pending'
   backup()
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void saveNow(), 600)
@@ -393,17 +400,14 @@ watch([historyPage, historySize], () => {
   if (!loading.value) void loadHistory()
 })
 async function useServer() {
-  if (
-    !(await confirmAction('采用服务器版本？当前未同步的代码会先下载备份，然后替换编辑器中的代码。'))
-  )
-    return
+  if (!(await confirmAction(t('workspace.confirm.useServer')))) return
   const c = context()
   try {
     const remote = await api<{ code: string; revision: number }>(
       path(c, '/workspace/' + c.exercise + '?language=' + c.language),
     )
     if (!matches(c)) return
-    download('本机未同步-' + exercise.value!.filename, code.value)
+    download(t('workspace.files.localUnsynced') + '-' + exercise.value!.filename, code.value)
     loading.value = true
     code.value = remote.code
     revision.value = remote.revision
@@ -412,7 +416,7 @@ async function useServer() {
     backup()
     await nextTick()
     loading.value = false
-    saveState.value = '已采用服务器版本，本机修改已下载'
+    saveState.value = 'serverAdopted'
   } catch (e) {
     reportError(e)
   }
@@ -423,7 +427,7 @@ async function startRun() {
   actionError.value = ''
   const c = context()
   try {
-    if (!(await saveNow()) || !matches(c)) throw new Error('请先完成草稿同步')
+    if (!(await saveNow()) || !matches(c)) throw new Error(t('workspace.errors.syncDraftFirst'))
     const result = await api<RunRecord>(path(c, '/runs'), 'POST', {
       exerciseId: c.exercise,
       language: c.language,
@@ -438,7 +442,7 @@ async function startRun() {
       await loadHistory()
     }
   } catch (e) {
-    actionError.value = e instanceof Error ? e.message : '运行失败'
+    actionError.value = e instanceof Error ? e.message : t('workspace.errors.runFailed')
   } finally {
     runningRequest.value = false
   }
@@ -461,7 +465,7 @@ async function stop(): Promise<boolean> {
       }
       await new Promise((resolve) => setTimeout(resolve, 150))
     }
-    throw new Error('停止请求已发送，程序尚在结束，请稍后重试')
+    throw new Error(t('workspace.errors.stopSent'))
   } catch (e) {
     reportError(e)
     return false
@@ -485,7 +489,7 @@ async function eof(): Promise<boolean> {
   try {
     await api(classPath('/runs/' + id + '/input'), 'POST', { eof: true })
     if (run.value?.id === id) run.value = { ...run.value, eof: true }
-    notify('stdin 已关闭，等待程序结束')
+    notify(t('workspace.notify.stdinClosed'))
     return true
   } catch (e) {
     reportError(e)
@@ -498,7 +502,8 @@ async function doSubmit() {
   actionError.value = ''
   const c = context()
   try {
-    if (!(await saveNow()) || !matches(c)) throw new Error('请先同步草稿')
+    if (!(await saveNow()) || !matches(c))
+      throw new Error(t('workspace.errors.syncDraftFirstSubmit'))
     await api(path(c, '/submissions'), 'POST', {
       exerciseId: c.exercise,
       language: c.language,
@@ -508,10 +513,10 @@ async function doSubmit() {
       submitted.value = true
       submittedAt.value = new Date().toISOString()
       submit.value = false
-      notify('当前代码版本已提交，之后仍可继续修改')
+      notify(t('workspace.notify.submitted'))
     }
   } catch (e) {
-    actionError.value = e instanceof Error ? e.message : '提交失败'
+    actionError.value = e instanceof Error ? e.message : t('workspace.errors.submitFailed')
   } finally {
     submitting.value = false
   }
@@ -535,10 +540,10 @@ async function sendHelp() {
     if (matches(c)) {
       helpSent.value = true
       help.value = false
-      notify('求助已发送给教师')
+      notify(t('workspace.notify.helpSent'))
     }
   } catch (e) {
-    actionError.value = e instanceof Error ? e.message : '发送失败'
+    actionError.value = e instanceof Error ? e.message : t('workspace.errors.sendFailed')
   } finally {
     helping.value = false
   }
@@ -565,7 +570,7 @@ async function heartbeat() {
       if (!help.value) helpText.value = unresolved?.message ?? ''
     }
   } catch {
-    if (!dirty.value) saveState.value = '无法连接课堂，请检查网络或成员权限'
+    if (!dirty.value) saveState.value = 'disconnected'
   }
 }
 async function switchTo(id: string, nextLanguage?: SourceLanguage) {
@@ -573,15 +578,17 @@ async function switchTo(id: string, nextLanguage?: SourceLanguage) {
   switching.value = true
   try {
     if ((await directoryPanel.value?.flush()) === false) {
-      notify('当前修改尚未保存，请先处理保存问题', 'error')
+      notify(t('workspace.notify.unsavedChanges'), 'error')
       return
     }
     if (dirty.value && isArchived.value) {
-      if (!(await confirmAction('课堂或练习已只读，未同步修改无法上传。下载本机代码备份后切换？')))
-        return
-      download('未同步-' + (exercise.value?.filename ?? 'source.cpp'), code.value)
+      if (!(await confirmAction(t('workspace.confirm.readonlyDownloadSwitch')))) return
+      download(
+        t('workspace.files.unsynced') + '-' + (exercise.value?.filename ?? 'source.cpp'),
+        code.value,
+      )
     } else if (dirty.value && !(await saveNow())) {
-      notify('当前修改尚未保存，请先处理保存问题', 'error')
+      notify(t('workspace.notify.unsavedChanges'), 'error')
       return
     }
     language.value =
@@ -645,7 +652,7 @@ const poll = setInterval(async () => {
       if (
         matches(c) &&
         otherRun.value?.id === other.id &&
-        !['排队', '编译中', '运行中／可输入'].includes(result.status)
+        !['queued', 'compiling', 'running'].includes(result.status)
       )
         otherRun.value = undefined
     }
@@ -685,9 +692,9 @@ function saveShortcut(event: KeyboardEvent) {
   if (readonly.value || studentGuideActive.value) return
   void nextTick().then(async () => {
     if ((await directoryPanel.value?.flush()) === false) {
-      notify('本地文件尚未保存，请先处理目录冲突或下载备份', 'error')
+      notify(t('workspace.notify.localUnsaved'), 'error')
     }
-    if (!(await saveNow())) notify('草稿尚未同步，请检查保存状态', 'error')
+    if (!(await saveNow())) notify(t('workspace.notify.draftNotSynced'), 'error')
   })
 }
 window.addEventListener('keydown', saveShortcut, true)
@@ -705,22 +712,20 @@ onBeforeRouteLeave(async (to) => {
     return true
   }
   if (runningRequest.value || submitting.value || helping.value || stopping.value) {
-    notify('操作尚在进行，请稍后离开')
+    notify(t('workspace.notify.leaveInProgress'))
     return false
   }
-  if (
-    active() &&
-    !(await confirmAction('程序仍在运行。离开后程序会继续，可返回本练习停止。确认离开？'))
-  )
-    return false
+  if (active() && !(await confirmAction(t('workspace.confirm.leaveRunning')))) return false
   if ((await directoryPanel.value?.flush()) === false) {
-    notify('本地文件尚未保存，请先处理目录冲突或下载备份', 'error')
+    notify(t('workspace.notify.localUnsaved'), 'error')
     return false
   }
   if (dirty.value && isArchived.value) {
-    if (!(await confirmAction('课堂或练习已只读，未同步修改无法上传。下载本机代码备份后离开？')))
-      return false
-    download('未同步-' + (exercise.value?.filename ?? 'source.cpp'), code.value)
+    if (!(await confirmAction(t('workspace.confirm.readonlyDownloadLeave')))) return false
+    download(
+      t('workspace.files.unsynced') + '-' + (exercise.value?.filename ?? 'source.cpp'),
+      code.value,
+    )
     return true
   }
   return !dirty.value || (await saveNow())
@@ -730,7 +735,10 @@ useActionFeedback(actionError)
 <template>
   <div v-if="exercise" class="ide-page">
     <header class="workspace-toolbar">
-      <RouterLink to="/student/classes" class="icon-button" aria-label="返回我的课堂">
+      <RouterLink
+        to="/student/classes"
+        class="icon-button"
+        :aria-label="t('workspace.toolbar.back')">
         <ArrowLeft :size="18" />
       </RouterLink>
       <div class="workspace-context">
@@ -741,59 +749,46 @@ useActionFeedback(actionError)
           <BookOpen :size="16" />
           <Select
             :model-value="selected"
-            aria-label="选择练习"
+            :aria-label="t('workspace.toolbar.selectExercise')"
             :disabled="loading || switching || runningRequest"
             :data-disabled-reason="
               loading
-                ? '正在读取练习，请稍候'
+                ? t('workspace.reasons.loading')
                 : switching
-                  ? '正在切换练习，请稍候'
-                  : '正在创建运行任务，请稍候'
+                  ? t('workspace.reasons.switching')
+                  : t('workspace.reasons.creatingRun')
             "
             @update:model-value="changeExercise">
             <SelectOption
-              v-for="e in exercises.filter((e) => e.status === '已发布' || e.id === selected)"
+              v-for="e in exercises.filter((e) => e.status === 'published' || e.id === selected)"
               :key="e.id"
               :value="e.id">
-              {{ e.title || '未命名题目' }}
+              {{ e.title || t('workspace.untitled') }}
             </SelectOption>
           </Select>
         </label>
       </div>
       <span v-if="submitted" class="status positive">
         <Check :size="12" />
-        已提交
+        {{ t('workspace.toolbar.submitted') }}
       </span>
       <span
         class="save-label workspace-save"
         :class="{
-          'save-error':
-            conflict ||
-            loadError ||
-            saveState.includes('异常') ||
-            saveState.includes('无法') ||
-            saveState.includes('不可用'),
+          'save-error': saveError,
           'save-pending': dirty || loading,
         }"
         role="status"
-        :title="saveState">
-        <WifiOff
-          v-if="
-            conflict ||
-            loadError ||
-            saveState.includes('异常') ||
-            saveState.includes('无法') ||
-            saveState.includes('不可用')
-          "
-          :size="15" />
+        :title="t('workspace.save.' + saveState)">
+        <WifiOff v-if="saveError" :size="15" />
         <CloudCheck v-else :size="15" />
-        <span>{{ saveState }}</span>
+        <span>{{ t('workspace.save.' + saveState) }}</span>
       </span>
       <div class="workspace-actions">
         <Button
           variant="plain"
           class="icon-button"
-          aria-label="使用导览"
+          :aria-label="t('workspace.toolbar.guide')"
           data-guide="workspace-guide"
           @click="startUserGuide">
           <HelpCircle :size="18" />
@@ -815,28 +810,30 @@ useActionFeedback(actionError)
           data-guide="help"
           @click="openHelp">
           <Hand />
-          {{ helpSent ? '已求助' : '求助' }}
+          {{ helpSent ? t('workspace.toolbar.helpSent') : t('workspace.toolbar.help') }}
         </Button>
         <Button
           variant="outline"
           size="sm"
           :disabled="readonly || (submitted && activeClassroom.settings?.allowResubmit === false)"
-          :data-disabled-reason="readonly ? readonlyReason : '本次作品已提交，教师未允许重复提交'"
+          :data-disabled-reason="
+            readonly ? readonlyReason : t('workspace.reasons.submittedNoResubmit')
+          "
           data-guide="submit"
           @click="openSubmit">
           <Send />
-          提交作品
+          {{ t('workspace.toolbar.submit') }}
         </Button>
         <Button
-          v-if="runtime || run?.status === '排队' || run?.status === '编译中'"
+          v-if="runtime || run?.status === 'queued' || run?.status === 'compiling'"
           variant="destructive"
           size="sm"
           :disabled="stopping"
-          data-disabled-reason="正在停止程序，请稍候"
+          :data-disabled-reason="stopping ? t('workspace.reasons.stopping') : ''"
           data-guide="stop"
           @click="stop">
           <Square />
-          {{ stopping ? '停止中…' : '停止' }}
+          {{ stopping ? t('workspace.toolbar.stopping') : t('workspace.toolbar.stop') }}
         </Button>
         <Button
           :disabled="readonly || runningRequest || active() || !!otherRun"
@@ -844,16 +841,16 @@ useActionFeedback(actionError)
             readonly
               ? readonlyReason
               : runningRequest
-                ? '正在创建运行任务，请稍候'
+                ? t('workspace.reasons.creatingRun')
                 : active()
-                  ? '当前程序尚未结束，请等待或停止运行'
-                  : '其他练习或课堂仍有运行任务，请先停止运行'
+                  ? t('workspace.reasons.runActive')
+                  : t('workspace.reasons.runOther')
           "
           size="sm"
           data-guide="run"
           @click="startRun">
           <Play />
-          {{ runningRequest ? '正在创建…' : '运行' }}
+          {{ runningRequest ? t('workspace.toolbar.creating') : t('workspace.toolbar.run') }}
           <PythonBeta v-if="language === 'python'" />
         </Button>
         <span class="avatar small" :title="currentUser?.name">
@@ -863,46 +860,52 @@ useActionFeedback(actionError)
     </header>
     <Alert v-if="otherRun" class="app-alert--banner" type="warning">
       {{
-        classrooms.find((c) => c.id === otherRun?.classroomId)?.name ?? '另一道练习'
-      }}仍有运行中的任务，结束后才能运行本题。
+        t('workspace.alerts.otherRun', {
+          name:
+            classrooms.find((c) => c.id === otherRun?.classroomId)?.name ??
+            t('workspace.alerts.otherExercise'),
+        })
+      }}
 
       <template #actions>
         <Button variant="plain" data-guide="other-run" @click="returnToRunning">
-          返回该练习控制运行
+          {{ t('workspace.alerts.returnToRun') }}
         </Button>
       </template>
     </Alert>
     <Alert v-if="loading" class="app-alert--banner" role="status" type="info">
-      正在读取草稿，请稍候…
+      {{ t('workspace.alerts.loadingDraft') }}
     </Alert>
     <Alert v-if="loadError" class="app-alert--banner" role="alert" type="error">
       {{ loadError }}
 
       <template #actions>
-        <Button variant="plain" data-guide="draft-retry" @click="loadCode">重新读取</Button>
+        <Button variant="plain" data-guide="draft-retry" @click="loadCode">
+          {{ t('workspace.alerts.retryLoad') }}
+        </Button>
       </template>
     </Alert>
     <Alert v-if="viewing" class="app-alert--banner" type="info" :icon="History">
-      正在查看 {{ viewing.id }} 的只读代码快照，当前草稿独立保留。
+      {{ t('workspace.alerts.viewingSnapshot', { id: viewing.id }) }}
 
       <template #actions>
         <Button variant="plain" data-guide="return-draft" @click="viewing = undefined">
-          返回当前草稿
+          {{ t('workspace.alerts.backToDraft') }}
           <ArrowLeft :size="13" />
         </Button>
       </template>
     </Alert>
     <Alert v-if="conflict" class="app-alert--banner" type="warning" :icon="WifiOff">
-      {{ saveState }}
+      {{ t('workspace.save.' + saveState) }}
 
       <template #actions>
         <Button variant="plain" data-guide="server-conflict" @click="useServer">
-          下载本机修改并读取服务器版本
+          {{ t('workspace.alerts.downloadAndUseServer') }}
         </Button>
       </template>
     </Alert>
     <Alert v-else-if="isArchived" class="app-alert--banner" type="warning">
-      当前课堂或练习只读，请询问老师。
+      {{ t('workspace.alerts.readonlyAsk') }}
     </Alert>
     <SplitterGroup
       direction="horizontal"
@@ -923,7 +926,7 @@ useActionFeedback(actionError)
             data-guide="problem-tab"
             @click="panel = '题目'">
             <BookOpen :size="15" />
-            题目说明
+            {{ t('workspace.problem.tabProblem') }}
           </Button>
           <Button
             variant="plain"
@@ -931,12 +934,17 @@ useActionFeedback(actionError)
             data-guide="history-tab"
             @click="panel = '历史'">
             <History :size="15" />
-            运行历史
+            {{ t('workspace.problem.tabHistory') }}
           </Button>
         </div>
         <div v-if="panel === '题目'" class="problem-content">
           <span class="topic-label">
-            练习 {{ exercises.findIndex((e) => e.id === selected) + 1 }} · {{ exercise.topic }}
+            {{
+              t('workspace.problem.exerciseIndex', {
+                index: exercises.findIndex((e) => e.id === selected) + 1,
+              })
+            }}
+            · {{ exercise.topic }}
           </span>
           <h1>{{ exercise?.title }}</h1>
           <div class="problem-limits">
@@ -944,14 +952,19 @@ useActionFeedback(actionError)
             <span>{{ executionSettings.runMemoryMb }} MiB</span>
           </div>
           <MarkdownContent :source="exercise.description" />
-          <h3>输入说明</h3>
+          <h3>{{ t('workspace.problem.inputDesc') }}</h3>
           <MarkdownContent :source="exercise.input" />
-          <h3>输出说明</h3>
+          <h3>{{ t('workspace.problem.outputDesc') }}</h3>
           <MarkdownContent :source="exercise.output" />
-          <h3>样例</h3>
+          <h3>{{ t('workspace.problem.samples') }}</h3>
           <div class="sample-grid stacked">
-            <CodeBlock :source="exercise.sampleInput" label="样例输入" empty-text="无输入" />
-            <CodeBlock :source="exercise.sampleOutput" label="样例输出" />
+            <CodeBlock
+              :source="exercise.sampleInput"
+              :label="t('workspace.problem.sampleInput')"
+              :empty-text="t('workspace.problem.noInput')" />
+            <CodeBlock
+              :source="exercise.sampleOutput"
+              :label="t('workspace.problem.sampleOutput')" />
           </div>
         </div>
         <div v-else class="workspace-history">
@@ -964,10 +977,10 @@ useActionFeedback(actionError)
               :class="{ selected: viewing?.id === r.id }"
               @click="viewing = r">
               <span>
-                <strong>{{ r.status }}</strong>
+                <strong>{{ statusLabel(r.status) }}</strong>
                 <PythonBeta v-if="sourceLanguage(r) === 'python'" />
                 <small>
-                  {{ new Date(r.time).toLocaleString('zh-CN', { hour12: false }) }} ·
+                  {{ formatTime(r.time) }} ·
                   {{ r.id.slice(0, 8) }}
                 </small>
               </span>
@@ -982,23 +995,25 @@ useActionFeedback(actionError)
                   class="text-button"
                   data-guide="history-retry"
                   @click="loadHistory">
-                  重试
+                  {{ t('common.retry') }}
                 </Button>
               </template>
             </Alert>
-            <p v-else-if="!history.length" class="small-empty">本练习还没有运行记录。</p>
+            <p v-else-if="!history.length" class="small-empty">
+              {{ t('workspace.problem.noRuns') }}
+            </p>
           </div>
           <Pagination
             v-model:page="historyPage"
             v-model:page-size="historySize"
             :total="historyTotal"
             :busy="loading"
-            unit="条记录" />
+            :unit="t('workspace.problem.recordsUnit')" />
         </div>
       </SplitterPanel>
       <SplitterResizeHandle
         class="workspace-resize-handle"
-        aria-label="调整题目与代码区宽度"
+        :aria-label="t('workspace.problem.resizeColumns')"
         aria-orientation="vertical" />
       <SplitterPanel id="workspace-main" :default-size="66" :min-size="50" class="workspace-main">
         <SplitterGroup
@@ -1017,7 +1032,7 @@ useActionFeedback(actionError)
                 <CodeXml :size="15" />
                 {{ viewing?.filename ?? exercise.filename }}
                 <i v-if="!readonly" class="file-dot" />
-                <span v-if="readonly" class="muted">只读</span>
+                <span v-if="readonly" class="muted">{{ t('workspace.editor.readonly') }}</span>
               </span>
               <div class="inline-items ml-auto">
                 <LanguageSelect
@@ -1026,7 +1041,7 @@ useActionFeedback(actionError)
                   @update:model-value="changeLanguage" />
                 <label class="compact-select">
                   <Settings2 :size="13" />
-                  <Select v-model.number="fontSize" aria-label="编辑器字号">
+                  <Select v-model.number="fontSize" :aria-label="t('workspace.editor.fontSize')">
                     <SelectOption :value="14">14 px</SelectOption>
                     <SelectOption :value="16">16 px</SelectOption>
                     <SelectOption :value="18">18 px</SelectOption>
@@ -1035,7 +1050,7 @@ useActionFeedback(actionError)
                 <Button
                   variant="plain"
                   class="icon-button"
-                  aria-label="下载当前代码"
+                  :aria-label="t('workspace.editor.downloadCode')"
                   @click="download(viewing?.filename ?? exercise.filename, viewing?.code ?? code)">
                   <Download :size="14" />
                 </Button>
@@ -1050,16 +1065,16 @@ useActionFeedback(actionError)
                     () => {
                       code = undo ?? code
                       undo = undefined
-                      notify('已恢复重置前的本机代码')
+                      notify(t('workspace.notify.codeRestored'))
                     }
                   ">
-                  撤销重置
+                  {{ t('workspace.editor.undoReset') }}
                 </Button>
                 <Button
                   v-else
                   variant="plain"
                   class="icon-button"
-                  aria-label="重置初始代码"
+                  :aria-label="t('workspace.editor.resetCode')"
                   :disabled="readonly"
                   :data-disabled-reason="readonlyReason"
                   @click="reset = true">
@@ -1086,7 +1101,7 @@ useActionFeedback(actionError)
           </SplitterPanel>
           <SplitterResizeHandle
             class="workspace-resize-handle"
-            aria-label="调整代码与输入输出高度"
+            :aria-label="t('workspace.problem.resizeRows')"
             aria-orientation="horizontal" />
           <SplitterPanel id="workspace-io" class="workspace-io" :default-size="36" :min-size="22">
             <SplitterGroup
@@ -1102,53 +1117,53 @@ useActionFeedback(actionError)
                 :min-size="22"
                 :max-size="55">
                 <div class="code-toolbar">
-                  <span>输入</span>
+                  <span>{{ t('workspace.stdin.input') }}</span>
                   <span class="muted text-xs">stdin</span>
                   <Button
                     variant="plain"
                     class="text-button ml-auto"
                     :disabled="!!viewing"
-                    data-disabled-reason="历史快照的输入不可修改，请先返回编辑器"
+                    :data-disabled-reason="t('workspace.reasons.snapshotReadonly')"
                     data-guide="fill-sample"
                     @click="
                       () => {
                         input = exercise?.sampleInput ?? ''
-                        notify('已填入题目样例')
+                        notify(t('workspace.notify.sampleFilled'))
                       }
                     ">
-                    填入样例
+                    {{ t('workspace.stdin.fillSample') }}
                   </Button>
                 </div>
                 <Textarea
                   v-if="!viewing"
                   v-model="input"
-                  aria-label="标准输入"
-                  placeholder="运行前填写标准输入…"
+                  :aria-label="t('workspace.stdin.stdinAria')"
+                  :placeholder="t('workspace.stdin.placeholder')"
                   :readonly="isArchived" />
                 <CodeBlock
                   v-else
                   class="snapshot-input"
                   :source="viewing.input"
-                  label="当次输入"
-                  empty-text="无预填输入" />
+                  :label="t('workspace.stdin.snapshotInput')"
+                  :empty-text="t('workspace.stdin.noPrefill')" />
                 <div class="stdin-note">
-                  <span v-if="viewing">本次运行使用的固定输入</span>
+                  <span v-if="viewing">{{ t('workspace.stdin.fixedInput') }}</span>
                   <label
                     v-else
                     data-guide="interactive-toggle"
                     class="inline-items"
-                    title="运行后可逐行发送输入，最长 60 秒">
+                    :title="t('workspace.stdin.interactiveHint')">
                     <Checkbox
                       v-model="interactive"
                       :disabled="active()"
-                      data-disabled-reason="程序运行期间不能切换输入模式，请等待或停止运行" />
-                    运行时输入
+                      :data-disabled-reason="t('workspace.reasons.interactiveLocked')" />
+                    {{ t('workspace.stdin.interactive') }}
                   </label>
                 </div>
               </SplitterPanel>
               <SplitterResizeHandle
                 class="workspace-resize-handle"
-                aria-label="调整输入与输出宽度"
+                :aria-label="t('workspace.problem.resizeIo')"
                 aria-orientation="vertical" />
               <SplitterPanel
                 id="workspace-output"
@@ -1169,22 +1184,22 @@ useActionFeedback(actionError)
       </SplitterPanel>
     </SplitterGroup>
   </div>
-  <Modal v-model:open="help" title="告诉老师，你遇到了什么？">
+  <Modal v-model:open="help" :title="t('workspace.help.title')">
     <Form class="form-stack" @submit.prevent="sendHelp">
       <label>
-        求助说明
+        {{ t('workspace.help.label') }}
         <Textarea
           v-model="helpText"
           data-guide="help-message"
           rows="4"
-          placeholder="例如：循环里的变量应该怎么初始化？"
+          :placeholder="t('workspace.help.placeholder')"
           maxlength="300"
           required />
       </label>
       <Alert data-guide="help-context" type="info">
-        关联练习：{{ exercise?.title }}
+        {{ t('workspace.help.linkedExercise', { title: exercise?.title }) }}
         <br />
-        关联运行：{{ run?.id ?? '无最近运行' }}
+        {{ t('workspace.help.linkedRun', { run: run?.id ?? t('workspace.help.noRun') }) }}
       </Alert>
 
       <div class="modal-actions">
@@ -1192,95 +1207,109 @@ useActionFeedback(actionError)
           type="button"
           variant="outline"
           :disabled="helping"
-          data-disabled-reason="正在发送求助，请稍候"
+          :data-disabled-reason="t('workspace.help.sending')"
           data-guide="help-cancel"
           @click="help = false">
-          取消
+          {{ t('common.cancel') }}
         </Button>
         <Button
           data-guide="help-send"
           type="submit"
           :disabled="helping || !helpText.trim()"
-          :data-disabled-reason="helping ? '正在发送求助，请稍候' : '请先填写求助内容'">
+          :data-disabled-reason="helping ? t('workspace.help.sending') : t('workspace.help.empty')">
           <Hand />
-          {{ helping ? '发送中…' : helpSent ? '更新求助' : '发起求助' }}
+          {{
+            helping
+              ? t('workspace.help.sendSending')
+              : helpSent
+                ? t('workspace.help.sendUpdate')
+                : t('workspace.help.sendNew')
+          }}
         </Button>
       </div>
     </Form>
   </Modal>
   <Modal
     v-model:open="submit"
-    title="提交当前作品？"
-    description="提交会保存固定代码版本，你仍然可以继续修改。">
+    :title="t('workspace.submitModal.title')"
+    :description="t('workspace.submitModal.description')">
     <Alert data-guide="submit-info" type="info">
       {{ exercise?.title }} · {{ exercise?.filename }}
       <PythonBeta v-if="language === 'python'" />
       <br />
-      提交保存到服务器。提交不等于通过判题。
+      {{ t('workspace.submitModal.note') }}
     </Alert>
 
     <p v-if="submittedAt" class="form-hint">
-      最近提交：{{ new Date(submittedAt).toLocaleString('zh-CN') }}
+      {{ t('workspace.submitModal.lastSubmit', { time: formatTime(submittedAt) }) }}
     </p>
     <div class="modal-actions">
       <Button
         variant="outline"
         :disabled="submitting"
-        data-disabled-reason="正在提交作品，请稍候"
+        :data-disabled-reason="t('workspace.submitModal.submitting')"
         data-guide="submit-cancel"
         @click="submit = false">
-        继续修改
+        {{ t('workspace.submitModal.keepEditing') }}
       </Button>
       <Button
         :disabled="submitting"
-        data-disabled-reason="正在提交作品，请稍候"
+        :data-disabled-reason="t('workspace.submitModal.submitting')"
         data-guide="submit-confirm"
         @click="doSubmit">
         <Send />
-        {{ submitting ? '提交中…' : '确认提交' }}
+        {{
+          submitting
+            ? t('workspace.submitModal.submittingLabel')
+            : t('workspace.submitModal.confirm')
+        }}
       </Button>
     </div>
   </Modal>
   <Modal
     v-model:open="reset"
-    title="重置为初始代码？"
-    description="当前代码会保留在本次页面的恢复区，可通过工具栏撤销。">
+    :title="t('workspace.resetModal.title')"
+    :description="t('workspace.resetModal.description')">
     <div class="modal-actions">
       <Button variant="outline" data-guide="reset-cancel" @click="reset = false">
-        保留当前代码
+        {{ t('workspace.resetModal.keep') }}
       </Button>
-      <Button variant="destructive" data-guide="reset-confirm" @click="resetCode">确认重置</Button>
+      <Button variant="destructive" data-guide="reset-confirm" @click="resetCode">
+        {{ t('workspace.resetModal.confirm') }}
+      </Button>
     </div>
   </Modal>
   <Modal
     :open="!!pendingExercise"
-    title="先停止当前运行再切换练习？"
-    description="当前程序尚未结束。停止后将保留代码与运行记录，再打开所选练习。"
+    :title="t('workspace.switchModal.title')"
+    :description="t('workspace.switchModal.description')"
     @update:open="!$event && !stopping && (pendingExercise = '')">
     <div class="modal-actions">
       <Button
         variant="outline"
         :disabled="stopping"
-        data-disabled-reason="正在停止程序，请稍候"
+        :data-disabled-reason="t('workspace.reasons.stopping')"
         data-guide="switch-cancel"
         @click="pendingExercise = ''">
-        留在当前练习
+        {{ t('workspace.switchModal.stay') }}
       </Button>
       <Button
         variant="destructive"
         :disabled="stopping"
-        data-disabled-reason="正在停止程序，请稍候"
+        :data-disabled-reason="t('workspace.reasons.stopping')"
         data-guide="switch-confirm"
         @click="stopAndSwitch">
-        {{ stopping ? '等待程序停止…' : '停止并切换' }}
+        {{
+          stopping ? t('workspace.switchModal.waiting') : t('workspace.switchModal.stopAndSwitch')
+        }}
       </Button>
     </div>
   </Modal>
   <div v-if="!exercise" class="empty-state">
     <BookOpen :size="32" />
-    <h1>暂无可访问的练习</h1>
-    <p>教师发布练习后即可进入工作区。</p>
-    <RouterLink to="/student/classes">返回我的课堂</RouterLink>
+    <h1>{{ t('workspace.empty.title') }}</h1>
+    <p>{{ t('workspace.empty.text') }}</p>
+    <RouterLink to="/student/classes">{{ t('workspace.toolbar.back') }}</RouterLink>
   </div>
 </template>
 

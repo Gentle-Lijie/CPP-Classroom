@@ -46,7 +46,7 @@ describe('batch exercise imports', () => {
       title: '求和',
       filename: 'sum.cpp',
       input: 'n',
-      status: '草稿',
+      status: 'draft',
     })
     const backup = await readExerciseImport(
       file(
@@ -54,7 +54,7 @@ describe('batch exercise imports', () => {
         JSON.stringify({
           ...markdown.exercise,
           id: 'old-id',
-          status: '已发布',
+          status: 'published',
           version: 30,
           position: 1,
           code: 'int main() {\n  return 0;\n}',
@@ -65,7 +65,7 @@ describe('batch exercise imports', () => {
     expect(backup.exercise).not.toHaveProperty('id')
     expect(backup.exercise).not.toHaveProperty('version')
     expect(backup.exercise).not.toHaveProperty('position')
-    expect(backup.exercise?.status).toBe('草稿')
+    expect(backup.exercise?.status).toBe('draft')
     expect(backup.exercise?.code).toBe('int main() {\n  return 0;\n}')
   })
   it('reports bad files individually while preserving valid items and warnings', async () => {

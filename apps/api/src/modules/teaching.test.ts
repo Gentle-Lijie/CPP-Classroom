@@ -32,7 +32,7 @@ function setup(
     exercise: vi.fn(async () => ({ e: { id: exerciseId, language: 'cpp', filename: 'main.cpp' } })),
     lockWritable: vi.fn(async () => ({
       classroomRole: 'student',
-      status: '进行中',
+      status: 'ongoing',
       settings: { allowResubmit: false },
     })),
     audit: vi.fn(),
@@ -100,7 +100,7 @@ describe('teaching lifecycle safeguards', () => {
     const body = { exerciseId, revision: 2 }
     const previous = setup(async (sql) => {
       if (sql.startsWith('select id,status,filename'))
-        return { rows: [{ status: '已发布', filename: 'main.cpp' }] }
+        return { rows: [{ status: 'published', filename: 'main.cpp' }] }
       if (sql.startsWith('select * from submissions')) return { rows: [{ revision: 1 }] }
       return { rows: [] }
     })
@@ -111,7 +111,7 @@ describe('teaching lifecycle safeguards', () => {
 
     const stale = setup(async (sql) => {
       if (sql.startsWith('select id,status,filename'))
-        return { rows: [{ status: '已发布', filename: 'main.cpp' }] }
+        return { rows: [{ status: 'published', filename: 'main.cpp' }] }
       if (sql.startsWith('insert into submissions')) return { rows: [], rowCount: 0 }
       return { rows: [] }
     })

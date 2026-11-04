@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Alert } from '@/components/ui/alert'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ArrowRight, ScanLine, BookOpen, LockKeyhole } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { currentUser, demo, exercises, workspaceRole, classroomRole } from '@/data/demo'
@@ -13,6 +14,7 @@ import {
 } from '@/lib/guide-catalog'
 import { guideVisits } from '@/lib/guide-visit'
 import { startGuide } from '@/lib/spotlight'
+const { t } = useI18n()
 const role = computed(
   () => (currentUser.value?.role === 'admin' ? 'admin' : workspaceRole.value) as GuideRole,
 )
@@ -37,42 +39,51 @@ function begin(chapter?: GuideChapter) {
   <div class="guide-page">
     <div class="page-heading">
       <div>
-        <div class="heading-meta">{{ roleLabels[role] }}工作台 · 使用导览</div>
-        <h1>几步熟悉课堂工作流</h1>
+        <div class="heading-meta">
+          {{ t('guide.view.headingMeta', { role: t(roleLabels[role]) }) }}
+        </div>
+        <h1>{{ t('guide.view.title') }}</h1>
       </div>
     </div>
     <section class="panel guide-intro">
       <div class="guide-intro-icon"><ScanLine :size="30" /></div>
       <div class="guide-intro-copy">
-        <span class="guide-eyebrow">{{ roleLabels[role] }}专属导览</span>
+        <span class="guide-eyebrow">
+          {{ t('guide.view.eyebrow', { role: t(roleLabels[role]) }) }}
+        </span>
         <h2>
           {{
             role === 'student'
-              ? '用模拟工作区，试一遍编程流程'
+              ? t('guide.view.introStudent')
               : role === 'teacher'
-                ? '从准备课堂，到授课、巡视与作品管理'
-                : '从平台状态，到账号、执行配置与备份'
+                ? t('guide.view.introTeacher')
+                : t('guide.view.introAdmin')
           }}
         </h2>
-        <p>共 {{ count }} 步</p>
+        <p>{{ t('guide.view.totalSteps', { count }) }}</p>
       </div>
       <Button size="lg" @click="begin()">
         <ScanLine :size="17" />
-        开始导览
+        {{ t('guide.view.start') }}
         <ArrowRight :size="16" />
       </Button>
     </section>
     <Alert v-if="ready.length < chapters.length" type="warning" :icon="LockKeyhole">
       <span>
-        部分章节需要先{{
-          role === 'student' ? '加入课堂并等待教师发布练习' : '选择课堂并准备练习'
-        }}。完整导览会先介绍当前可用的章节。
+        {{
+          t('guide.view.lockedNotice', {
+            prerequisite:
+              role === 'student'
+                ? t('guide.view.prerequisiteStudent')
+                : t('guide.view.prerequisiteOther'),
+          })
+        }}
       </span>
     </Alert>
     <div class="guide-section-title">
       <h2>
         <BookOpen :size="18" />
-        只看需要的环节
+        {{ t('guide.view.sectionsTitle') }}
       </h2>
     </div>
     <div class="guide-chapters">
@@ -83,15 +94,16 @@ function begin(chapter?: GuideChapter) {
         :class="{ unavailable: !available(chapter) }">
         <div class="guide-chapter-number">{{ String(index + 1).padStart(2, '0') }}</div>
         <div class="guide-chapter-copy">
-          <h3>{{ chapter.title }}</h3>
-          <p>{{ chapter.description }}</p>
+          <h3>{{ t(chapter.title) }}</h3>
+          <p>{{ t(chapter.description) }}</p>
           <span>
-            {{ chapter.steps.length }} 步{{
-              !available(chapter)
+            {{
+              t('guide.view.stepsCount', { count: chapter.steps.length }) +
+              (!available(chapter)
                 ? chapter.requires === 'exercises'
-                  ? ' · 需要课堂中有可访问的练习'
-                  : ' · 需要先选择课堂'
-                : ''
+                  ? t('guide.view.requiresExercises')
+                  : t('guide.view.requiresClassroom')
+                : '')
             }}
           </span>
         </div>
@@ -99,16 +111,18 @@ function begin(chapter?: GuideChapter) {
           variant="outline"
           :disabled="!available(chapter)"
           :data-disabled-reason="
-            !demo.classroomId ? '请先选择课堂' : '请先在课堂中准备可访问的练习'
+            !demo.classroomId
+              ? t('guide.view.reasonNoClassroom')
+              : t('guide.view.reasonNoExercises')
           "
-          :aria-label="`开始${chapter.title}导览`"
+          :aria-label="t('guide.view.startChapterAria', { title: t(chapter.title) })"
           @click="begin(chapter)">
-          开始
+          {{ t('guide.view.startChapter') }}
           <ArrowRight :size="15" />
         </Button>
       </section>
     </div>
-    <p class="guide-footnote">← → 切换步骤，Esc 退出；导览不会替你运行、提交或修改数据。</p>
+    <p class="guide-footnote">{{ t('guide.view.footnote') }}</p>
   </div>
 </template>
 <style scoped>

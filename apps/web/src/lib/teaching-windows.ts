@@ -1,4 +1,5 @@
 import { notify } from '@/data/demo'
+import { t } from '../i18n'
 export function openTeachingWindow(url: string, name: string, width = 1180, height = 820) {
   const left = Math.max(0, window.screenX + 60)
   const top = Math.max(0, window.screenY + 50)
@@ -8,7 +9,7 @@ export function openTeachingWindow(url: string, name: string, width = 1180, heig
     `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`,
   )
   if (!popup) {
-    notify('浏览器拦截了独立窗口，请允许本站弹出窗口后重试')
+    notify(t('lib.teachingWindows.blocked'))
     return false
   }
   popup.focus()

@@ -7,7 +7,9 @@ import {
   NumberFieldDecrement,
 } from 'reka-ui'
 import { Plus, Minus } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 defineOptions({ inheritAttrs: false })
+const { t } = useI18n()
 const model = defineModel<number>({ required: true })
 defineProps<{
   min?: number | string
@@ -36,17 +38,17 @@ const error = ref('')
         :required="required"
         class="ui-number-input"
         :aria-invalid="error ? true : undefined"
-        @invalid.prevent="error = '请填写有效数值'"
+        @invalid.prevent="error = t('ui.numberInput.invalid')"
         @input="error = ''" />
       <span class="ui-number-actions">
         <NumberFieldIncrement
-          aria-label="增加数值"
-          :data-disabled-reason="disabled ? disabledReason : `已达到最大值 ${max}`">
+          :aria-label="t('ui.numberInput.increase')"
+          :data-disabled-reason="disabled ? disabledReason : t('ui.numberInput.max', { max })">
           <Plus :size="12" />
         </NumberFieldIncrement>
         <NumberFieldDecrement
-          aria-label="减少数值"
-          :data-disabled-reason="disabled ? disabledReason : `已达到最小值 ${min}`">
+          :aria-label="t('ui.numberInput.decrease')"
+          :data-disabled-reason="disabled ? disabledReason : t('ui.numberInput.min', { min })">
           <Minus :size="12" />
         </NumberFieldDecrement>
       </span>

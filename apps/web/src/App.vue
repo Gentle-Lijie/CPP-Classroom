@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ServiceUnavailable from '@/components/classroom/ServiceUnavailable.vue'
 import Notification from '@/components/ui/alert/Notification.vue'
 import ConfirmationDialog from '@/components/classroom/ConfirmationDialog.vue'
@@ -12,6 +13,7 @@ import AppShell from '@/components/classroom/AppShell.vue'
 import DisabledButtonHint from '@/components/ui/button/DisabledButtonHint.vue'
 import { demo, currentUser, refresh, clearSession, notify, bootstrapError } from '@/data/demo'
 import { api, ApiError } from '@/lib/api'
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 useFirstVisitGuide()
@@ -22,7 +24,7 @@ async function expireSession() {
   expiring = true
   const redirect = route.fullPath
   clearSession()
-  notify('登录已失效，请重新登录。本机草稿保留。', 'error')
+  notify(t('app.sessionExpired'), 'error')
   await router.replace({ path: '/login', query: { redirect } })
   expiring = false
 }
@@ -52,7 +54,7 @@ async function retryBootstrap() {
     }
     window.location.reload()
   } catch {
-    notify('仍然无法连接服务器，请检查网络或稍后重试。', 'error')
+    notify(t('app.reconnectFailed'), 'error')
   } finally {
     reconnecting.value = false
   }

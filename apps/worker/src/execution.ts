@@ -22,13 +22,13 @@ export interface Run extends RuntimeSnapshot {
   input: string
   interactive: boolean
 }
-const active = ['编译中', '运行中／可输入']
+const active = ['compiling', 'running']
 export function resultStatus(result: Result) {
-  if (result.status === 'Accepted') return result.exitStatus === 0 ? '运行完成' : '运行失败'
-  if (/Time Limit/.test(result.status)) return '超时'
-  if (/Memory Limit|Output Limit/.test(result.status)) return '资源超限'
-  if (/Internal|File Error/.test(result.status)) return '平台执行失败'
-  return '运行失败'
+  if (result.status === 'Accepted') return result.exitStatus === 0 ? 'finished' : 'runtime_error'
+  if (/Time Limit/.test(result.status)) return 'timeout'
+  if (/Memory Limit|Output Limit/.test(result.status)) return 'resource_limited'
+  if (/Internal|File Error/.test(result.status)) return 'platform_error'
+  return 'runtime_error'
 }
 export async function execute(pool: Pool, environment: Environment, run: Run) {
   // Admission snapshots limits; changes to global settings affect only later runs.
@@ -97,7 +97,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
       'update runs set status=$2,exit=$3,output=$4,stderr=$5,input=$6,metrics=$7,updated_at=now() where id=$1 and status=any($8)',
       [
         run.id,
-        stopping ? '已停止' : status,
+        stopping ? 'stopped' : status,
         stopping ? '用户停止' : exit,
         output,
         stderr,
@@ -161,7 +161,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
       ])
       if (compiled.status !== 'Accepted' || compiled.exitStatus !== 0 || !executable) {
         await finish(
-          /Internal|File Error/.test(compiled.status) ? '平台执行失败' : '编译失败',
+          /Internal|File Error/.test(compiled.status) ? 'platform_error' : 'compile_error',
           `编译器 ${compiled.status} / ${compiled.exitStatus}`,
           { compile: compiled },
         )
@@ -169,12 +169,10 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
       }
     }
     if (stopping) {
-      await finish('已停止', '用户停止')
+      await finish('stopped', '用户停止')
       return
     }
-    await pool.query("update runs set status='运行中／可输入',updated_at=now() where id=$1", [
-      run.id,
-    ])
+    await pool.query("update runs set status='running',updated_at=now() where id=$1", [run.id])
     const result = await new Promise<Result>((resolve, reject) => {
       socket = new WebSocket(`${base.replace(/^http/, 'ws')}/stream`, {
         headers,
@@ -283,7 +281,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
       })
     })
     await finish(
-      outputLimit ? '资源超限' : resultStatus(result),
+      outputLimit ? 'resource_limited' : resultStatus(result),
       outputLimit
         ? `输出超过 ${settings.outputLimitKb} KiB`
         : `${result.exitStatus} · ${result.status}`,
@@ -297,7 +295,7 @@ export async function execute(pool: Pool, environment: Environment, run: Run) {
     )
   } catch (e) {
     await finish(
-      outputLimit ? '资源超限' : '平台执行失败',
+      outputLimit ? 'resource_limited' : 'platform_error',
       outputLimit
         ? '输出超过配置上限'
         : e instanceof Error && !e.message.includes(base)
@@ -333,11 +331,11 @@ export function startExecutionQueue(
     scanning = true
     try {
       await pool.query(
-        "update runs set status='平台执行失败',exit='Worker 失联或重启；请重新运行',updated_at=now() where status=any($1) and updated_at<now()-interval '120 seconds'",
+        "update runs set status='platform_error',exit='Worker 失联或重启；请重新运行',updated_at=now() where status=any($1) and updated_at<now()-interval '120 seconds'",
         [active],
       )
       await pool.query(
-        "update runs set status='已停止',exit='用户停止' where status='排队' and stop_requested",
+        "update runs set status='stopped',exit='用户停止' where status='queued' and stop_requested",
       )
       const settings = {
         ...executionDefaults,
@@ -376,7 +374,7 @@ export function startExecutionQueue(
                 }
               r = (
                 await client.query(
-                  `update runs set runner_id=$1,status=case when language='python' then '运行中／可输入' else '编译中' end,updated_at=now() where id=(select id from runs where status='排队' and not stop_requested order by created_at for update skip locked limit 1) returning *`,
+                  `update runs set runner_id=$1,status=case when language='python' then 'running' else 'compiling' end,updated_at=now() where id=(select id from runs where status='queued' and not stop_requested order by created_at for update skip locked limit 1) returning *`,
                   [node?.id ?? null],
                 )
               ).rows[0] as Run | undefined

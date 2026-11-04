@@ -54,7 +54,7 @@ describe('atomic exercise batch editing', () => {
     expect(mock.query.mock.calls.at(-1)?.[0]).toBe('commit')
     expect(mock.client.release).toHaveBeenCalledOnce()
   })
-  it.each(['草稿', '已关闭'])(
+  it.each(['draft', 'closed'])(
     'stops active runs and clears selected recommendations for %s',
     async (status) => {
       const mock = setup()
@@ -79,7 +79,7 @@ describe('atomic exercise batch editing', () => {
     const mock = setup()
     await mock.controller.batchUpdateExercises(
       classId,
-      { exercises: targets, changes: { status: '已发布' } },
+      { exercises: targets, changes: { status: 'published' } },
       req,
     )
     expect(
@@ -95,7 +95,7 @@ describe('atomic exercise batch editing', () => {
     await expect(
       mock.controller.batchUpdateExercises(
         classId,
-        { exercises: targets, changes: { status: '已发布' } },
+        { exercises: targets, changes: { status: 'published' } },
         req,
       ),
     ).rejects.toBeInstanceOf(ConflictException)
@@ -108,7 +108,7 @@ describe('atomic exercise batch editing', () => {
     await expect(
       mock.controller.batchUpdateExercises(
         classId,
-        { exercises: targets, changes: { status: '已关闭' } },
+        { exercises: targets, changes: { status: 'closed' } },
         req,
       ),
     ).rejects.toThrow('audit failed')
@@ -116,7 +116,7 @@ describe('atomic exercise batch editing', () => {
     expect(mock.query.mock.calls.some(([sql]) => sql === 'commit')).toBe(false)
   })
   it.each([
-    { exercises: [], changes: { status: '草稿' } },
+    { exercises: [], changes: { status: 'draft' } },
     { exercises: [targets[0], targets[0]], changes: { topic: '' } },
     { exercises: targets, changes: {} },
     { exercises: targets, changes: { filename: 'same.cpp' } },

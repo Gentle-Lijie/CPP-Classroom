@@ -12,8 +12,10 @@ import {
   SelectScrollDownButton,
 } from 'reka-ui'
 import { ChevronDown, ChevronUp } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { selectValue, EMPTY_SELECT_VALUE } from './value'
 defineOptions({ inheritAttrs: false })
+const { t } = useI18n()
 const props = defineProps<{
   modelValue?: string | number
   modelModifiers?: { number?: boolean }
@@ -40,7 +42,7 @@ function update(value: unknown) {
     :name="name"
     @update:model-value="update">
     <SelectTrigger v-bind="$attrs" class="ui-select-trigger" data-ui="select">
-      <SelectValue :placeholder="placeholder ?? '请选择'" />
+      <SelectValue :placeholder="placeholder ?? t('ui.select.placeholder')" />
       <SelectIcon as-child><ChevronDown :size="16" /></SelectIcon>
     </SelectTrigger>
     <SelectPortal>

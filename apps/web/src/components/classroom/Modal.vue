@@ -10,6 +10,8 @@ import {
 } from 'reka-ui'
 import { spotlight } from '@/lib/spotlight'
 import { X } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 withDefaults(
   defineProps<{
     open: boolean
@@ -46,9 +48,11 @@ defineEmits<{ 'update:open': [value: boolean] }>()
           </div>
           <DialogClose
             class="icon-button"
-            aria-label="关闭对话框"
+            :aria-label="t('shell.modal.close')"
             :disabled="busy || !dismissible"
-            :data-disabled-reason="busy ? '正在处理，请稍候再关闭对话框' : '请先完成当前操作'">
+            :data-disabled-reason="
+              busy ? t('shell.modal.busyReason') : t('shell.modal.finishFirst')
+            ">
             <X :size="18" />
           </DialogClose>
         </div>

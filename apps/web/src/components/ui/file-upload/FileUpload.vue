@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Upload } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
+const { t } = useI18n()
 defineProps<{ accept?: string; disabled?: boolean; disabledReason?: string; multiple?: boolean }>()
 const emit = defineEmits<{ change: [event: Event] }>()
 const input = ref<HTMLInputElement>()
@@ -15,7 +17,7 @@ const input = ref<HTMLInputElement>()
       :data-disabled-reason="disabledReason"
       @click="input?.click()">
       <Upload :size="16" />
-      <slot>选择文件</slot>
+      <slot>{{ t('ui.fileUpload.choose') }}</slot>
     </Button>
     <input
       ref="input"

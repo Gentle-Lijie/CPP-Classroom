@@ -31,10 +31,12 @@ function setup(
   const query = vi.fn(async (sql: string, values?: unknown[]) => {
     if (sql.startsWith('select status,settings,owner_id'))
       return {
-        rows: [{ status: options.status ?? '进行中', settings, owner_id: options.owner ?? userId }],
+        rows: [
+          { status: options.status ?? 'ongoing', settings, owner_id: options.owner ?? userId },
+        ],
       }
     if (sql.startsWith('select status,filename,language from exercises'))
-      return { rows: [{ status: options.exerciseStatus ?? '已发布' }] }
+      return { rows: [{ status: options.exerciseStatus ?? 'published' }] }
     if (sql.startsWith('select status,role from memberships'))
       return {
         rows: [{ status: options.membership ?? 'active', role: options.classroomRole ?? role }],
@@ -48,7 +50,7 @@ function setup(
     if (sql.startsWith('select code,revision from drafts'))
       return { rows: [{ code: 'saved teacher source', revision: options.revision ?? 2 }] }
     if (sql.startsWith('insert into runs'))
-      return { rows: [{ id: 'run-id', user_id: values?.[2], code: values?.[3], status: '排队' }] }
+      return { rows: [{ id: 'run-id', user_id: values?.[2], code: values?.[3], status: 'queued' }] }
     return { rows: [] }
   })
   const client = { query, release: vi.fn() }
@@ -69,7 +71,7 @@ describe('teacher demonstration runs', () => {
     const mock = setup()
     await expect(
       mock.controller.create(classId, { ...body, code: 'untrusted request code' }, mock.req),
-    ).resolves.toMatchObject({ userId, code: 'saved teacher source', status: '排队' })
+    ).resolves.toMatchObject({ userId, code: 'saved teacher source', status: 'queued' })
     expect(mock.exercise).toHaveBeenCalledWith(mock.req.actor, classId, exerciseId, true)
     expect(mock.query.mock.calls.some(([sql]) => sql.includes('from memberships'))).toBe(true)
     expect(mock.query.mock.calls.find(([sql]) => sql.startsWith('insert into runs'))?.[1]).toEqual([
@@ -99,7 +101,7 @@ describe('teacher demonstration runs', () => {
   it('preserves active students’ run access and membership checks', async () => {
     const mock = setup({ role: 'student' })
     await expect(mock.controller.create(classId, body, mock.req)).resolves.toMatchObject({
-      status: '排队',
+      status: 'queued',
     })
     expect(mock.query.mock.calls.some(([sql]) => sql.includes('from memberships'))).toBe(true)
   })
@@ -107,15 +109,15 @@ describe('teacher demonstration runs', () => {
   it('allows an active TA to run their own saved work', async () => {
     const mock = setup({ classroomRole: 'ta' })
     await expect(mock.controller.create(classId, body, mock.req)).resolves.toMatchObject({
-      status: '排队',
+      status: 'queued',
     })
   })
 
   it.each([
     { disabled: true },
     { accountRole: 'student' },
-    { status: '已归档' },
-    { exerciseStatus: '已关闭' },
+    { status: 'archived' },
+    { exerciseStatus: 'closed' },
     { role: 'student' as const, membership: 'removed' },
   ])('rejects revoked access or read-only state: %j', async (options) => {
     const mock = setup(options)
@@ -157,7 +159,7 @@ describe('run access and interactive input', () => {
     const run = {
       id: runId,
       user_id: options.owner ?? userId,
-      status: options.status ?? '运行中／可输入',
+      status: options.status ?? 'running',
       interactive: true,
       eof: options.eof ?? false,
     }
@@ -201,13 +203,13 @@ describe('run access and interactive input', () => {
     await expect(mock.controller.stop(classId, runId, mock.req)).resolves.toEqual({ ok: true })
     expect(
       mock.query.mock.calls.some(([sql]) =>
-        sql.includes("status=case when status='排队' then '已停止'"),
+        sql.includes("status=case when status='queued' then 'stopped'"),
       ),
     ).toBe(true)
   })
 
   it('rejects input after EOF and over 64 KiB while rolling back and releasing', async () => {
-    for (const options of [{ eof: true }, { bytes: 65536 }, { status: '运行完成' }]) {
+    for (const options of [{ eof: true }, { bytes: 65536 }, { status: 'finished' }]) {
       const mock = controller(options)
       await expect(
         mock.controller.input(classId, runId, { text: 'x' }, mock.req),

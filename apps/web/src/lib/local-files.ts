@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { validSourceFilename } from './source-file'
 
 export interface SourceFileHandle {
@@ -11,18 +12,18 @@ export interface SourceFileHandle {
 }
 export class DiskConflictError extends Error {
   constructor(public disk: string) {
-    super('磁盘文件已被其他程序修改')
+    super(t('lib.localFiles.diskConflict'))
   }
 }
 const maxBytes = 1024 * 1024
 export async function readSourceFile(handle: SourceFileHandle) {
   const file = await handle.getFile()
-  if (file.size > maxBytes) throw new Error('文件超过 1 MB，请选择单文件源码')
+  if (file.size > maxBytes) throw new Error(t('lib.localFiles.fileTooLarge'))
   return file.text()
 }
 export async function writeSourceFile(handle: SourceFileHandle, expected: string, text: string) {
-  if (!validSourceFilename(handle.name)) throw new Error('无效的源文件名')
-  if (new Blob([text]).size > maxBytes) throw new Error('代码超过 1 MB，已暂停磁盘写入')
+  if (!validSourceFilename(handle.name)) throw new Error(t('lib.localFiles.invalidName'))
+  if (new Blob([text]).size > maxBytes) throw new Error(t('lib.localFiles.codeTooLarge'))
   const current = await readSourceFile(handle)
   if (current !== expected && current !== text) throw new DiskConflictError(current)
   if (current === text) return

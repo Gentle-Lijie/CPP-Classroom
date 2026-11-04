@@ -105,7 +105,7 @@ export class AssignmentsController {
       )
       if (data.status === 'removed' || (previous && previous.role !== data.role)) {
         await client.query(
-          "update runs set stop_requested=true where classroom_id=$1 and user_id=$2 and status in ('排队','编译中','运行中／可输入')",
+          "update runs set stop_requested=true where classroom_id=$1 and user_id=$2 and status in ('queued','compiling','running')",
           [id, data.userId],
         )
       }

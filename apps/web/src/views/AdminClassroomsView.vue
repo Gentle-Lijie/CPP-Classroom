@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Search, RefreshCw } from '@lucide/vue'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,8 @@ import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import Pagination from '@/components/classroom/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 
+const { t } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
 interface Classroom {
   id: string
   name: string
@@ -26,8 +29,18 @@ const classrooms = ref<Classroom[]>([])
 const loading = ref(false)
 const error = ref('')
 const search = ref('')
+// 筛选值直接使用接口返回的中文状态值，仅展示文案走 i18n
+const statusTabs = [
+  { value: '全部', key: 'all' },
+  { value: 'ongoing', key: 'ongoing' },
+  { value: 'not_started', key: 'notStarted' },
+  { value: 'closed', key: 'closed' },
+  { value: 'archived', key: 'archived' },
+] as const
 const filter = ref('全部')
-const statuses = ['全部', '进行中', '未开始', '已关闭', '已归档']
+const statuses = computed(() =>
+  statusTabs.map((s) => ({ value: s.value, label: t(`admin.classrooms.status.${s.key}`) })),
+)
 const visible = computed(() => {
   const term = search.value.trim().toLowerCase()
   return classrooms.value.filter(
@@ -46,7 +59,7 @@ async function load() {
   try {
     classrooms.value = await api<Classroom[]>('/admin/classes')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '课堂读取失败'
+    error.value = e instanceof Error ? e.message : t('admin.classrooms.loadFailed')
   } finally {
     loading.value = false
   }
@@ -57,26 +70,26 @@ onMounted(load)
 <template>
   <div class="page-heading">
     <div>
-      <div class="heading-meta">平台管理</div>
-      <h1>课堂管理</h1>
+      <div class="heading-meta">{{ t('admin.platformAdmin') }}</div>
+      <h1>{{ t('admin.classrooms.title') }}</h1>
     </div>
     <Button variant="outline" :disabled="loading" @click="load">
       <RefreshCw :class="{ 'animate-spin': loading }" />
-      刷新
+      {{ t('common.refresh') }}
     </Button>
   </div>
   <Alert v-if="error" type="error">{{ error }}</Alert>
-  <ContentPanel as="section" direct class="panel-fill" aria-label="平台课堂列表">
+  <ContentPanel as="section" direct class="panel-fill" :aria-label="t('admin.classrooms.listAria')">
     <template #header>
-      <div class="filter-tabs borderless" role="group" aria-label="筛选课堂状态">
+      <div class="filter-tabs borderless" role="group" :aria-label="t('admin.classrooms.tabsAria')">
         <Button
           v-for="status in statuses"
-          :key="status"
+          :key="status.value"
           variant="plain"
-          :class="{ selected: filter === status }"
-          :aria-pressed="filter === status"
-          @click="filter = status">
-          {{ status }}
+          :class="{ selected: filter === status.value }"
+          :aria-pressed="filter === status.value"
+          @click="filter = status.value">
+          {{ status.label }}
         </Button>
       </div>
     </template>
@@ -85,30 +98,30 @@ onMounted(load)
         <Search :size="16" />
         <Input
           v-model="search"
-          aria-label="搜索平台课堂"
-          placeholder="搜索课堂、创建者、负责人或加入码" />
+          :aria-label="t('admin.classrooms.searchLabel')"
+          :placeholder="t('admin.classrooms.searchPlaceholder')" />
       </label>
     </div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th>课堂</th>
-            <th>创建者</th>
-            <th>负责人</th>
-            <th>状态</th>
-            <th>学生</th>
-            <th>加入码</th>
-            <th>加入码有效期</th>
-            <th>创建时间</th>
-            <th>操作</th>
+            <th>{{ t('admin.classrooms.colClassroom') }}</th>
+            <th>{{ t('admin.classrooms.colCreator') }}</th>
+            <th>{{ t('admin.classrooms.colOwner') }}</th>
+            <th>{{ t('admin.classrooms.colStatus') }}</th>
+            <th>{{ t('admin.classrooms.colStudents') }}</th>
+            <th>{{ t('admin.classrooms.colInviteCode') }}</th>
+            <th>{{ t('admin.classrooms.colInviteExpiry') }}</th>
+            <th>{{ t('admin.classrooms.colCreatedAt') }}</th>
+            <th>{{ t('admin.classrooms.colActions') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="classroom in paged" :key="classroom.id">
             <td>{{ classroom.name }}</td>
             <td class="classroom-person">
-              {{ classroom.creatorName ?? '未记录' }}
+              {{ classroom.creatorName ?? t('admin.classrooms.notRecorded') }}
               <small v-if="classroom.creatorUsername" class="cell-secondary">
                 {{ classroom.creatorUsername }}
               </small>
@@ -117,7 +130,7 @@ onMounted(load)
               {{ classroom.ownerName }}
               <small class="cell-secondary">{{ classroom.ownerUsername }}</small>
             </td>
-            <td>{{ classroom.status }}</td>
+            <td>{{ statusLabel(classroom.status) }}</td>
             <td>{{ classroom.studentCount }}</td>
             <td>{{ classroom.inviteCode }}</td>
             <td>
@@ -127,14 +140,14 @@ onMounted(load)
                       dateStyle: 'short',
                       timeStyle: 'short',
                     })
-                  : '无'
+                  : t('admin.classrooms.noExpiry')
               }}
               <span
                 v-if="
                   classroom.inviteExpiresAt && Date.parse(classroom.inviteExpiresAt) < Date.now()
                 "
                 class="muted">
-                （已过期）
+                {{ t('admin.classrooms.expired') }}
               </span>
             </td>
             <td>{{ new Date(classroom.createdAt).toLocaleDateString() }}</td>
@@ -142,7 +155,7 @@ onMounted(load)
               <RouterLink
                 class="text-button"
                 :to="{ path: '/admin/classes', query: { classroom: classroom.id } }">
-                管理人员
+                {{ t('admin.classrooms.managePeople') }}
               </RouterLink>
             </td>
           </tr>
@@ -150,14 +163,20 @@ onMounted(load)
       </table>
     </div>
     <p v-if="!paged.length" class="empty-state">
-      {{ loading ? '正在加载课堂…' : error ? '课堂读取失败，请重试。' : '没有匹配的课堂。' }}
+      {{
+        loading
+          ? t('admin.classrooms.loadingState')
+          : error
+            ? t('admin.classrooms.errorState')
+            : t('admin.classrooms.emptyState')
+      }}
     </p>
     <Pagination
       v-model:page="page"
       v-model:page-size="pageSize"
       :total="visible.length"
       :busy="loading"
-      unit="个课堂" />
+      :unit="t('admin.classrooms.unit')" />
   </ContentPanel>
 </template>
 

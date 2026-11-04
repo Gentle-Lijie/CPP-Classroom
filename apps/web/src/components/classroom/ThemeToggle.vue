@@ -10,12 +10,15 @@ import {
 } from 'reka-ui'
 import { Sun, Moon, Monitor, Check } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { themePreference, resolvedTheme, setThemePreference } from '@/lib/theme'
-const options = [
-  { value: 'light', label: '浅色', icon: Sun },
-  { value: 'dark', label: '深色', icon: Moon },
-  { value: 'system', label: '跟随系统', icon: Monitor },
-]
+const { t } = useI18n()
+const options = computed(() => [
+  { value: 'light', label: t('shell.theme.light'), icon: Sun },
+  { value: 'dark', label: t('shell.theme.dark'), icon: Moon },
+  { value: 'system', label: t('shell.theme.system'), icon: Monitor },
+])
 </script>
 <template>
   <DropdownMenuRoot>
@@ -23,8 +26,10 @@ const options = [
       <Button
         variant="outline"
         size="icon-sm"
-        aria-label="切换主题"
-        :title="resolvedTheme === 'dark' ? '当前为深色主题' : '当前为浅色主题'">
+        :aria-label="t('shell.theme.toggle')"
+        :title="
+          resolvedTheme === 'dark' ? t('shell.theme.currentDark') : t('shell.theme.currentLight')
+        ">
         <Moon v-if="resolvedTheme === 'dark'" />
         <Sun v-else />
       </Button>

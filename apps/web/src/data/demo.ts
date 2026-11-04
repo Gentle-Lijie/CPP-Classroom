@@ -8,6 +8,7 @@ import {
   type ClassroomPermission,
 } from '@classroom/contracts'
 import { clearNotifications, notify } from '@/lib/notifications'
+import { t } from '@/i18n'
 export { notify } from '@/lib/notifications'
 export const executionSettings = reactive({ ...executionDefaults, languages: languageSettings() })
 export const starterCode =
@@ -111,9 +112,9 @@ const emptyClassroom: Classroom = {
   classroomRole: 'student',
   permissions: [],
   id: '',
-  name: '请选择课堂',
+  name: t('demo.bootstrap.selectClassroom'),
   description: '',
-  status: '未开始',
+  status: 'not_started',
   color: 'green',
   students: 0,
 }
@@ -139,7 +140,7 @@ export const counts = computed(() => ({
   online: students.filter((s) => s.online).length,
   help: students.filter((s) => s.help).length,
   submitted: students.filter((s) => s.submitted).length,
-  errors: students.filter((s) => s.status === '编译失败').length,
+  errors: students.filter((s) => s.status === 'compile_error').length,
 }))
 export function classPath(suffix = '') {
   return '/classes/' + demo.classroomId + suffix
@@ -158,11 +159,11 @@ export async function initialize() {
       currentUser.value = await api<User>('/auth/me')
     }
     demo.role = currentUser.value.role
-    await refresh().catch(() => notify('账号已登录，课堂数据读取失败，请重试连接', 'error'))
+    await refresh().catch(() => notify(t('demo.notify.loggedInRefreshFailed'), 'error'))
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) currentUser.value = undefined
     else {
-      bootstrapError.value = '暂时无法连接服务器，请重试后继续。'
+      bootstrapError.value = t('demo.bootstrap.offline')
       return
     }
   }
@@ -172,7 +173,7 @@ export async function login(username: string, password: string) {
   currentUser.value = await api<User>('/auth/login', 'POST', { username, password })
   demo.role = currentUser.value.role
   initialized = true
-  await refresh().catch(() => notify('登录成功，课堂数据读取失败，请重试连接', 'error'))
+  await refresh().catch(() => notify(t('demo.notify.loginRefreshFailed'), 'error'))
 }
 export async function logout() {
   await api('/auth/logout', 'POST', {})
@@ -224,7 +225,7 @@ async function refreshData(preferred?: string) {
   const selected =
     available.find((c) => c.id === (preferred ?? demo.classroomId)) ??
     available.find((c) => c.id === stored) ??
-    available.find((c) => c.status === '进行中') ??
+    available.find((c) => c.status === 'ongoing') ??
     available[0]
   const path = selected ? '/classes/' + selected.id : ''
   const [content, roster] = selected
@@ -242,8 +243,8 @@ async function refreshData(preferred?: string) {
   demo.role = selected?.classroomRole ?? user.role
   demo.inviteCode = selected?.inviteCode ?? ''
   demo.recommended =
-    content.find((e) => e.id === selected?.recommended && e.status === '已发布')?.id ??
-    content.find((e) => e.status === '已发布')?.id ??
+    content.find((e) => e.id === selected?.recommended && e.status === 'published')?.id ??
+    content.find((e) => e.status === 'published')?.id ??
     content[0]?.id ??
     ''
   exercises.splice(0, exercises.length, ...content)
@@ -252,7 +253,9 @@ async function refreshData(preferred?: string) {
     students.length,
     ...roster.map((s) => ({
       ...s,
-      activity: s.activity ? new Date(s.activity).toLocaleTimeString('zh-CN') : '尚未访问',
+      activity: s.activity
+        ? new Date(s.activity).toLocaleTimeString('zh-CN')
+        : t('demo.bootstrap.neverVisited'),
     })),
   )
   connectionState.value = 'connected'
@@ -279,12 +282,12 @@ export async function saveExercise(exercise: Exercise) {
     value,
   )
   Object.assign(exercise, result)
-  await refresh().catch(() => notify('练习已保存，列表刷新失败，请稍后重试', 'error'))
+  await refresh().catch(() => notify(t('demo.notify.exerciseSavedRefreshFailed'), 'error'))
   return id || result.id!
 }
 export async function updateClass(value: unknown) {
   await api(classPath(), 'PATCH', value)
-  await refresh().catch(() => notify('课堂设置已保存，列表刷新失败，请稍后重试', 'error'))
+  await refresh().catch(() => notify(t('demo.notify.classSavedRefreshFailed'), 'error'))
 }
 export async function loadRuns(student?: string, exercise?: string) {
   const params = new URLSearchParams()
@@ -322,13 +325,15 @@ export function saveDraft(
   drafts[key] = code
 }
 export function reportError(error: unknown) {
-  notify(error instanceof Error ? error.message : '请求失败，请重试', 'error')
+  notify(error instanceof Error ? error.message : t('demo.notify.requestFailed'), 'error')
 }
 export function tone(status: string) {
-  if (['运行完成', '已发布', '进行中', '已解决', '正常', '已提交'].includes(status))
+  if (['finished', 'published', 'ongoing', 'resolved', 'normal', 'submitted'].includes(status))
     return 'positive'
-  if (['编译失败', '运行失败', '平台执行失败', '资源超限'].includes(status)) return 'red'
-  if (['超时', '草稿', '请求帮助', '运行中／可输入', '未开始'].includes(status)) return 'amber'
+  if (['compile_error', 'runtime_error', 'platform_error', 'resource_limited'].includes(status))
+    return 'red'
+  if (['timeout', 'draft', 'help_requested', 'running', 'not_started'].includes(status))
+    return 'amber'
   return 'neutral'
 }
 export function download(name: string, content: string, type = 'text/plain;charset=utf-8') {

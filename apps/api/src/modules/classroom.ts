@@ -60,7 +60,7 @@ const exerciseBaseSchema = z.object({
     .trim()
     .refine((value) => !value || validSourceFilename(value), '无效的 C++ / Python 源文件名')
     .default(''),
-  status: z.enum(['草稿', '已发布', '已关闭']).default('草稿'),
+  status: z.enum(['draft', 'published', 'closed']).default('draft'),
   description: z.string().max(100000).default(''),
   input: z.string().max(10000).default(''),
   output: z.string().max(10000).default(''),
@@ -133,7 +133,7 @@ export class ClassroomService {
     )
       throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
     c.classroomRole = member.role
-    if (c.status !== '进行中' || e?.status !== '已发布')
+    if (c.status !== 'ongoing' || e?.status !== 'published')
       throw new ForbiddenException('课堂或练习当前只读')
     c.settings = { ...defaults, ...c.settings }
     return c
@@ -191,9 +191,9 @@ export class ClassroomService {
               : permission
     if (required && !permissions.includes(required))
       throw new ForbiddenException('当前课堂身份无权执行此操作')
-    if (member.role === 'student' && c.status === '已归档' && !c.settings.readonly)
+    if (member.role === 'student' && c.status === 'archived' && !c.settings.readonly)
       throw new ForbiddenException('归档作品访问已关闭')
-    if (write && (c.status !== '进行中' || !permissions.includes('workspace.own.write')))
+    if (write && (c.status !== 'ongoing' || !permissions.includes('workspace.own.write')))
       throw new ForbiddenException('课堂当前只读或当前身份无写入权限')
     return c
   }
@@ -206,9 +206,9 @@ export class ClassroomService {
         exerciseId,
       ])
     ).rows[0]
-    if (!e || (c.classroomRole !== 'teacher' && e.status === '草稿'))
+    if (!e || (c.classroomRole !== 'teacher' && e.status === 'draft'))
       throw new NotFoundException('练习不可访问')
-    if (write && e.status !== '已发布') throw new ForbiddenException('练习已关闭')
+    if (write && e.status !== 'published') throw new ForbiddenException('练习已关闭')
     return { c, e }
   }
   async withAccess<T>(
@@ -247,7 +247,7 @@ export class ClassroomController {
     const rows = await this.service.pool.query(
       `select c.*,u.name as teacher,m.status as membership_status,m.role as classroom_role,
       (select count(*)::int from memberships mm where mm.classroom_id=c.id and mm.status='active' and mm.role='student') as students,
-      case when m.status='active' then (select count(*)::int from exercises e where e.classroom_id=c.id and (m.role='teacher' or e.status<>'草稿')) else 0 end as exercises
+      case when m.status='active' then (select count(*)::int from exercises e where e.classroom_id=c.id and (m.role='teacher' or e.status<>'draft')) else 0 end as exercises
       from classrooms c join users u on u.id=c.owner_id
       join memberships m on m.classroom_id=c.id and m.user_id=$1
       where m.status in ('active','pending') order by c.created_at desc`,
@@ -336,7 +336,7 @@ export class ClassroomController {
       if (!c || new Date(c.invite_expires_at).getTime() < Date.now())
         throw new NotFoundException('邀请无效或已过期')
       const settings = { ...defaults, ...c.settings }
-      if (c.status === '已归档' || c.status === '已关闭' || !settings.allowJoin)
+      if (c.status === 'archived' || c.status === 'closed' || !settings.allowJoin)
         throw new ForbiddenException('课堂已关闭加入')
       const member = (
         await client.query('select * from memberships where classroom_id=$1 and user_id=$2', [
@@ -382,7 +382,7 @@ export class ClassroomController {
       z.object({
         name: text(100).optional(),
         description: z.string().max(5000).optional(),
-        status: z.enum(['未开始', '进行中', '已关闭', '已归档']).optional(),
+        status: z.enum(['not_started', 'ongoing', 'closed', 'archived']).optional(),
         settings: settingsSchema.optional(),
         recommended: z.uuid().nullable().optional(),
       }),
@@ -398,7 +398,7 @@ export class ClassroomController {
         data.recommended &&
         !(
           await client.query(
-            "select 1 from exercises where classroom_id=$1 and id=$2 and status='已发布'",
+            "select 1 from exercises where classroom_id=$1 and id=$2 and status='published'",
             [id, data.recommended],
           )
         ).rowCount
@@ -425,9 +425,9 @@ export class ClassroomController {
           data.recommended === undefined ? current.recommended : data.recommended,
         ],
       )
-      if ((data.status && data.status !== '进行中') || data.settings?.allowRun === false)
+      if ((data.status && data.status !== 'ongoing') || data.settings?.allowRun === false)
         await client.query(
-          "update runs set stop_requested=true where classroom_id=$1 and status in ('排队','编译中','运行中／可输入')",
+          "update runs set stop_requested=true where classroom_id=$1 and status in ('queued','compiling','running')",
           [id],
         )
       await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
@@ -454,7 +454,7 @@ export class ClassroomController {
       const classroom = await client.query('select id from classrooms where id=$1 for update', [id])
       if (!classroom.rowCount) throw new NotFoundException('课堂不存在')
       const active = await client.query(
-        "select 1 from runs where classroom_id=$1 and status in ('排队','编译中','运行中／可输入') limit 1",
+        "select 1 from runs where classroom_id=$1 and status in ('queued','compiling','running') limit 1",
         [id],
       )
       if (active.rowCount) throw new ConflictException('课堂仍有执行中的任务，请等待任务结束')
@@ -669,7 +669,7 @@ export class ClassroomController {
           '该账号关联其他教师的课堂或作品，不能由教师永久删除，请联系管理员',
         )
       const active = await client.query(
-        "select 1 from runs where user_id=$1 and status in ('排队','编译中','运行中／可输入') limit 1",
+        "select 1 from runs where user_id=$1 and status in ('queued','compiling','running') limit 1",
         [userId],
       )
       if (active.rowCount) throw new ConflictException('该学生仍有执行中的任务，请等待任务结束')
@@ -748,7 +748,7 @@ export class ClassroomController {
       }
       await client.query('delete from sessions where user_id=any($1::uuid[])', [ids])
       await client.query(
-        "update runs set stop_requested=true where user_id=any($1::uuid[]) and status in ('排队','编译中','运行中／可输入')",
+        "update runs set stop_requested=true where user_id=any($1::uuid[]) and status in ('queued','compiling','running')",
         [ids],
       )
       await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
@@ -830,7 +830,7 @@ export class ClassroomController {
       if (!result.rowCount) throw new NotFoundException('成员不存在')
       if (data.status === 'removed')
         await client.query(
-          "update runs set stop_requested=true where classroom_id=$1 and user_id=$2 and status in ('排队','编译中','运行中／可输入')",
+          "update runs set stop_requested=true where classroom_id=$1 and user_id=$2 and status in ('queued','compiling','running')",
           [id, userId],
         )
       await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [
@@ -852,7 +852,7 @@ export class ClassroomController {
     const classroom = await this.service.access(user, id)
     return (
       await this.service.pool.query(
-        "select * from exercises where classroom_id=$1 and ($2='teacher' or status<>'草稿') order by position,updated_at",
+        "select * from exercises where classroom_id=$1 and ($2='teacher' or status<>'draft') order by position,updated_at",
         [id, classroom.classroomRole],
       )
     ).rows.map((e) => ({
@@ -979,7 +979,7 @@ export class ClassroomController {
           [
             id,
             exercise.filename,
-            '草稿',
+            'draft',
             position + index + 1,
             JSON.stringify(exercise),
             exercise.language,
@@ -1065,7 +1065,7 @@ export class ClassroomController {
           ),
         changes: z
           .object({
-            status: z.enum(['草稿', '已发布', '已关闭']).optional(),
+            status: z.enum(['draft', 'published', 'closed']).optional(),
             topic: z
               .string()
               .trim()
@@ -1100,13 +1100,13 @@ export class ClassroomController {
         'update exercises set status=coalesce($3,status),content=content || $4::jsonb,version=version+1,updated_at=now() where classroom_id=$1 and id=any($2::uuid[])',
         [id, ids, changes.status ?? null, JSON.stringify(changes)],
       )
-      if (changes.status && changes.status !== '已发布') {
+      if (changes.status && changes.status !== 'published') {
         await client.query(
           'update classrooms set recommended=null where id=$1 and recommended=any($2::uuid[])',
           [id, ids],
         )
         await client.query(
-          "update runs set stop_requested=true where classroom_id=$1 and exercise_id=any($2::uuid[]) and status in ('排队','编译中','运行中／可输入')",
+          "update runs set stop_requested=true where classroom_id=$1 and exercise_id=any($2::uuid[]) and status in ('queued','compiling','running')",
           [id, ids],
         )
       }
@@ -1166,13 +1166,13 @@ export class ClassroomController {
         ],
       )
       if (!result.rowCount) throw new ConflictException('题目已被修改，请刷新后重试')
-      if (data.status !== '已发布') {
+      if (data.status !== 'published') {
         await client.query(
           'update classrooms set recommended=null where id=$1 and recommended=$2',
           [id, exerciseId],
         )
         await client.query(
-          "update runs set stop_requested=true where classroom_id=$1 and exercise_id=$2 and status in ('排队','编译中','运行中／可输入')",
+          "update runs set stop_requested=true where classroom_id=$1 and exercise_id=$2 and status in ('queued','compiling','running')",
           [id, exerciseId],
         )
       }
@@ -1215,7 +1215,7 @@ export class ClassroomController {
       )
       if (!exercise.rowCount) throw new NotFoundException('练习不存在')
       const active = await client.query(
-        "select 1 from runs where classroom_id=$1 and exercise_id=$2 and status in ('排队','编译中','运行中／可输入') limit 1",
+        "select 1 from runs where classroom_id=$1 and exercise_id=$2 and status in ('queued','compiling','running') limit 1",
         [id, exerciseId],
       )
       if (active.rowCount) throw new ConflictException('练习仍有执行中的任务，请等待任务结束')
@@ -1270,7 +1270,7 @@ export class ClassroomController {
       await this.service.access(actor(req), id, 'teacher', false, client)
       await client.query('select id from classrooms where id=$1 for update', [id])
       const result = await client.query(
-        "update exercises set status='已关闭',version=version+1,updated_at=now() where classroom_id=$1 and id=$2 returning id",
+        "update exercises set status='closed',version=version+1,updated_at=now() where classroom_id=$1 and id=$2 returning id",
         [id, parse(z.uuid(), exerciseId)],
       )
       if (!result.rowCount) throw new NotFoundException('练习不存在')
@@ -1279,7 +1279,7 @@ export class ClassroomController {
         exerciseId,
       ])
       await client.query(
-        "update runs set stop_requested=true where classroom_id=$1 and exercise_id=$2 and status in ('排队','编译中','运行中／可输入')",
+        "update runs set stop_requested=true where classroom_id=$1 and exercise_id=$2 and status in ('queued','compiling','running')",
         [id, exerciseId],
       )
       await client.query('insert into audit_events(event,source,details) values($1,$2,$3)', [

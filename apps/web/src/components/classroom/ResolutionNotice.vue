@@ -2,7 +2,9 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { MonitorX } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const MIN_WIDTH = 1280
 const MIN_HEIGHT = 720
 const STORAGE_KEY = 'classroom:resolution-notice-dismissed'
@@ -57,17 +59,16 @@ onBeforeUnmount(() => {
     class="resolution-notice"
     role="alertdialog"
     aria-modal="true"
-    aria-label="屏幕分辨率过低">
+    :aria-label="t('shell.resolution.aria')">
     <div class="resolution-card">
       <span class="resolution-icon"><MonitorX :size="26" /></span>
-      <h2>屏幕分辨率过低</h2>
+      <h2>{{ t('shell.resolution.title') }}</h2>
       <p>
-        当前窗口为
-        <strong>{{ size }}</strong>
-        ，低于建议的 1280 ×
-        720。请放大窗口或调大显示器分辨率后使用，部分页面内容在小窗口下可能显示不完整。
+        {{ t('shell.resolution.message', { size }) }}
       </p>
-      <Button variant="outline" class="self-start" @click="dismiss">知道了，继续使用</Button>
+      <Button variant="outline" class="self-start" @click="dismiss">
+        {{ t('shell.resolution.dismiss') }}
+      </Button>
     </div>
   </div>
 </template>

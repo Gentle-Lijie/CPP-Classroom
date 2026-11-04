@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 /** The pinned browser bundle contains Pyright 1.1.386 and its typeshed. */
 export async function openPyrightWorker(url: string, signal: AbortSignal) {
   signal.throwIfAborted()
@@ -13,14 +15,14 @@ export async function openPyrightWorker(url: string, signal: AbortSignal) {
     disposed = true
     signal.removeEventListener('abort', aborted)
     worker.terminate()
-    rejectStartup?.(new Error('Python 语言服务启动已取消'))
+    rejectStartup?.(new Error(t('lib.pyright.canceled')))
   }
   const aborted = () => stop()
   const failed = (event: ErrorEvent | MessageEvent) => {
     const error = new Error(
       'message' in event && typeof event.message === 'string' && event.message
         ? event.message
-        : 'Python 语言服务无法加载，请检查网络后重试',
+        : t('lib.pyright.loadFailed'),
     )
     rejectStartup?.(error)
     reportClosed(error)
@@ -42,7 +44,7 @@ export async function openPyrightWorker(url: string, signal: AbortSignal) {
     })
   })
   const timer = setTimeout(() => {
-    rejectStartup?.(new Error('Python 语言服务启动超时，请检查网络后重试'))
+    rejectStartup?.(new Error(t('lib.pyright.timeout')))
     stop()
   }, 90000)
   try {

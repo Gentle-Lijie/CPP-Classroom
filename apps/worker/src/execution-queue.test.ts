@@ -87,7 +87,7 @@ describe('execution queue admission', () => {
     )
     await vi.waitFor(() => expect(runTask).toHaveBeenCalledOnce())
     expect(db.operations[0]).toContain("updated_at<now()-interval '120 seconds'")
-    expect(db.operations[1]).toContain("status='排队' and stop_requested")
+    expect(db.operations[1]).toContain("status='queued' and stop_requested")
     const transaction = db.client.query.mock.calls.map(([sql]) => sql)
     expect(transaction.slice(0, 4)).toEqual([
       'begin',
@@ -96,7 +96,7 @@ describe('execution queue admission', () => {
       expect.stringContaining('from runner_nodes'),
     ])
     expect(transaction[4]).toContain('for update skip locked')
-    expect(transaction[4]).toContain("when language='python' then '运行中／可输入'")
+    expect(transaction[4]).toContain("when language='python' then 'running'")
     expect(transaction[5]).toBe('commit')
     const stopping = stop()
     await vi.waitFor(() =>

@@ -39,6 +39,8 @@ import { api, ApiError } from '@/lib/api'
 import { confirmAction } from '@/lib/confirm'
 import { validSourceFilename } from '@/lib/source-file'
 import { exerciseFields, parseExerciseMarkdown, type MarkdownImport } from '@/lib/exercise-markdown'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const existing = computed(() => exercises.find((e) => e.id === route.params.id))
@@ -53,7 +55,7 @@ const draft = reactive<Exercise>(
         title: '',
         topic: '',
         filename: '',
-        status: '草稿',
+        status: 'draft',
         description: '',
         input: '',
         output: '',
@@ -100,20 +102,21 @@ async function importMarkdown(event: Event) {
   error.value = ''
   readingMarkdown.value = true
   try {
-    if (!/\.(md|markdown)$/i.test(file.name)) throw new Error('请选择 .md 或 .markdown 文件')
-    if (file.size > 1024 * 1024) throw new Error('Markdown 文件过大，最多 1 MiB')
+    if (!/\.(md|markdown)$/i.test(file.name))
+      throw new Error(t('exercises.editor.markdownFileError'))
+    if (file.size > 1024 * 1024) throw new Error(t('exercises.editor.markdownTooLarge'))
     let source: string
     try {
       source = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer())
     } catch {
-      throw new Error('无法读取文件，请使用 UTF-8 编码的 Markdown 文件')
+      throw new Error(t('exercises.editor.markdownDecode'))
     }
-    if (source.includes('\0')) throw new Error('文件包含无效字符，请上传 Markdown 文本')
+    if (source.includes('\0')) throw new Error(t('exercises.editor.markdownInvalidChar'))
     markdownImport.value = parseExerciseMarkdown(source)
     markdownFilename.value = file.name
     importFields.value = detectedFields.value.map(({ key }) => key)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Markdown 导入失败'
+    error.value = e instanceof Error ? e.message : t('exercises.editor.markdownFailed')
   } finally {
     readingMarkdown.value = false
     target.value = ''
@@ -133,9 +136,9 @@ function applyMarkdown() {
   if (importFields.value.includes('code'))
     draft.starters = { ...draft.starters, [draft.language ?? 'cpp']: draft.code }
   markdownImport.value = undefined
-  notify('已填入选中的 Markdown 内容，请核对后保存')
+  notify(t('exercises.editor.markdownApplied'))
 }
-const tab = ref('题面与样例')
+const tab = ref('problem')
 const leaveDialog = ref(false)
 const dirty = computed(() => JSON.stringify(draft) !== initial.value)
 const conflict = ref<Exercise>()
@@ -157,7 +160,7 @@ function keepBackup() {
     if (dirty.value) localStorage.setItem(backupKey, JSON.stringify(draft))
     else localStorage.removeItem(backupKey)
   } catch {
-    notify('本机备份不可用，请及时下载或保存题目', 'error')
+    notify(t('exercises.editor.backupUnavailable'), 'error')
   }
 }
 watch(
@@ -189,11 +192,11 @@ onBeforeUnmount(() => {
 })
 function downloadDraft() {
   download(
-    (draft.filename || '练习') + '-题目备份.json',
+    t('exercises.editor.backupFilename', { name: draft.filename || t('exercises.unnamed') }),
     JSON.stringify(draft, null, 2),
     'application/json',
   )
-  notify('题目备份已下载，可通过导入备份恢复')
+  notify(t('exercises.editor.backupDownloaded'))
 }
 async function importDraft(event: Event) {
   const target = event.target as HTMLInputElement,
@@ -201,10 +204,10 @@ async function importDraft(event: Event) {
   if (!file) return
   error.value = ''
   try {
-    if (file.size > 1024 * 1024) throw new Error('备份文件过大，最多 1 MiB')
+    if (file.size > 1024 * 1024) throw new Error(t('exercises.editor.backupTooLarge'))
     const imported = await readExerciseImport(file)
     if (imported.errors.length || !imported.exercise)
-      throw new Error(imported.errors.join('；') || '这不是有效的题目备份文件')
+      throw new Error(imported.errors.join('；') || t('exercises.editor.invalidBackup'))
     const value = imported.exercise
     const fields = [
       'title',
@@ -218,14 +221,14 @@ async function importDraft(event: Event) {
       'filename',
     ] as const
     if (fields.some((field) => typeof value[field] !== 'string'))
-      throw new Error('这不是有效的题目备份文件')
+      throw new Error(t('exercises.editor.invalidBackup'))
     for (const field of fields) draft[field] = value[field]
     draft.language = sourceLanguage(value)
     draft.starters = { ...value.starters, [draft.language]: value.code }
     editingLanguage.value = draft.language
-    notify('已导入备份内容，请核对后保存')
+    notify(t('exercises.editor.backupImported'))
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '备份导入失败'
+    error.value = e instanceof Error ? e.message : t('exercises.editor.backupFailed')
   }
   target.value = ''
 }
@@ -235,7 +238,7 @@ async function loadConflict() {
       (item) => item.id === draft.id,
     )
   } catch {
-    error.value += '；服务器版本暂时无法获取，请先下载本地备份。'
+    error.value += t('exercises.editor.serverUnavailableSuffix')
   }
 }
 function useServer() {
@@ -257,7 +260,7 @@ function keepLocal() {
   draft.version = conflict.value.version
   draft.position = conflict.value.position
   conflict.value = undefined
-  notify('已保留本地内容并采用最新版本号，请核对差异后再次保存。', 'info')
+  notify(t('exercises.editor.keepLocalNotify'), 'info')
 }
 function beforeUnload(event: BeforeUnloadEvent) {
   keepBackup()
@@ -271,7 +274,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 let leaveResolve: ((value: boolean) => void) | undefined
 function guardLeave() {
   if (busy.value) {
-    notify('正在保存，请稍候再离开', 'info')
+    notify(t('exercises.editor.savingLeave'), 'info')
     return false
   }
   if (!dirty.value) return true
@@ -293,15 +296,14 @@ async function save(publish: boolean) {
   error.value = ''
   const filename = draft.filename.trim()
   if (filename && !validSourceFilename(filename, draft.language ?? 'cpp'))
-    error.value =
-      '请输入与默认语言对应的源文件名；C++ 支持 .cpp、.cc、.cxx，Python 支持 .py，不允许路径。'
+    error.value = t('exercises.editor.filenameError')
   else if (
     filename &&
     exercises.some(
       (e) => e.id !== draft.id && e.filename.toLocaleLowerCase() === filename.toLocaleLowerCase(),
     )
   )
-    error.value = '该文件名已被另一道练习使用，请选择不同的文件名，避免本地文件互相覆盖。'
+    error.value = t('exercises.editor.filenameDup')
 
   if (error.value) return
   const value: Exercise = {
@@ -309,12 +311,17 @@ async function save(publish: boolean) {
     title: draft.title.trim(),
     filename,
     id: draft.id,
-    status: publish ? '已发布' : draft.status,
+    status: publish ? 'published' : draft.status,
   }
   if (
-    (publish || value.status === '已发布') &&
+    (publish || value.status === 'published') &&
     !(await confirmAction(
-      `保存并${publish ? '发布' : '更新已发布的'}练习「${value.title || '未命名练习'}」？更改将对课堂学生可见。`,
+      t('exercises.editor.publishConfirm', {
+        action: publish
+          ? t('exercises.editor.publishConfirmPublish')
+          : t('exercises.editor.publishConfirmUpdate'),
+        title: value.title || t('exercises.unnamed'),
+      }),
     ))
   )
     return
@@ -324,9 +331,9 @@ async function save(publish: boolean) {
     Object.assign(draft, value)
     initial.value = JSON.stringify(draft)
     keepBackup()
-    notify(publish ? '练习已发布' : '练习已保存')
+    notify(publish ? t('exercises.published') : t('exercises.editor.saved'))
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '保存失败'
+    error.value = e instanceof Error ? e.message : t('exercises.editor.saveFailed')
     keepBackup()
     if (e instanceof ApiError && e.status === 409) await loadConflict()
     return
@@ -356,135 +363,166 @@ useActionFeedback(error)
       <div>
         <RouterLink to="/teacher/exercises" class="back-link">
           <ArrowLeft :size="15" />
-          返回练习管理
+          {{ t('exercises.editor.back') }}
         </RouterLink>
-        <h1>{{ existing ? '编辑练习' : '创建练习' }}</h1>
+        <h1>
+          {{ existing ? t('exercises.editor.editTitle') : t('exercises.editor.createTitle') }}
+        </h1>
         <p>
-          {{ dirty ? '有尚未保存的修改' : draft.id ? '内容已保存' : '填写题目后保存草稿或发布' }}
+          {{
+            dirty
+              ? t('exercises.editor.dirtyHint')
+              : draft.id
+                ? t('exercises.editor.savedHint')
+                : t('exercises.editor.newHint')
+          }}
         </p>
       </div>
       <div class="heading-actions">
         <Button
           variant="outline"
           :disabled="busy || readingMarkdown"
-          :data-disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
+          :data-disabled-reason="
+            busy ? t('exercises.editor.savingTitle') : t('exercises.editor.parsingMarkdown')
+          "
           @click="save(false)">
           <Save />
-          {{ draft.status === '已发布' ? '保存更改' : '保存草稿' }}
+          {{
+            draft.status === 'published'
+              ? t('exercises.editor.saveChanges')
+              : t('exercises.editor.saveDraft')
+          }}
         </Button>
         <Button
           variant="success"
           :disabled="busy || readingMarkdown"
-          :data-disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
+          :data-disabled-reason="
+            busy ? t('exercises.editor.savingTitle') : t('exercises.editor.parsingMarkdown')
+          "
           @click="save(true)">
           <Send />
-          {{ busy ? '保存中…' : '保存并发布' }}
+          {{ busy ? t('exercises.editor.saving') : t('exercises.editor.savePublish') }}
         </Button>
       </div>
     </div>
     <Alert v-if="restore" type="warning">
-      <span>找到此题未保存的本机备份。</span>
+      <span>{{ t('exercises.editor.restoreFound') }}</span>
 
       <template #actions>
-        <Button variant="outline" size="sm" @click="restoreDraft">恢复编辑</Button>
-        <Button variant="ghost" size="sm" @click="restore = undefined">暂不恢复</Button>
+        <Button variant="outline" size="sm" @click="restoreDraft">
+          {{ t('exercises.editor.restore') }}
+        </Button>
+        <Button variant="ghost" size="sm" @click="restore = undefined">
+          {{ t('exercises.editor.skipRestore') }}
+        </Button>
       </template>
     </Alert>
-    <div class="exercise-editor-body" role="region" aria-label="练习编辑内容" tabindex="0">
+    <div
+      class="exercise-editor-body"
+      role="region"
+      :aria-label="t('exercises.editor.editorAria')"
+      tabindex="0">
       <div class="draft-tools">
         <FileUpload
           accept=".md,.markdown"
           :disabled="busy || readingMarkdown"
-          :disabled-reason="busy ? '正在保存题目，请稍候' : '正在解析 Markdown，请稍候'"
+          :disabled-reason="
+            busy ? t('exercises.editor.savingTitle') : t('exercises.editor.parsingMarkdown')
+          "
           @change="importMarkdown">
-          {{ readingMarkdown ? '正在解析…' : '导入 Markdown' }}
+          {{
+            readingMarkdown ? t('exercises.editor.parsing') : t('exercises.editor.importMarkdown')
+          }}
         </FileUpload>
         <Button
           variant="outline"
           size="sm"
           :disabled="busy"
-          data-disabled-reason="正在保存题目，请稍候"
+          :data-disabled-reason="t('exercises.editor.savingTitle')"
           @click="downloadDraft">
           <Download />
-          下载题目备份
+          {{ t('exercises.editor.downloadBackup') }}
         </Button>
         <FileUpload
           accept=".json"
           :disabled="busy"
-          disabled-reason="正在保存题目，请稍候"
+          :disabled-reason="t('exercises.editor.savingTitle')"
           @change="importDraft">
-          导入备份
+          {{ t('exercises.editor.importBackup') }}
         </FileUpload>
-        <span>未保存修改自动备份在本机浏览器</span>
+        <span>{{ t('exercises.editor.autoBackupHint') }}</span>
       </div>
 
       <ContentPanel as="section" class="exercise-meta-panel" :inert="busy">
         <div class="exercise-meta-fields">
           <label>
-            默认语言
+            {{ t('exercises.editor.defaultLanguage') }}
             <LanguageSelect
               :model-value="draft.language ?? 'cpp'"
               @update:model-value="changeDefaultLanguage" />
           </label>
           <label>
-            题目标题
-            <Input v-model="draft.title" maxlength="100" placeholder="例如：累加求和" />
+            {{ t('exercises.editor.titleLabel') }}
+            <Input
+              v-model="draft.title"
+              maxlength="100"
+              :placeholder="t('exercises.editor.titlePlaceholder')" />
           </label>
           <label>
-            知识点
-            <Input v-model="draft.topic" maxlength="100" placeholder="例如：for 循环" />
+            {{ t('exercises.editor.topicLabel') }}
+            <Input
+              v-model="draft.topic"
+              maxlength="100"
+              :placeholder="t('exercises.editor.topicPlaceholder')" />
           </label>
           <label>
-            学生源文件名
+            {{ t('exercises.editor.filenameLabel') }}
             <div class="filename-field">
               <FileCode2 :size="16" />
               <Input
                 v-model="draft.filename"
                 maxlength="80"
-                placeholder="例如：sum.cpp"
+                :placeholder="t('exercises.editor.filenamePlaceholder')"
                 spellcheck="false" />
             </div>
           </label>
         </div>
-        <p class="form-hint">
-          学生可随时切换 C++ /
-          Python，两种语言分别保存草稿。默认语言只影响首次打开；初始代码可以分别编辑。源文件名留空时使用按题目编号生成的独立文件名。
-        </p>
+        <p class="form-hint">{{ t('exercises.editor.languageHint') }}</p>
       </ContentPanel>
       <div class="editor-page-tabs">
-        <Button
-          variant="plain"
-          :class="{ selected: tab === '题面与样例' }"
-          @click="tab = '题面与样例'">
+        <Button variant="plain" :class="{ selected: tab === 'problem' }" @click="tab = 'problem'">
           <FileText :size="16" />
-          题面与样例
+          {{ t('exercises.editor.problemTab') }}
         </Button>
-        <Button variant="plain" :class="{ selected: tab === '初始代码' }" @click="tab = '初始代码'">
+        <Button variant="plain" :class="{ selected: tab === 'starter' }" @click="tab = 'starter'">
           <CodeXml :size="16" />
-          初始代码
+          {{ t('exercises.editor.starterTab') }}
         </Button>
       </div>
-      <template v-if="tab === '题面与样例'">
+      <template v-if="tab === 'problem'">
         <div :inert="busy"><MarkdownEditor v-model="draft.description" /></div>
         <ContentPanel as="section" class="exercise-samples-editor" :inert="busy">
           <div class="form-grid">
             <label>
-              输入说明
+              {{ t('exercises.editor.inputLabel') }}
               <Textarea
                 v-model="draft.input"
                 rows="3"
-                placeholder="描述输入格式和数据范围；无输入可留空" />
+                :placeholder="t('exercises.editor.inputPlaceholder')" />
             </label>
             <label>
-              输出说明
-              <Textarea v-model="draft.output" rows="3" placeholder="描述输出格式" />
+              {{ t('exercises.editor.outputLabel') }}
+              <Textarea
+                v-model="draft.output"
+                rows="3"
+                :placeholder="t('exercises.editor.outputPlaceholder')" />
             </label>
             <label>
-              样例输入
+              {{ t('exercises.editor.sampleInputLabel') }}
               <Textarea v-model="draft.sampleInput" rows="5" spellcheck="false" placeholder="5" />
             </label>
             <label>
-              样例输出
+              {{ t('exercises.editor.sampleOutputLabel') }}
               <Textarea v-model="draft.sampleOutput" rows="5" spellcheck="false" placeholder="15" />
             </label>
           </div>
@@ -493,9 +531,13 @@ useActionFeedback(error)
       <ContentPanel v-else as="section" direct class="initial-code-page" :inert="busy">
         <div class="code-toolbar">
           <CodeXml :size="15" />
-          <LanguageSelect v-model="editingLanguage" label="初始代码语言" />
+          <LanguageSelect
+            v-model="editingLanguage"
+            :label="t('exercises.editor.starterLanguageLabel')" />
           {{
-            draft.filename ? exerciseSourceFilename(draft, editingLanguage) : '初始代码（可留空）'
+            draft.filename
+              ? exerciseSourceFilename(draft, editingLanguage)
+              : t('exercises.editor.starterFilenameFallback')
           }}
           <span class="language-label ml-auto">
             {{
@@ -505,7 +547,7 @@ useActionFeedback(error)
                   ? 'C++20'
                   : 'C++17'
             }}
-            · 初始代码
+            · {{ t('exercises.editor.starterLabel') }}
             <PythonBeta v-if="editingLanguage === 'python'" />
           </span>
         </div>
@@ -513,25 +555,22 @@ useActionFeedback(error)
           v-model="starter"
           :language="editingLanguage"
           :filename="exerciseSourceFilename(draft, editingLanguage)" />
-        <Alert type="info">初始代码只用于创建学生的工作区，不会替换已经编辑的学生草稿。</Alert>
+        <Alert type="info">{{ t('exercises.editor.starterHint') }}</Alert>
       </ContentPanel>
     </div>
   </div>
   <div v-else class="empty-state">
-    <h1>没有找到这道练习</h1>
-    <RouterLink to="/teacher/exercises">返回练习管理</RouterLink>
+    <h1>{{ t('exercises.editor.notFound') }}</h1>
+    <RouterLink to="/teacher/exercises">{{ t('exercises.editor.back') }}</RouterLink>
   </div>
   <Modal
     :open="!!markdownImport"
-    title="预览 Markdown 导入"
-    :description="`${markdownFilename} · 勾选要填入的字段；确认后覆盖这些字段，未识别或未勾选的字段保留原内容。`"
+    :title="t('exercises.editor.markdownModal.title')"
+    :description="t('exercises.editor.markdownModal.description', { filename: markdownFilename })"
     wide
     @update:open="!$event && (markdownImport = undefined)">
     <template v-if="markdownImport">
-      <p class="form-hint">
-        支持一级标题作为题目名，以及「题目描述 / 输入格式 / 输出格式 / 样例输入 / 样例输出 /
-        初始代码」等中英文标题。代码块会保留原始内容；普通 Markdown 正文填入题面。
-      </p>
+      <p class="form-hint">{{ t('exercises.editor.markdownModal.hint') }}</p>
       <Alert v-for="message in markdownImport.errors" :key="message" type="error">
         {{ message }}
       </Alert>
@@ -543,7 +582,9 @@ useActionFeedback(error)
           <label class="inline-items">
             <Checkbox v-model="importFields" :value="key" />
             <strong>{{ label }}</strong>
-            <span v-if="draft[key]" class="muted">将覆盖已有内容</span>
+            <span v-if="draft[key]" class="muted">
+              {{ t('exercises.editor.markdownModal.willOverride') }}
+            </span>
           </label>
           <CodeBlock
             v-if="['sampleInput', 'sampleOutput', 'code', 'filename'].includes(key)"
@@ -554,51 +595,63 @@ useActionFeedback(error)
         </section>
       </div>
       <div class="modal-actions">
-        <Button variant="outline" @click="markdownImport = undefined">取消</Button>
+        <Button variant="outline" @click="markdownImport = undefined">
+          {{ t('common.cancel') }}
+        </Button>
         <Button
           :disabled="!!markdownImport.errors.length || !importFields.length"
           :data-disabled-reason="
             markdownImport.errors.length
-              ? '导入文件存在错误，请先修正文件后重新导入'
-              : '没有可填充的字段，请先选择导入字段'
+              ? t('exercises.editor.markdownModal.errorsReason')
+              : t('exercises.editor.markdownModal.noFieldsReason')
           "
           @click="applyMarkdown">
-          确认填充（{{ importFields.length }} 个字段）
+          {{ t('exercises.editor.markdownModal.apply', { count: importFields.length }) }}
         </Button>
       </div>
     </template>
   </Modal>
   <Modal
     :open="leaveDialog"
-    title="离开前保留修改？"
-    description="本页的未保存内容将丢失，已保存的题目不受影响。"
+    :title="t('exercises.editor.leaveModal.title')"
+    :description="t('exercises.editor.leaveModal.description')"
     @update:open="!$event && settleLeave(false)">
     <div class="modal-actions">
-      <Button variant="outline" @click="downloadDraft">下载备份</Button>
-      <Button variant="outline" @click="settleLeave(false)">继续编辑</Button>
-      <Button variant="destructive" @click="settleLeave(true)">放弃修改并离开</Button>
+      <Button variant="outline" @click="downloadDraft">
+        {{ t('exercises.editor.leaveModal.download') }}
+      </Button>
+      <Button variant="outline" @click="settleLeave(false)">
+        {{ t('exercises.editor.leaveModal.continueEdit') }}
+      </Button>
+      <Button variant="destructive" @click="settleLeave(true)">
+        {{ t('exercises.editor.leaveModal.discard') }}
+      </Button>
     </div>
   </Modal>
   <Modal
     :open="!!conflict"
-    title="题目已有其他修改"
-    description="你的内容已保留在本机。请比较两个版本，再选择继续编辑或采用服务器版本。"
+    :title="t('exercises.editor.conflictModal.title')"
+    :description="t('exercises.editor.conflictModal.description')"
     wide
     @update:open="!$event && (conflict = undefined)">
     <div class="conflict-comparison">
       <section>
-        <h3>本地修改</h3>
+        <h3>{{ t('exercises.editor.conflictModal.local') }}</h3>
         <CodeBlock :source="JSON.stringify(draft, null, 2)" language="json" label="JSON" />
       </section>
       <section>
-        <h3>服务器最新版本</h3>
+        <h3>{{ t('exercises.editor.conflictModal.server') }}</h3>
         <CodeBlock :source="JSON.stringify(conflict, null, 2)" language="json" label="JSON" />
       </section>
     </div>
     <div class="modal-actions">
-      <Button variant="outline" @click="downloadDraft">下载本地备份</Button>
-      <Button variant="outline" @click="useServer">采用服务器版本</Button>
-      <Button @click="keepLocal">保留本地修改继续编辑</Button>
+      <Button variant="outline" @click="downloadDraft">
+        {{ t('exercises.editor.conflictModal.downloadLocal') }}
+      </Button>
+      <Button variant="outline" @click="useServer">
+        {{ t('exercises.editor.conflictModal.useServer') }}
+      </Button>
+      <Button @click="keepLocal">{{ t('exercises.editor.conflictModal.keepLocal') }}</Button>
     </div>
   </Modal>
 </template>

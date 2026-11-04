@@ -34,7 +34,7 @@ print(json.dumps({"mean": statistics.mean([2, 4, 6]), "isolated": sys.flags.isol
 print(any("site-packages" in path or "dist-packages" in path for path in sys.path))
 `,
     verify: (result) =>
-      result.status === '运行完成' &&
+      result.status === 'finished' &&
       result.output.includes('"mean": 4') &&
       result.output.includes('"isolated": 1') &&
       result.output.includes('"no_site": 1') &&
@@ -45,7 +45,7 @@ print(any("site-packages" in path or "dist-packages" in path for path in sys.pat
     name: 'python-utf8-input-eof',
     code: 'import sys\nfor line in sys.stdin:\n    print("echo:" + line.strip())\nprint("eof")\n',
     input: '中文输入\n',
-    verify: (result) => result.status === '运行完成' && result.output === 'echo:中文输入\neof\n',
+    verify: (result) => result.status === 'finished' && result.output === 'echo:中文输入\neof\n',
   },
   {
     name: 'python-interactive-eof',
@@ -54,44 +54,44 @@ print(any("site-packages" in path or "dist-packages" in path for path in sys.pat
     interactive: true,
     messages: [{ content: '第二行\n', eof: true }],
     verify: (result) =>
-      result.status === '运行完成' && result.output === 'echo:第一行\necho:第二行\neof\n',
+      result.status === 'finished' && result.output === 'echo:第一行\necho:第二行\neof\n',
   },
   {
     name: 'python-syntax-error',
     code: 'if True print("syntax")\n',
-    verify: (result) => result.status === '运行失败' && result.stderr.includes('SyntaxError'),
+    verify: (result) => result.status === 'runtime_error' && result.stderr.includes('SyntaxError'),
   },
   {
     name: 'python-runtime-traceback',
     code: 'raise ValueError("probe traceback")\n',
     verify: (result) =>
-      result.status === '运行失败' && result.stderr.includes('ValueError: probe traceback'),
+      result.status === 'runtime_error' && result.stderr.includes('ValueError: probe traceback'),
   },
   {
     name: 'python-stop',
     code: 'print("ready")\nwhile True:\n    pass\n',
     interactive: true,
     stopAfterOutput: 'ready',
-    verify: (result) => result.status === '已停止' && result.output.includes('ready'),
+    verify: (result) => result.status === 'stopped' && result.output.includes('ready'),
   },
   {
     name: 'python-cpu-limit',
     code: 'while True:\n    pass\n',
     limits: { runTimeMs: 100 },
-    verify: (result) => result.status === '超时',
+    verify: (result) => result.status === 'timeout',
   },
   {
     name: 'python-memory-limit',
     code: 'data = bytearray(128 * 1024 * 1024)\nprint(len(data))\n',
     limits: { runMemoryMb: 32 },
-    verify: (result) => result.status === '资源超限',
+    verify: (result) => result.status === 'resource_limited',
   },
   {
     name: 'python-output-limit',
     code: 'while True:\n    print("x" * 1024)\n',
     limits: { outputLimitKb: 8 },
     verify: (result) =>
-      result.status === '资源超限' &&
+      result.status === 'resource_limited' &&
       Buffer.byteLength(result.output) + Buffer.byteLength(result.stderr) <= 8 * 1024,
   },
   {
@@ -99,7 +99,7 @@ print(any("site-packages" in path or "dist-packages" in path for path in sys.pat
     language: 'cpp',
     code: '#include <iostream>\nint main() { int a,b; std::cin >> a >> b; std::cout << a+b << "\\n"; }\n',
     input: '4 12\n',
-    verify: (result) => result.status === '运行完成' && result.output === '16\n',
+    verify: (result) => result.status === 'finished' && result.output === '16\n',
   },
 ]
 
@@ -166,6 +166,6 @@ for (const probe of cases) {
     }),
   )
   // A missing/misconfigured node should not cause every probe to retry the same failure.
-  if (result?.status === '平台执行失败') break
+  if (result?.status === 'platform_error') break
 }
 if (failed) process.exitCode = 1

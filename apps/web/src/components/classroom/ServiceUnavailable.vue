@@ -2,7 +2,9 @@
 import { RefreshCw, Unplug } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import ThemeToggle from './ThemeToggle.vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 defineProps<{ busy: boolean }>()
 defineEmits<{ retry: [] }>()
 </script>
@@ -22,25 +24,25 @@ defineEmits<{ retry: [] }>()
         <div class="service-illustration" aria-hidden="true">
           <Unplug :size="48" :stroke-width="1.5" />
         </div>
-        <h1 id="service-title">暂时无法连接服务器</h1>
+        <h1 id="service-title">{{ t('shell.service.title') }}</h1>
         <p class="service-description">
-          服务器暂时不可用，或网络连接已中断。
+          {{ t('shell.service.description') }}
           <br />
-          请检查网络连接，或稍后再试。
+          {{ t('shell.service.hint') }}
         </p>
         <Button
           class="service-retry"
           :disabled="busy"
-          data-disabled-reason="正在重新连接服务，请稍候"
+          :data-disabled-reason="t('shell.service.reason')"
           @click="$emit('retry')">
           <RefreshCw :size="16" :class="{ 'animate-spin': busy }" />
-          <span>{{ busy ? '正在连接…' : '重新连接' }}</span>
+          <span>{{ busy ? t('shell.service.connecting') : t('shell.service.reconnect') }}</span>
         </Button>
-        <p class="service-note">重新连接不会清除本机草稿。</p>
+        <p class="service-note">{{ t('shell.service.note') }}</p>
       </section>
     </main>
 
-    <footer class="service-footer">Codemia · 编程课堂</footer>
+    <footer class="service-footer">Codemia · {{ t('shell.service.footer') }}</footer>
   </div>
 </template>
 

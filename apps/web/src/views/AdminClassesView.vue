@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
 import { refresh, reportError } from '@/data/demo'
 import { Alert } from '@/components/ui/alert'
@@ -15,6 +16,7 @@ interface Classroom {
   status: string
   ownerName: string
 }
+const { t } = useI18n()
 const route = useRoute()
 const classes = ref<Classroom[]>([])
 const selected = ref(typeof route.query.classroom === 'string' ? route.query.classroom : '')
@@ -28,7 +30,7 @@ async function load() {
     if (!classes.value.some((c) => c.id === selected.value))
       selected.value = classes.value[0]?.id ?? ''
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '课堂读取失败'
+    error.value = e instanceof Error ? e.message : t('admin.classes.loadFailed')
   } finally {
     loading.value = false
   }
@@ -42,16 +44,21 @@ onMounted(load)
 <template>
   <div class="page-heading">
     <div>
-      <div class="heading-meta">平台管理</div>
-      <h1>课堂人员</h1>
+      <div class="heading-meta">{{ t('admin.platformAdmin') }}</div>
+      <h1>{{ t('admin.classes.title') }}</h1>
     </div>
     <div class="admin-classroom-picker">
-      <Select v-model="selected" aria-label="选择要分配人员的课堂" :disabled="loading">
+      <Select v-model="selected" :aria-label="t('admin.classes.pickerAria')" :disabled="loading">
         <SelectOption v-for="item in classes" :key="item.id" :value="item.id">
           {{ item.name }} · {{ item.ownerName }}
         </SelectOption>
       </Select>
-      <Button variant="ghost" size="icon" aria-label="刷新课堂" :disabled="loading" @click="load">
+      <Button
+        variant="ghost"
+        size="icon"
+        :aria-label="t('admin.classes.refreshAria')"
+        :disabled="loading"
+        @click="load">
         <RefreshCw :class="{ 'animate-spin': loading }" />
       </Button>
     </div>
@@ -63,7 +70,7 @@ onMounted(load)
     account-creation-path="/admin/teachers"
     @changed="changed" />
   <ContentPanel v-else-if="!loading" as="section">
-    <p>{{ error ? '无法读取课堂，请重试。' : '暂无课堂。' }}</p>
+    <p>{{ error ? t('admin.classes.errorState') : t('admin.classes.empty') }}</p>
   </ContentPanel>
 </template>
 <style scoped>

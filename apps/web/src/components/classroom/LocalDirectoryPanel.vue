@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { PopoverRoot, PopoverTrigger, PopoverPortal, PopoverContent } from 'reka-ui'
 import { FolderOpen, FolderCheck, Unplug, Download, RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,9 @@ import Modal from './Modal.vue'
 import { download } from '@/data/demo'
 import { useLocalDirectory } from '@/composables/useLocalDirectory'
 import { spotlight, useGuideSurfaces } from '@/lib/spotlight'
+
+const { t } = useI18n()
+
 const popoverOpen = ref(false)
 useGuideSurfaces({
   'local-directory': () => {
@@ -43,11 +47,11 @@ defineExpose({ flush: local.flush })
         variant="outline"
         size="sm"
         :title="status"
-        aria-label="本地工作目录"
+        :aria-label="t('runner.localDir.panelAria')"
         data-guide="directory-trigger">
         <FolderCheck v-if="file && !needsPermission" />
         <FolderOpen v-else />
-        工作目录
+        {{ t('runner.localDir.button') }}
       </Button>
     </PopoverTrigger>
     <PopoverPortal :disabled="!compact">
@@ -59,21 +63,19 @@ defineExpose({ flush: local.flush })
         <section
           class="local-directory-panel"
           :class="{ linked: !!file && !needsPermission }"
-          aria-label="本地工作目录">
+          :aria-label="t('runner.localDir.panelAria')">
           <FolderCheck v-if="file && !needsPermission" :size="17" />
           <FolderOpen v-else :size="17" />
           <div class="local-directory-status">
-            <strong>{{ root ? root.name + ' / ' + filename : '本地工作目录' }}</strong>
+            <strong>
+              {{ root ? root.name + ' / ' + filename : t('runner.localDir.fallbackTitle') }}
+            </strong>
             <span role="status">
-              {{
-                local.supported
-                  ? status
-                  : '此浏览器不支持目录读写，可使用 Chrome / Edge；浏览器草稿与下载仍可用。'
-              }}
+              {{ local.supported ? status : t('runner.localDir.unsupported') }}
             </span>
           </div>
           <span v-if="file && !needsPermission" class="local-poll-hint">
-            自动写入 · 每 2 秒检查外部修改
+            {{ t('runner.localDir.pollHint') }}
           </span>
           <div class="inline-items ml-auto">
             <Button
@@ -83,7 +85,7 @@ defineExpose({ flush: local.flush })
               data-guide="directory-backup"
               @click="download('backup-' + filename, backup)">
               <Download :size="14" />
-              下载读取前草稿
+              {{ t('runner.localDir.downloadBackup') }}
             </Button>
             <Button
               v-if="local.supported && (!file || needsPermission)"
@@ -91,21 +93,27 @@ defineExpose({ flush: local.flush })
               size="sm"
               :disabled="readonly || busy"
               :data-disabled-reason="
-                readonly ? '当前练习只读，无法连接工作目录' : '正在读写本地文件，请稍候'
+                readonly ? t('runner.localDir.readonlyReason') : t('runner.localDir.busyReason')
               "
               data-guide="directory-connect"
               @click="local.connect">
               <RefreshCw v-if="needsPermission" />
               <FolderOpen v-else />
-              {{ needsPermission ? '重新授权' : root ? '关联当前文件' : '选择工作目录' }}
+              {{
+                needsPermission
+                  ? t('runner.localDir.reauthorize')
+                  : root
+                    ? t('runner.localDir.linkFile')
+                    : t('runner.localDir.chooseDir')
+              }}
             </Button>
             <Button
               v-if="root"
               variant="plain"
               class="icon-button"
               :disabled="busy"
-              data-disabled-reason="正在读写本地文件，请稍候"
-              aria-label="断开本地目录"
+              :data-disabled-reason="t('runner.localDir.busyReason')"
+              :aria-label="t('runner.localDir.disconnectAria')"
               @click="local.disconnect">
               <Unplug :size="15" />
             </Button>
@@ -116,8 +124,12 @@ defineExpose({ flush: local.flush })
   </PopoverRoot>
   <Modal
     :open="!!conflict"
-    :title="conflict?.reason === 'existing' ? '本地已有同名文件' : '磁盘与编辑器都有修改'"
-    description="自动写入已暂停。对照两个版本后，选择要保留的内容；不会自动合并或覆盖。"
+    :title="
+      conflict?.reason === 'existing'
+        ? t('runner.localDir.conflictExisting')
+        : t('runner.localDir.conflictModified')
+    "
+    :description="t('runner.localDir.conflictDescription')"
     wide
     @update:open="!$event && local.cancelConflict()">
     <template v-if="conflict">
@@ -127,43 +139,46 @@ defineExpose({ flush: local.flush })
       </div>
       <div class="file-conflict-comparison">
         <div>
-          <h3>编辑器草稿</h3>
-          <CodeBlock :source="code" language="cpp" label="代码" />
+          <h3>{{ t('runner.localDir.editorDraft') }}</h3>
+          <CodeBlock :source="code" language="cpp" :label="t('runner.localDir.codeLabel')" />
         </div>
         <div>
-          <h3>磁盘文件</h3>
-          <CodeBlock :source="conflict.disk" language="cpp" label="代码" />
+          <h3>{{ t('runner.localDir.diskFile') }}</h3>
+          <CodeBlock
+            :source="conflict.disk"
+            language="cpp"
+            :label="t('runner.localDir.codeLabel')" />
         </div>
       </div>
-      <p class="form-hint">预览最多显示各版本前 6000 个字符；选择版本会处理完整文件。</p>
+      <p class="form-hint">{{ t('runner.localDir.previewHint') }}</p>
       <div class="modal-actions file-conflict-actions">
         <Button
           variant="ghost"
           :disabled="busy"
-          data-disabled-reason="正在读写本地文件，请稍候"
+          :data-disabled-reason="t('runner.localDir.busyReason')"
           data-guide="disk-backup"
           @click="download('backup-' + filename, code)">
           <Download />
-          备份编辑器草稿
+          {{ t('runner.localDir.backupDraft') }}
         </Button>
         <Button
           variant="outline"
           :disabled="busy || readonly"
           :data-disabled-reason="
-            busy ? '正在读写本地文件，请稍候' : '当前练习只读，无法修改文件或草稿'
+            busy ? t('runner.localDir.busyReason') : t('runner.localDir.readonlyEditReason')
           "
           data-guide="disk-use-editor"
           @click="local.useEditor">
-          用草稿覆盖磁盘
+          {{ t('runner.localDir.useEditor') }}
         </Button>
         <Button
           :disabled="busy || readonly"
           :data-disabled-reason="
-            busy ? '正在读写本地文件，请稍候' : '当前练习只读，无法修改文件或草稿'
+            busy ? t('runner.localDir.busyReason') : t('runner.localDir.readonlyEditReason')
           "
           data-guide="disk-use-disk"
           @click="local.useDisk">
-          读取磁盘文件
+          {{ t('runner.localDir.useDisk') }}
         </Button>
       </div>
     </template>

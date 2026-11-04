@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ArrowUpRight, ChartNoAxesCombined, Server } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { api } from '@/lib/api'
+import { i18n } from '@/i18n'
+
+const { t } = useI18n()
+const timeLocale = () => (i18n.global.locale.value === 'en' ? 'en-US' : 'zh-CN')
 
 interface UsagePoint {
   at: string
@@ -46,7 +51,7 @@ const cards = computed(() =>
 )
 function hour(value?: string) {
   return value
-    ? new Date(value).toLocaleTimeString('zh-CN', {
+    ? new Date(value).toLocaleTimeString(timeLocale(), {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
@@ -61,9 +66,9 @@ async function refresh() {
     if (disposed) return
     nodes.value = result
     error.value = ''
-    updatedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+    updatedAt.value = new Date().toLocaleTimeString(timeLocale(), { hour12: false })
   } catch (e) {
-    if (!disposed) error.value = e instanceof Error ? e.message : '无法读取节点调用数据'
+    if (!disposed) error.value = e instanceof Error ? e.message : t('runner.usage.loadFailed')
   } finally {
     refreshing = false
     if (!disposed) loading.value = false
@@ -85,14 +90,16 @@ onBeforeUnmount(() => {
   <section class="runner-usage" aria-labelledby="runner-usage-title">
     <div class="usage-heading">
       <div>
-        <h2 id="runner-usage-title">节点调用</h2>
-        <p>每小时调用趋势与当前并发占用</p>
+        <h2 id="runner-usage-title">{{ t('runner.usage.title') }}</h2>
+        <p>{{ t('runner.usage.subtitle') }}</p>
       </div>
       <div class="usage-heading-actions">
-        <span v-if="updatedAt" class="updated-at">更新于 {{ updatedAt }} · 每 15 秒刷新</span>
+        <span v-if="updatedAt" class="updated-at">
+          {{ t('runner.usage.updated', { time: updatedAt }) }}
+        </span>
         <Button as-child variant="outline" size="sm">
           <RouterLink to="/admin/settings">
-            管理节点
+            {{ t('runner.usage.manageNodes') }}
             <ArrowUpRight :size="14" />
           </RouterLink>
         </Button>
@@ -101,16 +108,18 @@ onBeforeUnmount(() => {
     <Alert v-if="error" type="error" role="alert">
       <span>{{ error }}</span>
       <template #actions>
-        <Button variant="outline" size="sm" @click="refresh">重试</Button>
+        <Button variant="outline" size="sm" @click="refresh">{{ t('common.retry') }}</Button>
       </template>
     </Alert>
-    <div v-if="loading" class="usage-empty" role="status">正在读取节点调用数据…</div>
+    <div v-if="loading" class="usage-empty" role="status">
+      {{ t('runner.usage.loading') }}
+    </div>
     <div v-else-if="!nodes.length && !error" class="usage-empty">
       <Server :size="25" />
-      <strong>尚未添加执行节点</strong>
-      <p>在平台配置中添加节点后，可在这里查看调用趋势。</p>
+      <strong>{{ t('runner.usage.noNodes') }}</strong>
+      <p>{{ t('runner.usage.noNodesHint') }}</p>
       <Button as-child variant="outline" size="sm">
-        <RouterLink to="/admin/settings">添加节点</RouterLink>
+        <RouterLink to="/admin/settings">{{ t('runner.usage.addNode') }}</RouterLink>
       </Button>
     </div>
     <div v-else class="usage-grid">
@@ -124,13 +133,13 @@ onBeforeUnmount(() => {
           <h3>{{ node.name }}</h3>
           <span class="node-enabled" :class="{ disabled: !node.enabled }">
             <i />
-            {{ node.enabled ? '已启用' : '已停用' }}
+            {{ node.enabled ? t('common.enabled') : t('common.disabled') }}
           </span>
         </div>
         <div class="usage-numbers">
           <div>
             <strong class="call-total">{{ node.totalCalls.toLocaleString() }}</strong>
-            <span class="metric-label">近 24 小时调用</span>
+            <span class="metric-label">{{ t('runner.usage.calls24h') }}</span>
           </div>
           <div class="occupancy">
             <strong>
@@ -138,19 +147,24 @@ onBeforeUnmount(() => {
               <small>%</small>
             </strong>
             <span class="metric-label">
-              当前槽位占用 · {{ node.activeCount }} / {{ node.capacity }}
+              {{
+                t('runner.usage.occupancy', {
+                  active: node.activeCount,
+                  capacity: node.capacity,
+                })
+              }}
             </span>
           </div>
         </div>
         <div class="usage-chart-meta">
-          <span>调用次数 / 小时</span>
-          <span>峰值 {{ node.peak }} 次</span>
+          <span>{{ t('runner.usage.callsPerHour') }}</span>
+          <span>{{ t('runner.usage.peakCalls', { count: node.peak }) }}</span>
         </div>
         <svg
           class="usage-chart"
           viewBox="0 0 600 128"
           role="img"
-          :aria-label="`${node.name} 近 24 小时调用趋势，共 ${node.totalCalls} 次`"
+          :aria-label="t('runner.usage.chartAria', { name: node.name, total: node.totalCalls })"
           preserveAspectRatio="none">
           <defs>
             <linearGradient :id="`usage-fill-${node.id}`" x1="0" y1="0" x2="0" y2="1">
@@ -168,18 +182,22 @@ onBeforeUnmount(() => {
             :cy="point.y"
             r="5"
             class="chart-point">
-            <title>{{ hour(point.at) }} · {{ point.calls }} 次调用</title>
+            <title>
+              {{ hour(point.at) }} · {{ t('runner.usage.pointCalls', { count: point.calls }) }}
+            </title>
           </circle>
         </svg>
         <div class="chart-times">
           <span>{{ hour(node.points[0]?.at) }}</span>
-          <span>{{ node.totalCalls ? '按小时统计' : '暂无调用记录' }}</span>
+          <span>
+            {{ node.totalCalls ? t('runner.usage.hourlyStats') : t('runner.usage.noCalls') }}
+          </span>
           <span>{{ hour(node.points.at(-1)?.at) }}</span>
         </div>
       </article>
     </div>
     <p v-if="nodes.length" class="usage-note">
-      调用量按任务创建时间统计，包含当前小时；未绑定节点的历史任务不计入。槽位占用为当前值。
+      {{ t('runner.usage.note') }}
     </p>
   </section>
 </template>
@@ -221,7 +239,6 @@ onBeforeUnmount(() => {
 }
 .usage-card {
   --usage-color: #079ea6;
-  background: var(--ui-surface);
   border: 1px solid var(--ui-line);
   border-radius: 16px;
   overflow: hidden;

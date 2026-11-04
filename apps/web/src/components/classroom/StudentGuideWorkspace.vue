@@ -2,6 +2,7 @@
 import CodeBlock from '@/components/classroom/CodeBlock.vue'
 import { Alert } from '@/components/ui/alert'
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   ArrowLeft,
   BookOpen,
@@ -39,6 +40,7 @@ import {
 } from '@/lib/student-guide-demo'
 
 const props = defineProps<{ scene: StudentGuideScene }>()
+const { t } = useI18n()
 const session = reactive(createStudentGuideSession())
 const line = ref('4')
 const exercise = computed(
@@ -62,10 +64,10 @@ const result = computed(() => {
 })
 const resultStatus = computed(() =>
   errorShown.value
-    ? '编译失败'
+    ? t('guide.workspace.statusFailed')
     : props.scene === 'interactive' && !session.interactiveClosed
-      ? '运行中／可输入'
-      : '运行完成',
+      ? t('guide.workspace.statusRunning')
+      : t('guide.workspace.statusDone'),
 )
 function selectExercise(id: string) {
   session.exerciseId = id
@@ -74,7 +76,7 @@ function selectExercise(id: string) {
 }
 function stopMockRunning() {
   session.interactiveClosed = true
-  session.interactiveOutput += '程序已停止。\n'
+  session.interactiveOutput += `${t('guide.workspace.programStopped')}\n`
 }
 function sendLine() {
   if (sendMockLine(session, line.value)) line.value = ''
@@ -107,25 +109,32 @@ watch(
 )
 </script>
 <template>
-  <div class="mock-workspace" data-student-guide="overview" aria-label="学生工作区模拟演示">
-    <Alert type="info" class="app-alert--banner" :icon="BookOpen" title="模拟导览 · 示例课堂">
-      所有代码、文件和结果均为模拟，可放心尝试
+  <div
+    class="mock-workspace"
+    data-student-guide="overview"
+    :aria-label="t('guide.workspace.ariaLabel')">
+    <Alert
+      type="info"
+      class="app-alert--banner"
+      :icon="BookOpen"
+      :title="t('guide.workspace.bannerTitle')">
+      {{ t('guide.workspace.bannerBody') }}
     </Alert>
     <header class="mock-toolbar">
       <ArrowLeft :size="18" class="muted" />
       <div class="mock-exercise" data-student-guide="exercises">
-        <span class="mock-class-name">C++ 入门 · 示例课堂</span>
+        <span class="mock-class-name">{{ t('guide.workspace.className') }}</span>
         <Button
           variant="plain"
           class="mock-exercise-trigger"
-          aria-label="切换示例题目"
+          :aria-label="t('guide.workspace.switchExercise')"
           :aria-expanded="scene === 'exercises'">
           <BookOpen :size="16" />
           {{ exercise.title }}
           <ChevronDown :size="14" />
         </Button>
         <div v-if="scene === 'exercises'" class="mock-exercise-options" data-spotlight-extent>
-          <span>选择课堂练习</span>
+          <span>{{ t('guide.workspace.selectExercise') }}</span>
           <Button
             v-for="item in guideExercises"
             :key="item.id"
@@ -142,25 +151,25 @@ watch(
       </div>
       <span class="mock-saved">
         <CloudCheck :size="15" />
-        已同步到服务器
+        {{ t('guide.workspace.saved') }}
       </span>
       <Button variant="outline" size="sm">
         <FolderOpen />
-        工作目录
+        {{ t('guide.workspace.workdir') }}
       </Button>
       <div class="mock-actions" data-student-guide="actions">
         <Button variant="outline" size="sm" @click="session.helped = true">
           <Hand />
-          {{ session.helped ? '模拟求助已发送' : '求助' }}
+          {{ session.helped ? t('guide.workspace.helpSent') : t('guide.workspace.help') }}
         </Button>
         <Button variant="outline" size="sm" @click="session.submitted = true">
           <Send />
-          {{ session.submitted ? '模拟作品已提交' : '提交作品' }}
+          {{ session.submitted ? t('guide.workspace.submitted') : t('guide.workspace.submit') }}
         </Button>
       </div>
       <Button size="sm" @click="runMockBatch(session)">
         <Play />
-        编译运行
+        {{ t('guide.workspace.run') }}
       </Button>
     </header>
     <div class="mock-layout">
@@ -168,16 +177,20 @@ watch(
         <div class="mock-tabs">
           <span :class="{ active: scene !== 'history' }">
             <BookOpen :size="14" />
-            题目说明
+            {{ t('guide.workspace.tabProblem') }}
           </span>
           <span :class="{ active: scene === 'history' }">
             <History :size="14" />
-            运行历史
+            {{ t('guide.workspace.tabHistory') }}
           </span>
         </div>
         <div v-if="scene !== 'history'" class="mock-problem-copy">
           <span class="mock-eyebrow">
-            ① 题目区 · 练习 {{ session.exerciseId === 'sum' ? '1' : '2' }}
+            {{
+              t('guide.workspace.problemArea', {
+                index: session.exerciseId === 'sum' ? '1' : '2',
+              })
+            }}
           </span>
           <h1>{{ exercise.title }}</h1>
           <div class="mock-limits">
@@ -186,43 +199,53 @@ watch(
           </div>
           <p>
             {{
-              scene === 'interactive'
-                ? '逐行读取整数并输出累计值；读到输入结尾后输出总和。'
-                : exercise.description
+              scene === 'interactive' ? t('guide.workspace.interactiveDesc') : exercise.description
             }}
           </p>
-          <h3>输入说明</h3>
+          <h3>{{ t('guide.workspace.inputTitle') }}</h3>
           <p>
             {{
               session.exerciseId === 'sum'
-                ? '两个整数 a 和 b，以空格或换行分隔。'
-                : '一个名字，例如 Ada。'
+                ? t('guide.workspace.inputHintSum')
+                : t('guide.workspace.inputHintName')
             }}
           </p>
-          <h3>输出说明</h3>
-          <p>{{ session.exerciseId === 'sum' ? '输出 a + b 的结果。' : '输出 Hello, 名字!。' }}</p>
-          <h3>样例</h3>
+          <h3>{{ t('guide.workspace.outputTitle') }}</h3>
+          <p>
+            {{
+              session.exerciseId === 'sum'
+                ? t('guide.workspace.outputHintSum')
+                : t('guide.workspace.outputHintName')
+            }}
+          </p>
+          <h3>{{ t('guide.workspace.sample') }}</h3>
           <div class="mock-sample">
-            <CodeBlock :source="exercise.input" language="text" label="样例输入" />
+            <CodeBlock
+              :source="exercise.input"
+              language="text"
+              :label="t('guide.workspace.sampleInput')" />
           </div>
           <div class="mock-sample">
-            <CodeBlock :source="exercise.output" language="text" label="样例输出" />
+            <CodeBlock
+              :source="exercise.output"
+              language="text"
+              :label="t('guide.workspace.sampleOutput')" />
           </div>
-          <Alert type="info">教师可查看本课堂的代码与运行记录，为你提供辅导。</Alert>
+          <Alert type="info">{{ t('guide.workspace.teacherVisible') }}</Alert>
         </div>
         <div v-else class="mock-history" data-student-guide="history">
-          <span class="mock-eyebrow">本题运行快照 · 示例</span>
+          <span class="mock-eyebrow">{{ t('guide.workspace.historyTitle') }}</span>
           <article class="selected">
-            <span class="status positive">运行完成</span>
-            <strong>补上分号后的版本</strong>
-            <small>示例记录 B · stdout: 5</small>
+            <span class="status positive">{{ t('guide.workspace.statusDone') }}</span>
+            <strong>{{ t('guide.workspace.snapshotBTitle') }}</strong>
+            <small>{{ t('guide.workspace.snapshotBMeta') }}</small>
           </article>
           <article>
-            <span class="status red">编译失败</span>
-            <strong>第 5 行缺少分号</strong>
-            <small>示例记录 A · 保留原始编译诊断</small>
+            <span class="status red">{{ t('guide.workspace.statusFailed') }}</span>
+            <strong>{{ t('guide.workspace.snapshotATitle') }}</strong>
+            <small>{{ t('guide.workspace.snapshotAMeta') }}</small>
           </article>
-          <p>每条快照保留当次代码、输入与结果，和当前草稿分别保存。</p>
+          <p>{{ t('guide.workspace.historyNote') }}</p>
         </div>
       </aside>
       <div class="mock-main" data-student-guide="diagnostics">
@@ -239,7 +262,7 @@ watch(
               GCC 13.3 / C++17
             </span>
           </div>
-          <span class="mock-area-label">② 代码区</span>
+          <span class="mock-area-label">{{ t('guide.workspace.areaCode') }}</span>
           <div class="mock-code">
             <div
               v-for="(text, index) in code.split('\n')"
@@ -248,44 +271,51 @@ watch(
               :class="{ 'mock-error-line': errorShown && index === 4 }">
               <span class="mock-line-number">{{ index + 1 }}</span>
               <code>{{ text || ' ' }}</code>
-              <span v-if="errorShown && index === 4" class="mock-code-error">缺少分号 ;</span>
+              <span v-if="errorShown && index === 4" class="mock-code-error">
+                {{ t('guide.workspace.missingSemicolon') }}
+              </span>
             </div>
           </div>
           <div class="mock-editor-footnote">
-            {{ errorShown ? '示例诊断：第 5 行语句未结束' : 'clangd · 可选的浏览器补全与诊断' }}
-            <span>草稿自动保存</span>
+            {{
+              errorShown ? t('guide.workspace.footnoteDiag') : t('guide.workspace.footnoteNormal')
+            }}
+            <span>{{ t('guide.workspace.autosave') }}</span>
           </div>
         </section>
         <div class="mock-io" data-student-guide="io">
           <section class="mock-input">
             <div class="mock-section-heading">
               <span>
-                ③ 输入
+                {{ t('guide.workspace.areaInput') }}
                 <small>stdin</small>
               </span>
               <Button
                 variant="plain"
                 class="mock-text-button"
                 @click="session.batchInput = exercise.input">
-                填入样例
+                {{ t('guide.workspace.fillSample') }}
               </Button>
             </div>
             <Textarea
               v-if="scene !== 'interactive'"
               v-model="session.batchInput"
-              aria-label="模拟标准输入"
+              :aria-label="t('guide.workspace.mockStdin')"
               spellcheck="false" />
             <div v-else class="mock-input-transcript">
-              <span>已发送的输入</span>
-              <CodeBlock :source="session.interactiveInput" language="text" label="已发送输入" />
-              <small>发送会在每一行末尾加上换行符。</small>
+              <span>{{ t('guide.workspace.sentInput') }}</span>
+              <CodeBlock
+                :source="session.interactiveInput"
+                language="text"
+                :label="t('guide.workspace.sentInputLabel')" />
+              <small>{{ t('guide.workspace.newlineNote') }}</small>
             </div>
             <label class="mock-interactive-label">
               <Checkbox
                 :model-value="scene === 'interactive'"
-                data-disabled-reason="此开关由当前模拟场景决定，请切换导览场景"
+                :data-disabled-reason="t('guide.workspace.runtimeReason')"
                 disabled />
-              运行时输入
+              {{ t('guide.workspace.runtimeInput') }}
             </label>
             <Button
               v-if="scene === 'batch'"
@@ -293,7 +323,7 @@ watch(
               size="sm"
               @click="runMockBatch(session)">
               <Play />
-              模拟运行
+              {{ t('guide.workspace.mockRun') }}
             </Button>
             <Alert v-if="session.batchError && scene === 'batch'" role="alert" type="error">
               {{ session.batchError }}
@@ -303,9 +333,11 @@ watch(
             <div class="mock-section-heading">
               <span>
                 <component :is="errorShown ? CircleAlert : Terminal" :size="14" />
-                {{ errorShown ? '编译诊断' : '④ 运行输出' }}
+                {{
+                  errorShown ? t('guide.workspace.compileDiag') : t('guide.workspace.areaOutput')
+                }}
               </span>
-              <span v-if="errorShown" class="status red">失败</span>
+              <span v-if="errorShown" class="status red">{{ t('guide.workspace.failed') }}</span>
               <small v-else>stdout</small>
             </div>
             <div class="mock-output-content">
@@ -316,19 +348,21 @@ watch(
                 :class="{ 'mock-diagnostic-log': errorShown }"
                 :source="result"
                 language="text"
-                label="运行输出" />
+                :label="t('guide.workspace.outputLabel')" />
               <Alert
                 v-if="scene === 'diagnostics'"
                 :type="session.errorFixed ? 'success' : 'warning'"
-                :title="session.errorFixed ? '修正后编译成功' : '修正提示'">
-                {{
+                :title="
                   session.errorFixed
-                    ? '模拟程序已执行，输出 5。原来的失败快照会保留在历史中。'
-                    : 'sum.cpp:5:36 表示文件名、第 5 行、第 36 列。该行末尾缺少 ;，编译器因此无法继续解析下一行。'
+                    ? t('guide.workspace.fixedTitle')
+                    : t('guide.workspace.fixTitle')
+                ">
+                {{
+                  session.errorFixed ? t('guide.workspace.fixedBody') : t('guide.workspace.fixBody')
                 }}
                 <template v-if="!session.errorFixed" #actions>
                   <Button size="sm" @click="session.errorFixed = true">
-                    补上分号并重新编译（模拟）
+                    {{ t('guide.workspace.fixButton') }}
                   </Button>
                 </template>
               </Alert>
@@ -336,23 +370,23 @@ watch(
             <Form v-if="scene === 'interactive'" class="mock-runtime" @submit.prevent="sendLine">
               <Input
                 v-model="line"
-                aria-label="模拟运行时输入"
-                placeholder="输入一个整数…"
+                :aria-label="t('guide.workspace.mockRuntimeInput')"
+                :placeholder="t('guide.workspace.inputPlaceholder')"
                 :disabled="session.interactiveClosed"
-                data-disabled-reason="本次模拟运行已结束，请重新运行后操作" />
+                :data-disabled-reason="t('guide.workspace.runEndedReason')" />
               <Button
                 type="submit"
                 size="sm"
                 :disabled="session.interactiveClosed"
-                data-disabled-reason="本次模拟运行已结束，请重新运行后操作">
-                发送
+                :data-disabled-reason="t('guide.workspace.runEndedReason')">
+                {{ t('guide.workspace.send') }}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 :disabled="session.interactiveClosed"
-                data-disabled-reason="本次模拟运行已结束，请重新运行后操作"
+                :data-disabled-reason="t('guide.workspace.runEndedReason')"
                 @click="closeMockInput(session)">
                 EOF
               </Button>
@@ -361,17 +395,17 @@ watch(
                 variant="outline"
                 size="sm"
                 :disabled="session.interactiveClosed"
-                data-disabled-reason="本次模拟运行已结束，请重新运行后操作"
+                :data-disabled-reason="t('guide.workspace.runEndedReason')"
                 @click="stopMockRunning">
                 <Square :size="12" />
-                停止
+                {{ t('guide.workspace.stop') }}
               </Button>
             </Form>
             <Alert v-if="scene === 'interactive' && session.inputError" role="alert" type="error">
               {{ session.inputError }}
             </Alert>
             <Alert v-if="scene === 'interactive' && session.interactiveClosed" type="info">
-              stdin 已关闭 · 本次模拟已结束
+              {{ t('guide.workspace.stdinClosed') }}
             </Alert>
           </section>
         </div>
@@ -384,49 +418,53 @@ watch(
       <div class="mock-panel-heading">
         <FolderOpen :size="20" />
         <div>
-          <h2>本地工作目录</h2>
-          <p>把网页草稿与自己电脑上的源文件关联起来</p>
+          <h2>{{ t('guide.workspace.dirTitle') }}</h2>
+          <p>{{ t('guide.workspace.dirSubtitle') }}</p>
         </div>
       </div>
       <div class="mock-directory-path">
-        <span>C++练习 / {{ exercise.filename }}</span>
+        <span>{{ t('guide.workspace.dirPath', { file: exercise.filename }) }}</span>
         <Button
           size="sm"
           :variant="session.directoryConnected ? 'outline' : 'default'"
           @click="session.directoryConnected = !session.directoryConnected">
-          {{ session.directoryConnected ? '断开模拟目录' : '模拟选择工作目录' }}
+          {{
+            session.directoryConnected
+              ? t('guide.workspace.disconnect')
+              : t('guide.workspace.connect')
+          }}
         </Button>
       </div>
       <Alert role="status" type="info">
         {{
           session.directoryConnected
-            ? `已授权 · 已关联 ${exercise.filename} · 已同步到模拟磁盘`
-            : '尚未关联 · 点击按钮演示授权与文件关联'
+            ? t('guide.workspace.dirConnected', { file: exercise.filename })
+            : t('guide.workspace.dirNotConnected')
         }}
       </Alert>
       <div class="mock-sync-flow">
-        <span>网页编辑器</span>
+        <span>{{ t('guide.workspace.webEditor') }}</span>
         <strong>↔</strong>
         <span>{{ exercise.filename }}</span>
         <strong>↔</strong>
-        <span>授权的目录</span>
+        <span>{{ t('guide.workspace.authorizedDir') }}</span>
       </div>
       <dl>
         <div>
-          <dt>从网页修改</dt>
-          <dd>编辑后自动写入关联文件，服务器草稿独立保存。</dd>
+          <dt>{{ t('guide.workspace.fromWeb') }}</dt>
+          <dd>{{ t('guide.workspace.fromWebDesc') }}</dd>
         </div>
         <div>
-          <dt>从其他编辑器修改</dt>
-          <dd>每 2 秒检查磁盘；网页没有未保存改动时读取外部版本。</dd>
+          <dt>{{ t('guide.workspace.fromOthers') }}</dt>
+          <dd>{{ t('guide.workspace.fromOthersDesc') }}</dd>
         </div>
         <div>
-          <dt>换题或重新打开</dt>
-          <dd>按当前题目文件名重新关联；权限失效时需重新授权。</dd>
+          <dt>{{ t('guide.workspace.reopen') }}</dt>
+          <dd>{{ t('guide.workspace.reopenDesc') }}</dd>
         </div>
       </dl>
       <Alert type="info">
-        实际目录读写需要支持此能力的浏览器（如 Chrome / Edge）；本演示不请求任何磁盘权限。
+        {{ t('guide.workspace.dirBrowserNote') }}
       </Alert>
     </section>
     <section
@@ -436,42 +474,48 @@ watch(
       <div class="mock-panel-heading">
         <CircleAlert :size="20" />
         <div>
-          <h2>磁盘与编辑器都有修改</h2>
-          <p>自动写入已暂停 · {{ exercise.filename }} · 模拟冲突</p>
+          <h2>{{ t('guide.workspace.conflictTitle') }}</h2>
+          <p>{{ t('guide.workspace.conflictSubtitle', { file: exercise.filename }) }}</p>
         </div>
       </div>
       <div class="mock-versions">
         <div>
-          <h3>编辑器草稿</h3>
-          <CodeBlock :source="session.editorCode" language="cpp" label="代码" />
+          <h3>{{ t('guide.workspace.editorDraft') }}</h3>
+          <CodeBlock
+            :source="session.editorCode"
+            language="cpp"
+            :label="t('guide.workspace.codeLabel')" />
         </div>
         <div>
-          <h3>磁盘文件</h3>
-          <CodeBlock :source="session.diskCode" language="cpp" label="代码" />
+          <h3>{{ t('guide.workspace.diskFile') }}</h3>
+          <CodeBlock
+            :source="session.diskCode"
+            language="cpp"
+            :label="t('guide.workspace.codeLabel')" />
         </div>
       </div>
       <div class="mock-conflict-actions">
         <Button variant="outline" size="sm" @click="session.backup = session.editorCode">
-          保留模拟草稿备份
+          {{ t('guide.workspace.keepBackup') }}
         </Button>
         <Button variant="outline" size="sm" @click="resolveMockFileConflict(session, 'editor')">
-          用草稿覆盖模拟磁盘
+          {{ t('guide.workspace.overwriteDisk') }}
         </Button>
         <Button size="sm" @click="resolveMockFileConflict(session, 'disk')">
-          读取模拟磁盘文件
+          {{ t('guide.workspace.readDisk') }}
         </Button>
       </div>
       <Alert role="status" type="info">
         {{
           session.conflictResolved ||
-          (session.backup ? '模拟草稿备份已保留。' : '没有版本会被自动覆盖，请对照后选择。')
+          (session.backup ? t('guide.workspace.backupKept') : t('guide.workspace.noAutoOverwrite'))
         }}
       </Alert>
     </section>
     <footer class="mock-statusbar">
       <span>
         <i />
-        已同步 · 模拟草稿
+        {{ t('guide.workspace.statusSynced') }}
       </span>
       <span>UTF-8 · GCC 13.3 / C++17</span>
     </footer>

@@ -1,4 +1,6 @@
 /** Excel-compatible UTF-8 CSV, including protection against spreadsheet formulas. */
+import { t } from '../i18n'
+
 export function csvDocument(rows: (string | number)[][]) {
   return (
     '\uFEFF' +
@@ -36,7 +38,7 @@ export function rosterContent(rows: readonly RosterRow[]) {
 
 export function parseRoster(content: string): RosterRow[] {
   const text = content.replace(/^\uFEFF/, '')
-  if (!text.trim()) throw new Error('请填写或选择学生名单')
+  if (!text.trim()) throw new Error(t('lib.csv.emptyRoster'))
   let delimiter = ',',
     inQuotes = false
   for (const char of text.replace(/^(?:[ \t]*(?:\r\n|\r|\n))+/, '')) {
@@ -59,7 +61,7 @@ export function parseRoster(content: string): RosterRow[] {
         field += '"'
         i++
       } else if (quoted || !field.trim()) quoted = !quoted
-      else throw new Error('CSV 引号格式不正确，请使用名单模板')
+      else throw new Error(t('lib.csv.quoteFormat'))
     } else if (!quoted && char === delimiter) {
       row.push(field)
       field = ''
@@ -71,7 +73,7 @@ export function parseRoster(content: string): RosterRow[] {
       field = ''
     } else field += char
   }
-  if (quoted) throw new Error('CSV 存在未闭合的引号')
+  if (quoted) throw new Error(t('lib.csv.unclosedQuote'))
   row.push(field)
   if (row.some((cell) => cell.trim())) rows.push(row)
   let accountColumns: ('username' | 'password')[] = ['username', 'password']
@@ -83,25 +85,25 @@ export function parseRoster(content: string): RosterRow[] {
     accountColumns = headers.slice(2).map((header) => {
       if (/^(用户名|登录账号|账号|username)$/i.test(header.trim())) return 'username'
       if (/^(密码|初始密码|password)$/i.test(header.trim())) return 'password'
-      throw new Error('名单表头仅支持姓名、学号及可选的用户名、密码列')
+      throw new Error(t('lib.csv.headerUnsupported'))
     })
     if (new Set(accountColumns).size !== accountColumns.length)
-      throw new Error('名单表头的用户名、密码列不能重复')
+      throw new Error(t('lib.csv.headerDuplicate'))
   }
-  if (!rows.length) throw new Error('名单中没有学生')
-  if (rows.length > 50) throw new Error('每批最多导入 50 人，请分批导入')
+  if (!rows.length) throw new Error(t('lib.csv.noStudents'))
+  if (rows.length > 50) throw new Error(t('lib.csv.tooMany'))
   const numbers = new Set<string>()
   const usernames = new Set<string>()
   return rows.map((cells, i) => {
     if (cells.length < 2 || !cells[0]?.trim() || !cells[1]?.trim())
-      throw new Error(`第 ${i + 1} 行需要完整的姓名、学号`)
+      throw new Error(t('lib.csv.rowIncomplete', { row: i + 1 }))
     if (cells.length > 2 + accountColumns.length)
-      throw new Error(`第 ${i + 1} 行列数不匹配，仅支持姓名、学号及可选的用户名、密码列`)
+      throw new Error(t('lib.csv.columnMismatch', { row: i + 1 }))
     const name = cells[0].trim(),
       number = cells[1].trim()
     if (name.length > 50 || number.length > 50)
-      throw new Error(`第 ${i + 1} 行姓名或学号超过 50 字`)
-    if (numbers.has(number)) throw new Error(`名单中学号 ${number} 重复，请先核对`)
+      throw new Error(t('lib.csv.rowTooLong', { row: i + 1 }))
+    if (numbers.has(number)) throw new Error(t('lib.csv.numberDuplicate', { number }))
     numbers.add(number)
     const result: RosterRow = { name, number }
     for (const [index, key] of accountColumns.entries()) {
@@ -111,10 +113,12 @@ export function parseRoster(content: string): RosterRow[] {
       if (!normalized) continue
       if (key === 'username') {
         if (normalized.length > 80 || !/^[a-zA-Z0-9._@-]+$/.test(normalized))
-          throw new Error(`第 ${i + 1} 行用户名仅限 80 字以内的字母、数字和 . _ @ -`)
-        if (usernames.has(normalized)) throw new Error(`名单中用户名 ${normalized} 重复，请先核对`)
+          throw new Error(t('lib.csv.usernameInvalid', { row: i + 1 }))
+        if (usernames.has(normalized))
+          throw new Error(t('lib.csv.usernameDuplicate', { username: normalized }))
         usernames.add(normalized)
-      } else if (normalized.length > 200) throw new Error(`第 ${i + 1} 行密码超过 200 字`)
+      } else if (normalized.length > 200)
+        throw new Error(t('lib.csv.passwordTooLong', { row: i + 1 }))
       result[key] = normalized
     }
     return result

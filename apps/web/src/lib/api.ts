@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { t } from '../i18n'
 export const connectionState = ref<'connected' | 'disconnected' | 'expired'>('connected')
 
 export class ApiError extends Error {
@@ -25,8 +26,8 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
     throw new ApiError(
       0,
       error instanceof Error && error.name === 'TimeoutError'
-        ? '请求超时，请确认操作是否已完成后重试。当前输入请先保留。'
-        : '无法连接服务器，请检查网络后重试。当前输入请先保留。',
+        ? t('lib.api.timeout')
+        : t('lib.api.disconnected'),
     )
   }
   const data: unknown = await response.json().catch((error: unknown) => {
@@ -35,8 +36,8 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
     throw new ApiError(
       0,
       error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name)
-        ? '请求超时，请确认操作是否已完成后重试。当前输入请先保留。'
-        : '服务器返回了无效响应，请稍后重试。当前输入请先保留。',
+        ? t('lib.api.timeout')
+        : t('lib.api.invalidResponse'),
     )
   })
   if (!response.ok) {
@@ -51,7 +52,7 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
         ? message.join('；')
         : typeof message === 'string'
           ? message
-          : '请求失败',
+          : t('lib.api.requestFailed'),
     )
   }
   connectionState.value = 'connected'

@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 export interface ClassroomPolicy {
   access: string
   capacity: number
@@ -9,11 +11,11 @@ export interface ClassroomPolicy {
 
 export function classroomPolicyChanges(previous: ClassroomPolicy, next: ClassroomPolicy): string[] {
   const changes: string[] = []
-  if (previous.access !== next.access) changes.push('入班方式')
-  if (previous.capacity !== next.capacity) changes.push('人数上限')
-  if (previous.allowJoin !== next.allowJoin) changes.push('新成员加入')
-  if (previous.allowRun !== next.allowRun) changes.push('编译运行权限')
-  if (previous.allowResubmit !== next.allowResubmit) changes.push('重复提交权限')
-  if (previous.readonly !== next.readonly) changes.push('归档后的访问权限')
+  if (previous.access !== next.access) changes.push(t('lib.sensitive.access'))
+  if (previous.capacity !== next.capacity) changes.push(t('lib.sensitive.capacity'))
+  if (previous.allowJoin !== next.allowJoin) changes.push(t('lib.sensitive.join'))
+  if (previous.allowRun !== next.allowRun) changes.push(t('lib.sensitive.run'))
+  if (previous.allowResubmit !== next.allowResubmit) changes.push(t('lib.sensitive.resubmit'))
+  if (previous.readonly !== next.readonly) changes.push(t('lib.sensitive.archiveAccess'))
   return changes
 }

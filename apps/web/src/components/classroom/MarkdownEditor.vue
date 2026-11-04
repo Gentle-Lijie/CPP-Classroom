@@ -3,15 +3,17 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ref, nextTick } from 'vue'
 import { Bold, Italic, Heading2, List, CodeXml, Quote, Link, Columns2 } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import MarkdownContent from './MarkdownContent.vue'
+const { t } = useI18n()
 const model = defineModel<string>({ required: true })
 const textarea = ref<InstanceType<typeof Textarea>>()
-function insert(before: string, after = '', placeholder = '文字') {
+function insert(before: string, after = '', placeholder?: string) {
   const el = textarea.value?.element
   if (!el) return
   const start = el.selectionStart
   const end = el.selectionEnd
-  const text = model.value.slice(start, end) || placeholder
+  const text = model.value.slice(start, end) || (placeholder ?? t('shell.markdown.placeholder'))
   model.value = model.value.slice(0, start) + before + text + after + model.value.slice(end)
   nextTick(() => {
     el.focus()
@@ -28,7 +30,7 @@ function insert(before: string, after = '', placeholder = '文字') {
           variant="plain"
           type="button"
           class="icon-button"
-          aria-label="加粗"
+          :aria-label="t('shell.markdown.bold')"
           @click="insert('**', '**')">
           <Bold :size="15" />
         </Button>
@@ -36,7 +38,7 @@ function insert(before: string, after = '', placeholder = '文字') {
           variant="plain"
           type="button"
           class="icon-button"
-          aria-label="斜体"
+          :aria-label="t('shell.markdown.italic')"
           @click="insert('*', '*')">
           <Italic :size="15" />
         </Button>
@@ -44,23 +46,23 @@ function insert(before: string, after = '', placeholder = '文字') {
           variant="plain"
           type="button"
           class="icon-button"
-          aria-label="插入二级标题"
-          @click="insert('\n## ', '\n', '标题')">
+          :aria-label="t('shell.markdown.heading')"
+          @click="insert('\n## ', '\n', t('shell.markdown.headingText'))">
           <Heading2 :size="17" />
         </Button>
         <Button
           variant="plain"
           type="button"
           class="icon-button"
-          aria-label="插入列表"
-          @click="insert('\n- ', '\n', '列表项')">
+          :aria-label="t('shell.markdown.list')"
+          @click="insert('\n- ', '\n', t('shell.markdown.listItem'))">
           <List :size="16" />
         </Button>
         <Button
           variant="plain"
           type="button"
           class="icon-button"
-          aria-label="插入代码块"
+          :aria-label="t('shell.markdown.code')"
           @click="insert('\n```cpp\n', '\n```\n', 'cout << result;')">
           <CodeXml :size="16" />
         </Button>
@@ -68,7 +70,7 @@ function insert(before: string, after = '', placeholder = '文字') {
           variant="plain"
           type="button"
           class="icon-button"
-          aria-label="插入引用"
+          :aria-label="t('shell.markdown.quote')"
           @click="insert('\n> ', '\n')">
           <Quote :size="15" />
         </Button>
@@ -76,30 +78,30 @@ function insert(before: string, after = '', placeholder = '文字') {
           variant="plain"
           type="button"
           class="icon-button"
-          aria-label="插入链接"
-          @click="insert('[', '](https://example.com)', '链接文字')">
+          :aria-label="t('shell.markdown.link')"
+          @click="insert('[', '](https://example.com)', t('shell.markdown.linkText'))">
           <Link :size="15" />
         </Button>
       </div>
       <span class="markdown-live-label">
         <Columns2 :size="14" />
-        实时预览
+        {{ t('shell.markdown.livePreview') }}
       </span>
     </div>
     <div class="markdown-editor-body">
       <label class="markdown-source">
-        <span>题面源码</span>
+        <span>{{ t('shell.markdown.source') }}</span>
         <Textarea
           ref="textarea"
           v-model="model"
-          aria-label="Markdown 题面源码"
+          :aria-label="t('shell.markdown.sourceAria')"
           spellcheck="false"
-          placeholder="用 Markdown 描述题目，右侧会实时预览。" />
+          :placeholder="t('shell.markdown.sourcePlaceholder')" />
       </label>
-      <section class="markdown-preview" aria-label="题面实时预览">
-        <span class="markdown-preview-label">学生看到的题面</span>
+      <section class="markdown-preview" :aria-label="t('shell.markdown.previewAria')">
+        <span class="markdown-preview-label">{{ t('shell.markdown.previewLabel') }}</span>
         <MarkdownContent v-if="model.trim()" :source="model" />
-        <p v-else class="markdown-placeholder">写下一个问题，开启一段思考。</p>
+        <p v-else class="markdown-placeholder">{{ t('shell.markdown.previewEmpty') }}</p>
       </section>
     </div>
   </section>

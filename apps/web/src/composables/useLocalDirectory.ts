@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from 'vue'
+import { t } from '../i18n'
 import { studentGuideActive } from '@/lib/spotlight'
 import { validSourceFilename } from '@/lib/source-file'
 import {
@@ -32,7 +33,7 @@ export function useLocalDirectory(options: Options) {
   const root = shallowRef<DirectoryHandle>()
   const file = shallowRef<SourceFileHandle>()
   const conflict = shallowRef<Conflict>()
-  const status = ref('未连接本地目录')
+  const status = ref(t('lib.localDirectory.notConnected'))
   const needsPermission = ref(false)
   const busy = ref(false)
   const backup = ref<string>()
@@ -47,15 +48,15 @@ export function useLocalDirectory(options: Options) {
   function report(error: unknown) {
     if (error instanceof DOMException && error.name === 'NotFoundError') {
       file.value = undefined
-      status.value = '文件已被删除或替换，请重新关联；浏览器草稿保留'
+      status.value = t('lib.localDirectory.fileDeleted')
       return
     }
     needsPermission.value = error instanceof DOMException && error.name === 'NotAllowedError'
     status.value = needsPermission.value
-      ? '目录授权已失效，请重新授权'
+      ? t('lib.localDirectory.permissionLost')
       : error instanceof Error
         ? error.message
-        : '本地文件操作失败，浏览器草稿仍保留'
+        : t('lib.localDirectory.ioFailed')
   }
   function setConflict(
     handle: SourceFileHandle,
@@ -66,7 +67,7 @@ export function useLocalDirectory(options: Options) {
     if (documentKey !== key() || disposed) return
     clearTimeout(writeTimer)
     conflict.value = { handle, disk, filename: options.filename.value, key: documentKey, reason }
-    status.value = '存在文件冲突 · 自动写入已暂停'
+    status.value = t('lib.localDirectory.conflictPaused')
   }
   async function write() {
     const handle = file.value
@@ -94,10 +95,10 @@ export function useLocalDirectory(options: Options) {
         )
           return
         if (text === lastDiskText) {
-          status.value = '已同步到磁盘'
+          status.value = t('lib.localDirectory.synced')
           return
         }
-        status.value = '正在写入磁盘…'
+        status.value = t('lib.localDirectory.writing')
         try {
           const operation = () => writeSourceFile(handle, lastDiskText, text)
           if (navigator.locks)
@@ -105,7 +106,10 @@ export function useLocalDirectory(options: Options) {
           else await operation()
           if (documentKey === key() && handle === file.value && !disposed) {
             lastDiskText = text
-            status.value = options.code.value === text ? '已同步到磁盘' : '等待写入最新修改…'
+            status.value =
+              options.code.value === text
+                ? t('lib.localDirectory.synced')
+                : t('lib.localDirectory.pendingWrite')
           }
         } catch (error) {
           if (documentKey !== key() || disposed) return
@@ -131,11 +135,11 @@ export function useLocalDirectory(options: Options) {
     const filename = options.filename.value
     if (!directory || options.readonly.value || disposed) return
     if (!validSourceFilename(filename)) {
-      status.value = '题目文件名无效，请联系教师'
+      status.value = t('lib.localDirectory.invalidFilename')
       return
     }
     busy.value = true
-    status.value = '正在关联 ' + filename
+    status.value = t('lib.localDirectory.linking', { filename })
     try {
       let handle: SourceFileHandle
       let created = false
@@ -169,7 +173,7 @@ export function useLocalDirectory(options: Options) {
       }
       file.value = handle
       lastDiskText = disk
-      status.value = '已同步到磁盘'
+      status.value = t('lib.localDirectory.synced')
     } catch (error) {
       if (documentKey === key() && !disposed) report(error)
     } finally {
@@ -186,7 +190,7 @@ export function useLocalDirectory(options: Options) {
           (await root.value.requestPermission?.({ mode: 'readwrite' })) ?? 'granted'
         if (permission !== 'granted') {
           needsPermission.value = true
-          status.value = '未获得目录读写权限，浏览器草稿仍保留'
+          status.value = t('lib.localDirectory.noPermission')
           return
         }
       } else {
@@ -196,7 +200,7 @@ export function useLocalDirectory(options: Options) {
         try {
           await rememberDirectory(options.classroomId.value, selected)
         } catch {
-          status.value = '目录已授权，但浏览器无法记住该目录'
+          status.value = t('lib.localDirectory.rememberFailed')
         }
       }
       needsPermission.value = false
@@ -219,7 +223,7 @@ export function useLocalDirectory(options: Options) {
       file.value = pending.handle
       conflict.value = undefined
       options.code.value = disk
-      status.value = '已读取磁盘版本 · 自动保存已连接'
+      status.value = t('lib.localDirectory.diskLoaded')
     } catch (error) {
       report(error)
     } finally {
@@ -239,7 +243,7 @@ export function useLocalDirectory(options: Options) {
       file.value = pending.handle
       lastDiskText = text
       conflict.value = undefined
-      status.value = '已同步到磁盘'
+      status.value = t('lib.localDirectory.synced')
       if (options.code.value !== text) await write()
     } catch (error) {
       if (error instanceof DiskConflictError)
@@ -252,7 +256,7 @@ export function useLocalDirectory(options: Options) {
   function cancelConflict() {
     conflict.value = undefined
     file.value = undefined
-    status.value = '尚未关联当前文件 · 浏览器草稿保留'
+    status.value = t('lib.localDirectory.notLinked')
   }
   async function disconnect() {
     if (busy.value) return
@@ -269,8 +273,8 @@ export function useLocalDirectory(options: Options) {
       root.value = undefined
       needsPermission.value = false
       status.value = forgetFailed
-        ? '已断开目录，但浏览器未能清除目录记录'
-        : '已断开目录 · 浏览器草稿保留'
+        ? t('lib.localDirectory.disconnectRememberFailed')
+        : t('lib.localDirectory.disconnected')
     } finally {
       busy.value = false
     }
@@ -285,7 +289,7 @@ export function useLocalDirectory(options: Options) {
     )
       return
     clearTimeout(writeTimer)
-    status.value = '等待写入磁盘…'
+    status.value = t('lib.localDirectory.waitingWrite')
     writeTimer = setTimeout(() => {
       void write()
     }, 750)
@@ -312,7 +316,9 @@ export function useLocalDirectory(options: Options) {
       conflict.value = undefined
       lastDiskText = ''
       backup.value = undefined
-      status.value = root.value ? '练习或文件名已变更，请关联当前文件' : '未连接本地目录'
+      status.value = root.value
+        ? t('lib.localDirectory.changed')
+        : t('lib.localDirectory.notConnected')
     },
   )
   onMounted(async () => {
@@ -326,8 +332,8 @@ export function useLocalDirectory(options: Options) {
         if (disposed) return
         needsPermission.value = permission !== 'granted'
         status.value = needsPermission.value
-          ? '已记住目录，请点击重新授权'
-          : '已记住目录，请关联当前文件'
+          ? t('lib.localDirectory.rememberedReauth')
+          : t('lib.localDirectory.rememberedRelink')
       }
     } catch {
       /* The picker remains available when IndexedDB is disabled. */
@@ -364,8 +370,9 @@ export function useLocalDirectory(options: Options) {
         }
         lastDiskText = disk
         options.code.value = disk
-        status.value =
-          '已读取外部修改 · ' + new Date().toLocaleTimeString('zh-CN', { hour12: false })
+        status.value = t('lib.localDirectory.externalChange', {
+          time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+        })
       } catch (error) {
         if (documentKey === key() && !disposed) report(error)
       } finally {

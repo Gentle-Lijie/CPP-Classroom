@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -23,7 +24,7 @@ import {
   ArrowLeft,
   Check,
 } from '@lucide/vue'
-import { classroomRoleLabels, type ClassroomRole } from '@classroom/contracts'
+import type { ClassroomRole } from '@classroom/contracts'
 import { api } from '@/lib/api'
 import { notify } from '@/data/demo'
 import { confirmAction } from '@/lib/confirm'
@@ -37,6 +38,8 @@ import { Form } from '@/components/ui/form'
 import Modal from './Modal.vue'
 import ContentPanel from './ContentPanel.vue'
 import Pagination from './Pagination.vue'
+
+const { t } = useI18n()
 
 interface Account {
   id: string
@@ -86,7 +89,7 @@ const batchProgress = ref({ completed: 0, total: 0 })
 let mounted = true
 onBeforeRouteLeave(() => {
   if (!busy.value) return true
-  notify('正在更新课堂人员，请等待操作完成后离开', 'error')
+  notify(t('runner.assignments.leaveBlocked'), 'error')
   return false
 })
 let generation = 0
@@ -100,28 +103,28 @@ const active = computed(() => scopedMembers.value.filter((m) => m.status !== 're
 const tabs = computed(() =>
   props.staffOnly
     ? [
-        { value: 'all', label: '在任教师与助教', count: active.value.length },
+        { value: 'all', label: t('runner.assignments.tabs.staffAll'), count: active.value.length },
         {
           value: 'removed',
-          label: '已移除',
+          label: t('runner.assignments.tabs.removed'),
           count: scopedMembers.value.filter((m) => m.status === 'removed').length,
         },
       ]
     : [
-        { value: 'all', label: '全部', count: active.value.length },
+        { value: 'all', label: t('runner.assignments.tabs.all'), count: active.value.length },
         {
           value: 'staff',
-          label: '教师与助教',
+          label: t('runner.assignments.tabs.staff'),
           count: active.value.filter((m) => m.role !== 'student').length,
         },
         {
           value: 'students',
-          label: '学生',
+          label: t('runner.assignments.tabs.students'),
           count: active.value.filter((m) => m.role === 'student').length,
         },
         {
           value: 'removed',
-          label: '已移除',
+          label: t('runner.assignments.tabs.removed'),
           count: scopedMembers.value.filter((m) => m.status === 'removed').length,
         },
       ],
@@ -193,29 +196,29 @@ watch([filter, memberSearch, () => props.staffOnly, () => props.showList], () =>
   selectedIds.value = []
   batchError.value = ''
 })
-const roles: { value: ClassroomRole; description: string }[] = [
-  { value: 'teacher', description: '管理题目和课堂' },
-  { value: 'ta', description: '学习、提交并巡视和协助答疑' },
-  { value: 'student', description: '编程练习与提交' },
-]
+const roles = computed<{ value: ClassroomRole; description: string }[]>(() => [
+  { value: 'teacher', description: t('runner.assignments.roleDescriptions.teacher') },
+  { value: 'ta', description: t('runner.assignments.roleDescriptions.ta') },
+  { value: 'student', description: t('runner.assignments.roleDescriptions.student') },
+])
 const roleHint = computed(
   () =>
     ({
-      teacher: '可维护题目、课堂设置和学生名册。',
-      ta: '可查看学生作品、处理求助和投屏。',
-      student: '以学生身份加入，参与练习和提交作业。',
+      teacher: t('runner.assignments.roleHints.teacher'),
+      ta: t('runner.assignments.roleHints.ta'),
+      student: t('runner.assignments.roleHints.student'),
     })[nextRole.value],
 )
 const existing = (id: string) => members.value.find((m) => m.id === id)
 const alreadyActive = (id: string) => existing(id)?.status === 'active'
 const statusLabel = (member: Assignment) =>
   member.disabled
-    ? '已停用'
+    ? t('runner.assignments.status.disabled')
     : member.status === 'active'
-      ? '已加入'
+      ? t('runner.assignments.status.active')
       : member.status === 'pending'
-        ? '待审批'
-        : '已移除'
+        ? t('runner.assignments.status.pending')
+        : t('runner.assignments.status.removed')
 
 async function load() {
   const token = ++generation
@@ -232,7 +235,8 @@ async function load() {
       )
     }
   } catch (e) {
-    if (token === generation) error.value = e instanceof Error ? e.message : '人员读取失败'
+    if (token === generation)
+      error.value = e instanceof Error ? e.message : t('runner.assignments.errors.loadFailed')
   } finally {
     if (token === generation) loading.value = false
   }
@@ -309,7 +313,8 @@ async function find() {
     }
   } catch (e) {
     if (token === searchGeneration)
-      dialogError.value = e instanceof Error ? e.message : '账号搜索失败'
+      dialogError.value =
+        e instanceof Error ? e.message : t('runner.assignments.errors.searchFailed')
   } finally {
     if (token === searchGeneration) searching.value = false
   }
@@ -342,7 +347,7 @@ async function editMember(id: string) {
   await load()
   const member = existing(id)
   if (member) edit(member)
-  else error.value = '成员信息已变化，请刷新后重试'
+  else error.value = t('runner.assignments.errors.memberChanged')
 }
 async function editMembers(ids: string[]) {
   if (busy.value) return
@@ -354,7 +359,7 @@ async function editMembers(ids: string[]) {
     .map((id) => existing(id))
     .filter((m): m is Assignment => !!m && !m.owner && !m.disabled)
   if (!targets.length || targets.length !== unique.length) {
-    notify('所选成员已变化、包含负责人或已停用账号，请刷新后重新选择', 'error')
+    notify(t('runner.assignments.errors.selectionInvalid'), 'error')
     return
   }
   choose(targets[0]!)
@@ -397,7 +402,7 @@ async function applyBatch(
     if (result.failed.length || result.pending.length) {
       if (role) dialogError.value = memberBatchMessage(result)
       else batchError.value = memberBatchMessage(result)
-    } else notify(`已更新 ${result.succeeded.length} 位成员`)
+    } else notify(t('runner.assignments.notify.batchUpdated', { count: result.succeeded.length }))
     emit('batch-finished', succeededIds)
     if (succeededIds.length)
       emit(
@@ -431,7 +436,9 @@ async function batchStatus(status: 'active' | 'removed') {
   const targets = [...selectedMembers.value]
   if (
     !(await confirmAction(
-      `${status === 'removed' ? '移出' : '恢复'}已选的 ${targets.length} 位课堂成员？${status === 'removed' ? '账号和历史作品会保留。' : '将恢复其原有课堂身份。'}`,
+      status === 'removed'
+        ? t('runner.assignments.confirm.batchRemove', { count: targets.length })
+        : t('runner.assignments.confirm.batchRestore', { count: targets.length }),
       { destructive: status === 'removed' },
     ))
   )
@@ -455,7 +462,7 @@ async function assign(
   const id = props.classroomId
   if (
     status === 'removed' &&
-    !(await confirmAction(`移除「${account.name}」的课堂访问权限？账号和历史作品会保留。`, {
+    !(await confirmAction(t('runner.assignments.confirm.removeOne', { name: account.name }), {
       destructive: true,
     }))
   )
@@ -470,10 +477,10 @@ async function assign(
     selectedIds.value = selectedIds.value.filter((id) => id !== account.id)
     notify(
       status === 'removed'
-        ? '已移除课堂访问权限'
+        ? t('runner.assignments.notify.removed')
         : dialogMode.value === 'add' && dialogOpen.value
-          ? '成员已加入课堂'
-          : '课堂身份已更新',
+          ? t('runner.assignments.notify.joined')
+          : t('runner.assignments.notify.updated'),
     )
     if (id === props.classroomId) {
       dialogOpen.value = false
@@ -482,7 +489,8 @@ async function assign(
     emit('changed', { role, status })
   } catch (e) {
     if (id === props.classroomId) {
-      const message = e instanceof Error ? e.message : '操作失败'
+      const message =
+        e instanceof Error ? e.message : t('runner.assignments.errors.operationFailed')
       if (dialogOpen.value) dialogError.value = message
       else error.value = message
     }
@@ -494,7 +502,7 @@ async function transfer(member: Assignment) {
   const id = props.classroomId
   if (
     busy.value ||
-    !(await confirmAction(`将课堂负责人转移给「${member.name}」？原负责人会保留教师身份。`))
+    !(await confirmAction(t('runner.assignments.confirm.transfer', { name: member.name })))
   )
     return
   if (id !== props.classroomId) return
@@ -502,11 +510,12 @@ async function transfer(member: Assignment) {
   error.value = ''
   try {
     await api(`/classes/${id}/owner`, 'POST', { userId: member.id })
-    notify('课堂负责人已转移')
+    notify(t('runner.assignments.notify.transferred'))
     if (id === props.classroomId) await load()
     emit('changed')
   } catch (e) {
-    if (id === props.classroomId) error.value = e instanceof Error ? e.message : '转移失败'
+    if (id === props.classroomId)
+      error.value = e instanceof Error ? e.message : t('runner.assignments.errors.transferFailed')
   } finally {
     busy.value = false
   }
@@ -522,9 +531,12 @@ async function transfer(member: Assignment) {
       as="section"
       direct
       class="panel-fill"
-      aria-label="课堂成员">
+      :aria-label="t('runner.assignments.panelAria')">
       <template #header>
-        <div class="filter-tabs borderless" role="group" aria-label="筛选成员">
+        <div
+          class="filter-tabs borderless"
+          role="group"
+          :aria-label="t('runner.assignments.filterAria')">
           <Button
             v-for="tab in tabs"
             :key="tab.value"
@@ -545,35 +557,41 @@ async function transfer(member: Assignment) {
             <Input
               v-model="memberSearch"
               :disabled="busy"
-              aria-label="搜索课堂成员"
-              placeholder="搜索姓名、账号或学号" />
+              :aria-label="t('runner.assignments.searchAria')"
+              :placeholder="t('runner.assignments.searchPlaceholder')" />
           </label>
           <Button
             variant="ghost"
             size="icon"
-            aria-label="刷新成员"
-            title="刷新成员"
+            :aria-label="t('runner.assignments.refresh')"
+            :title="t('runner.assignments.refresh')"
             :disabled="busy || loading"
             @click="load">
             <RefreshCw :class="{ 'animate-spin': loading }" />
           </Button>
           <Button v-if="!staffOnly" :disabled="busy" @click="openAdd">
             <UserPlus />
-            添加成员
+            {{ t('runner.assignments.addMember') }}
           </Button>
         </div>
       </template>
-      <div v-if="selectedMembers.length" class="table-controls" aria-label="成员批量操作">
+      <div
+        v-if="selectedMembers.length"
+        class="table-controls"
+        :aria-label="t('runner.assignments.batchAria')">
         <div class="inline-items">
           <span class="muted">
             {{
               busy && batchProgress.total
-                ? `正在处理 ${batchProgress.completed}/${batchProgress.total}`
-                : `已选 ${selectedMembers.length} 位`
+                ? t('runner.assignments.batchProgress', {
+                    completed: batchProgress.completed,
+                    total: batchProgress.total,
+                  })
+                : t('runner.assignments.selectedCount', { count: selectedMembers.length })
             }}
           </span>
           <Button variant="plain" class="text-button" :disabled="busy" @click="selectedIds = []">
-            取消选择
+            {{ t('runner.assignments.clearSelection') }}
           </Button>
         </div>
         <div class="inline-items">
@@ -581,33 +599,33 @@ async function transfer(member: Assignment) {
             size="sm"
             variant="outline"
             :disabled="busy || !canEditSelected"
-            data-disabled-reason="所选成员包含已停用账号，无法调整身份"
+            :data-disabled-reason="t('runner.assignments.reasons.adjustDisabled')"
             @click="editMembers(selectedIds)">
-            调整身份
+            {{ t('runner.assignments.adjustRole') }}
           </Button>
           <Button
             size="sm"
             variant="outline"
             :disabled="busy || !canTransferSelected"
-            data-disabled-reason="请仅选择一位未停用、在任的教师作为新负责人"
+            :data-disabled-reason="t('runner.assignments.reasons.transferDisabled')"
             @click="selectedMembers[0] && transfer(selectedMembers[0])">
-            设为负责人
+            {{ t('runner.assignments.setOwner') }}
           </Button>
           <Button
             size="sm"
             variant="outline"
             :disabled="busy || !canRestoreSelected"
-            data-disabled-reason="仅支持恢复全部已移除且未停用的成员"
+            :data-disabled-reason="t('runner.assignments.reasons.restoreDisabled')"
             @click="batchStatus('active')">
-            恢复加入
+            {{ t('runner.assignments.restoreJoin') }}
           </Button>
           <Button
             size="sm"
             variant="outline"
             :disabled="busy || !canRemoveSelected"
-            data-disabled-reason="所选成员包含已移除人员"
+            :data-disabled-reason="t('runner.assignments.reasons.removeDisabled')"
             @click="batchStatus('removed')">
-            移出课堂
+            {{ t('runner.assignments.removeFromClass') }}
           </Button>
         </div>
       </div>
@@ -625,17 +643,19 @@ async function transfer(member: Assignment) {
             <tr>
               <th>
                 <Checkbox
-                  aria-label="选择本页课堂成员"
+                  :aria-label="t('runner.assignments.selectPageAria')"
                   :checked="allPageSelected"
                   :indeterminate="somePageSelected && !allPageSelected"
                   :disabled="busy || loading || !selectablePage.length"
                   @change="selectPage" />
               </th>
-              <th>成员</th>
-              <th>登录账号</th>
-              <th>课堂身份</th>
-              <th>状态</th>
-              <th><span class="sr-only">管理成员</span></th>
+              <th>{{ t('runner.assignments.colMember') }}</th>
+              <th>{{ t('runner.assignments.colAccount') }}</th>
+              <th>{{ t('runner.assignments.colRole') }}</th>
+              <th>{{ t('runner.assignments.colStatus') }}</th>
+              <th>
+                <span class="sr-only">{{ t('runner.assignments.colManage') }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -644,10 +664,12 @@ async function transfer(member: Assignment) {
                 <Checkbox
                   v-model="selectedIds"
                   :value="member.id"
-                  :aria-label="'选择' + member.name"
+                  :aria-label="t('runner.assignments.selectAria', { name: member.name })"
                   :disabled="busy || loading || member.owner"
                   :data-disabled-reason="
-                    member.owner ? '请先转移负责人，再调整原负责人的身份' : '正在更新成员，请稍候'
+                    member.owner
+                      ? t('runner.assignments.reasons.ownerRole')
+                      : t('runner.assignments.reasons.updating')
                   " />
               </td>
               <td>
@@ -658,9 +680,12 @@ async function transfer(member: Assignment) {
                   <div class="person-copy">
                     <div class="person-name">
                       <strong :title="member.name">{{ member.name }}</strong>
-                      <span v-if="member.owner" class="owner-label" title="课堂负责人">
+                      <span
+                        v-if="member.owner"
+                        class="owner-label"
+                        :title="t('runner.assignments.ownerTitle')">
                         <ShieldCheck :size="12" />
-                        负责人
+                        {{ t('runner.assignments.ownerBadge') }}
                       </span>
                     </div>
                     <span v-if="member.number" class="person-number">{{ member.number }}</span>
@@ -672,7 +697,7 @@ async function transfer(member: Assignment) {
               </td>
               <td>
                 <span class="role-badge" :class="'role-' + member.role">
-                  {{ classroomRoleLabels[member.role] }}
+                  {{ t(`runner.assignments.roleLabels.${member.role}`) }}
                 </span>
               </td>
               <td>
@@ -687,7 +712,7 @@ async function transfer(member: Assignment) {
                 <span
                   v-if="member.owner"
                   class="owner-lock"
-                  title="请先将负责人转移给其他教师，再调整此成员">
+                  :title="t('runner.assignments.ownerLockTitle')">
                   —
                 </span>
                 <DropdownMenuRoot v-else>
@@ -695,7 +720,7 @@ async function transfer(member: Assignment) {
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      :aria-label="'管理' + member.name"
+                      :aria-label="t('runner.assignments.manageAria', { name: member.name })"
                       :disabled="busy">
                       <Ellipsis />
                     </Button>
@@ -709,7 +734,7 @@ async function transfer(member: Assignment) {
                         class="ui-menu-item"
                         :disabled="member.disabled"
                         @select="edit(member)">
-                        调整身份
+                        {{ t('runner.assignments.adjustRole') }}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         v-if="
@@ -719,21 +744,21 @@ async function transfer(member: Assignment) {
                         "
                         class="ui-menu-item"
                         @select="transfer(member)">
-                        设为负责人
+                        {{ t('runner.assignments.setOwner') }}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator class="member-menu-separator" />
                       <DropdownMenuItem
                         v-if="member.status !== 'removed'"
                         class="ui-menu-item remove-member"
                         @select="assign(member, member.role, 'removed')">
-                        移出课堂
+                        {{ t('runner.assignments.removeFromClass') }}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         v-else
                         class="ui-menu-item"
                         :disabled="member.disabled"
                         @select="assign(member, member.role)">
-                        恢复加入
+                        {{ t('runner.assignments.restoreJoin') }}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenuPortal>
@@ -747,15 +772,21 @@ async function transfer(member: Assignment) {
           <Search v-else-if="memberSearch" :size="24" />
           <Users v-else :size="24" />
           <strong>
-            {{ loading ? '正在读取成员…' : memberSearch ? '没有匹配的成员' : '暂无此类成员' }}
+            {{
+              loading
+                ? t('runner.assignments.loadingMembers')
+                : memberSearch
+                  ? t('runner.assignments.noMatch')
+                  : t('runner.assignments.empty')
+            }}
           </strong>
           <span v-if="!loading">
             {{
               memberSearch
-                ? '试试其他姓名、账号或学号。'
+                ? t('runner.assignments.noMatchHint')
                 : staffOnly
-                  ? '添加已有账号，或在学生列表中调整课堂身份。'
-                  : '添加已有账号，或前往学生名册导入名单。'
+                  ? t('runner.assignments.emptyStaffHint')
+                  : t('runner.assignments.emptyHint')
             }}
           </span>
         </div>
@@ -765,19 +796,19 @@ async function transfer(member: Assignment) {
         v-model:page-size="pageSize"
         :total="visible.length"
         :busy="loading || busy"
-        unit="位成员" />
+        :unit="t('runner.assignments.unit')" />
     </ContentPanel>
 
     <Modal
       v-model:open="dialogOpen"
       :title="
         dialogMode === 'add'
-          ? '添加课堂成员'
+          ? t('runner.assignments.dialog.titleAdd')
           : editTargets.length > 1
-            ? '批量调整课堂身份'
-            : '调整课堂身份'
+            ? t('runner.assignments.dialog.titleBatchEdit')
+            : t('runner.assignments.dialog.titleEdit')
       "
-      :description="!target ? '搜索已有账号，选择要加入课堂的人。' : undefined"
+      :description="!target ? t('runner.assignments.dialog.description') : undefined"
       :busy="busy">
       <div class="member-dialog">
         <Alert v-if="dialogError" type="error">{{ dialogError }}</Alert>
@@ -788,20 +819,23 @@ async function transfer(member: Assignment) {
               <Input
                 ref="accountSearchInput"
                 v-model="search"
-                aria-label="搜索已有账号"
-                placeholder="姓名、登录账号或学号"
+                :aria-label="t('runner.assignments.dialog.searchAria')"
+                :placeholder="t('runner.assignments.dialog.placeholder')"
                 maxlength="80" />
               <RefreshCw v-if="searching" :size="16" class="animate-spin" />
             </label>
           </Form>
-          <div v-if="candidates.length && !searching" class="candidate-list" aria-label="搜索结果">
+          <div
+            v-if="candidates.length && !searching"
+            class="candidate-list"
+            :aria-label="t('runner.assignments.dialog.resultsAria')">
             <Button
               v-for="candidate in candidates"
               :key="candidate.id"
               variant="plain"
               class="candidate-row"
               :disabled="alreadyActive(candidate.id)"
-              data-disabled-reason="该账号已加入课堂，可在成员列表中调整身份"
+              :data-disabled-reason="t('runner.assignments.reasons.joinedAccount')"
               @click="choose(candidate)">
               <span class="person-avatar" aria-hidden="true">{{ candidate.name.slice(-2) }}</span>
               <span class="candidate-copy">
@@ -813,7 +847,7 @@ async function transfer(member: Assignment) {
               </span>
               <span v-if="alreadyActive(candidate.id)" class="candidate-existing">
                 <Check :size="13" />
-                已加入
+                {{ t('runner.assignments.dialog.joined') }}
               </span>
               <ChevronRight v-else :size="16" />
             </Button>
@@ -823,22 +857,32 @@ async function transfer(member: Assignment) {
             <Search v-else-if="searched" :size="26" />
             <UserPlus v-else :size="26" />
             <strong>
-              {{ searching ? '正在搜索…' : searched ? '没有找到账号' : '搜索要添加的人' }}
+              {{
+                searching
+                  ? t('runner.assignments.dialog.searching')
+                  : searched
+                    ? t('runner.assignments.dialog.noAccount')
+                    : t('runner.assignments.dialog.searchPrompt')
+              }}
             </strong>
             <span>
               {{
                 searching
                   ? ' '
                   : searched
-                    ? '换个关键词，或先创建账号。'
-                    : '输入至少 2 个字，支持姓名、账号和学号。'
+                    ? t('runner.assignments.dialog.noResultHint')
+                    : t('runner.assignments.dialog.inputHint')
               }}
             </span>
           </div>
           <div v-if="accountCreationPath" class="create-account-link">
-            <span>还没有账号？</span>
+            <span>{{ t('runner.assignments.dialog.noAccountYet') }}</span>
             <RouterLink :to="accountCreationPath" @click="dialogOpen = false">
-              {{ accountCreationPath.includes('/admin/') ? '创建账号' : '创建或导入学生' }}
+              {{
+                accountCreationPath.includes('/admin/')
+                  ? t('runner.assignments.dialog.createAccount')
+                  : t('runner.assignments.dialog.createOrImport')
+              }}
               <ChevronRight :size="13" />
             </RouterLink>
           </div>
@@ -851,7 +895,11 @@ async function transfer(member: Assignment) {
             </span>
             <span class="candidate-copy">
               <strong>
-                {{ editTargets.length > 1 ? `已选 ${editTargets.length} 位成员` : target.name }}
+                {{
+                  editTargets.length > 1
+                    ? t('runner.assignments.dialog.selectedMembers', { count: editTargets.length })
+                    : target.name
+                }}
               </strong>
               <small :title="editTargets.map((m) => m.name).join('、')">
                 {{
@@ -869,15 +917,15 @@ async function transfer(member: Assignment) {
               :disabled="busy"
               @click="chooseAgain">
               <ArrowLeft :size="13" />
-              重新选择
+              {{ t('runner.assignments.dialog.chooseAgain') }}
             </Button>
           </div>
           <fieldset class="role-fieldset">
-            <legend>课堂身份</legend>
+            <legend>{{ t('runner.assignments.dialog.roleLegend') }}</legend>
             <RadioGroupRoot
               v-model="nextRole"
               class="role-options"
-              aria-label="课堂身份"
+              :aria-label="t('runner.assignments.dialog.roleLegend')"
               :disabled="busy">
               <RadioGroupItem
                 v-for="option in roles"
@@ -887,7 +935,7 @@ async function transfer(member: Assignment) {
                 :class="{ 'is-selected': nextRole === option.value }">
                 <span>
                   <span class="role-radio"><RadioGroupIndicator class="role-radio-dot" /></span>
-                  {{ classroomRoleLabels[option.value] }}
+                  {{ t(`runner.assignments.roleLabels.${option.value}`) }}
                 </span>
                 <small>{{ option.description }}</small>
               </RadioGroupItem>
@@ -895,21 +943,24 @@ async function transfer(member: Assignment) {
           </fieldset>
           <p class="role-hint">{{ roleHint }}</p>
           <p v-if="editTargets.some((m) => m.status === 'removed')" class="role-hint">
-            保存身份后，已移除的成员将恢复加入。
+            {{ t('runner.assignments.dialog.removedRestoreHint') }}
           </p>
           <div class="modal-actions">
             <Button type="button" variant="outline" :disabled="busy" @click="dialogOpen = false">
-              取消
+              {{ t('common.cancel') }}
             </Button>
             <Button type="submit" :disabled="busy">
               {{
                 busy
                   ? editTargets.length
-                    ? `保存中 ${batchProgress.completed}/${batchProgress.total}…`
-                    : '保存中…'
+                    ? t('runner.assignments.dialog.savingBatch', {
+                        completed: batchProgress.completed,
+                        total: batchProgress.total,
+                      })
+                    : t('runner.assignments.dialog.saving')
                   : dialogMode === 'add'
-                    ? '添加成员'
-                    : '保存身份'
+                    ? t('runner.assignments.dialog.add')
+                    : t('runner.assignments.dialog.saveRole')
               }}
             </Button>
           </div>

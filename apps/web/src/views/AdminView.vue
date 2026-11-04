@@ -11,6 +11,7 @@ import { Disclosure } from '@/components/ui/disclosure'
 import { Form } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { computed, ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Database, RefreshCw, Search, Download, KeyRound, Eye, EyeOff, Ellipsis } from '@lucide/vue'
@@ -30,10 +31,11 @@ import { csvDocument } from '@/lib/csv'
 import { notify, download, currentUser } from '@/data/demo'
 import Modal from '@/components/classroom/Modal.vue'
 import CredentialDialog from '@/components/classroom/CredentialDialog.vue'
+const { t } = useI18n()
 const route = useRoute()
 function allowNavigation() {
   if (!busy.value) return true
-  notify('操作正在处理，请等待完成后离开', 'error')
+  notify(t('admin.busyLeaveBlocked'), 'error')
   return false
 }
 onBeforeRouteLeave(allowNavigation)
@@ -166,13 +168,8 @@ const taskPages = { page: ref(1), pageSize: ref(20), paged: tasks }
 const auditPages = { page: ref(1), pageSize: ref(20), paged: audit }
 const recoveryPage = ref(1),
   recoveryPageSize = ref(10)
-const title = computed(
-  () =>
-    ({ health: '平台概况', teachers: '账号管理', tasks: '失败任务', backups: '备份与管理记录' })[
-      section.value
-    ] ?? '平台概况',
-)
-const message = (e: unknown) => (e instanceof Error ? e.message : '请求失败，请重试')
+const title = computed(() => t(`admin.title.${section.value}`))
+const message = (e: unknown) => (e instanceof Error ? e.message : t('admin.requestFailed'))
 interface PageResult<T> {
   items: T[]
   total: number
@@ -266,33 +263,38 @@ watch(
   ],
   () => void load(),
 )
+function roleLabel(role: string) {
+  if (role === 'admin' || role === 'teacher' || role === 'student')
+    return t(
+      `admin.users.role${role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Student'}`,
+    )
+  return role
+}
 function eventLabel(event: string) {
-  return (
-    (
-      {
-        'user.created': '创建账号',
-        'user.updated': '更新账号',
-        'user.password_changed': '个人修改密码',
-        'recovery.closed': '关闭恢复申请',
-        'membership.added': '添加课堂成员',
-        'membership.updated': '更新成员权限',
-        'membership.rejected': '拒绝入班申请',
-        'membership.passwords_reset': '重置学生密码',
-        'classroom.created': '创建课堂',
-        'classroom.updated': '更新课堂',
-        'exercise.created': '创建练习',
-        'exercise.updated': '更新练习',
-        'exercise.closed': '关闭练习',
-        'exercises.reordered': '调整练习顺序',
-        'backup.verified': '备份与恢复校验',
-        'settings.updated': '更新平台配置',
-      } as Record<string, string>
-    )[event] ?? event
-  )
+  const labels: Record<string, string> = {
+    'user.created': 'userCreated',
+    'user.updated': 'userUpdated',
+    'user.password_changed': 'userPasswordChanged',
+    'recovery.closed': 'recoveryClosed',
+    'membership.added': 'membershipAdded',
+    'membership.updated': 'membershipUpdated',
+    'membership.rejected': 'membershipRejected',
+    'membership.passwords_reset': 'membershipPasswordsReset',
+    'classroom.created': 'classroomCreated',
+    'classroom.updated': 'classroomUpdated',
+    'exercise.created': 'exerciseCreated',
+    'exercise.updated': 'exerciseUpdated',
+    'exercise.closed': 'exerciseClosed',
+    'exercises.reordered': 'exercisesReordered',
+    'backup.verified': 'backupVerified',
+    'settings.updated': 'settingsUpdated',
+  }
+  const key = labels[event]
+  return key ? t(`admin.events.${key}`) : event
 }
 async function resolveRecovery() {
   if (busy.value || !closeRecovery.value) return
-  busyReason.value = '正在关闭恢复申请，请稍候'
+  busyReason.value = t('admin.busyReason.closingRecovery')
   busy.value = true
   error.value = ''
   try {
@@ -301,7 +303,7 @@ async function resolveRecovery() {
     })
     closeRecovery.value = undefined
     closeReason.value = ''
-    notify('恢复申请已关闭，处理原因已记录')
+    notify(t('admin.notify.recoveryClosed'))
     await load()
   } catch (e) {
     error.value = message(e)
@@ -329,20 +331,26 @@ function storeCredential(value: Credential) {
 }
 function exportCredentials() {
   download(
-    '平台账号登录凭据.csv',
+    t('admin.csv.filename'),
     csvDocument([
-      ['姓名', '登录账号', '密码', '生成时间', '登录地址'],
+      [
+        t('admin.csv.colName'),
+        t('admin.csv.colUsername'),
+        t('admin.csv.colPassword'),
+        t('admin.csv.colGeneratedAt'),
+        t('admin.csv.colLoginUrl'),
+      ],
       ...credentials.value.map((c) => [
         c.name,
         c.username,
         c.password,
-        c.generatedAt ?? '未知',
+        c.generatedAt ?? t('admin.csv.unknown'),
         location.origin + '/login',
       ]),
     ]),
     'text/csv;charset=utf-8',
   )
-  notify('已发起下载，请确认账号密码表已保存')
+  notify(t('admin.notify.credentialsDownload'))
 }
 
 function openCreate() {
@@ -379,7 +387,7 @@ async function saveUser() {
     }
     if (Object.keys(changes).length) await api('/admin/users/' + u.id, 'PATCH', changes)
     editTarget.value = undefined
-    notify('账号资料已保存')
+    notify(t('admin.notify.profileSaved'))
     await load()
   } catch (e) {
     error.value = message(e)
@@ -391,30 +399,37 @@ async function batchUsers(action: 'enable' | 'disable' | 'reset' | 'delete' | 'r
   if (busy.value || !selectedUsers.value.length) return
   const targets = [...selectedUsers.value]
   const labels = {
-    enable: '启用',
-    disable: '停用',
-    reset: '重置密码',
-    delete: '永久删除',
-    role: '调整平台身份',
+    enable: t('admin.batch.label.enable'),
+    disable: t('admin.batch.label.disable'),
+    reset: t('admin.batch.label.reset'),
+    delete: t('admin.batch.label.delete'),
+    role: t('admin.batch.label.role'),
   }
   const consequence =
     action === 'delete'
-      ? '有关联课堂或作品的账号不能删除；失败的账号会保留。'
+      ? t('admin.batch.consequence.delete')
       : action === 'disable'
-        ? '停用后账号无法登录，旧会话失效并停止运行中的程序。'
+        ? t('admin.batch.consequence.disable')
         : action === 'reset'
-          ? '每个账号将生成独立的新密码，请导出凭据并安全交付。'
+          ? t('admin.batch.consequence.reset')
           : action === 'role'
-            ? `将设为${batchRole.value === 'teacher' ? '可创建课堂' : '普通账号'}；旧会话失效，课堂中的身份不会改变。`
-            : '账号将恢复登录。'
+            ? t(
+                batchRole.value === 'teacher'
+                  ? 'admin.batch.consequence.roleTeacher'
+                  : 'admin.batch.consequence.roleStudent',
+              )
+            : t('admin.batch.consequence.enable')
   if (
-    !(await confirmAction(`${labels[action]}选中的 ${targets.length} 个账号？${consequence}`, {
-      destructive: action === 'delete' || action === 'disable',
-    }))
+    !(await confirmAction(
+      t('admin.batch.confirm', { label: labels[action], count: targets.length, consequence }),
+      {
+        destructive: action === 'delete' || action === 'disable',
+      },
+    ))
   )
     return
   busy.value = true
-  busyReason.value = '正在批量处理账号，请稍候'
+  busyReason.value = t('admin.batch.busy')
   batchError.value = ''
   batchProgress.value = { completed: 0, total: targets.length }
   const newCredentials: Credential[] = []
@@ -458,7 +473,10 @@ async function batchUsers(action: 'enable' | 'disable' | 'reset' | 'delete' | 'r
     if (result.failed.length || result.pending.length) batchError.value = memberBatchMessage(result)
     else
       notify(
-        `已${labels[action]} ${result.succeeded.length} 个账号${action === 'reset' ? '，请导出并交付凭据' : ''}`,
+        t('admin.batch.' + (action === 'reset' ? 'doneReset' : 'done'), {
+          label: labels[action],
+          count: result.succeeded.length,
+        }),
       )
     await load()
   } finally {
@@ -469,7 +487,7 @@ async function batchUsers(action: 'enable' | 'disable' | 'reset' | 'delete' | 'r
 async function deleteUser(u: User) {
   if (
     busy.value ||
-    !(await confirmAction(`永久删除账号 ${u.username}？有关联课堂或作品的账号不能删除。`, {
+    !(await confirmAction(t('admin.notify.deleteConfirm', { username: u.username }), {
       destructive: true,
     }))
   )
@@ -477,7 +495,7 @@ async function deleteUser(u: User) {
   busy.value = true
   try {
     await api('/admin/users/' + u.id, 'DELETE')
-    notify('账号已删除')
+    notify(t('admin.notify.accountDeleted'))
     await load()
   } catch (e) {
     notify(message(e), 'error')
@@ -494,7 +512,7 @@ function openReset(u: User) {
 }
 async function addUser() {
   if (busy.value) return
-  busyReason.value = '正在创建账号，请稍候'
+  busyReason.value = t('admin.busyReason.creatingAccount')
   busy.value = true
   error.value = ''
   try {
@@ -511,7 +529,7 @@ async function addUser() {
     })
     create.value = false
     password.value = ''
-    notify('账号已创建，请导出登录凭据')
+    notify(t('admin.notify.accountCreated'))
     await load()
   } catch (e) {
     error.value = message(e)
@@ -522,13 +540,13 @@ async function addUser() {
 async function toggle() {
   const u = toggleUser.value
   if (!u || busy.value) return
-  busyReason.value = '正在更新账号状态，请稍候'
+  busyReason.value = t('admin.busyReason.updatingStatus')
   busy.value = true
   error.value = ''
   try {
     await api('/admin/users/' + u.id, 'PATCH', { disabled: !u.disabled })
     toggleUser.value = undefined
-    notify(u.disabled ? '账号已启用' : '账号已停用，旧会话已失效')
+    notify(u.disabled ? t('admin.notify.accountEnabled') : t('admin.notify.accountDisabled'))
     await load()
   } catch (e) {
     error.value = message(e)
@@ -540,7 +558,7 @@ async function reset() {
   if (busy.value) return
   const u = resetTarget.value
   if (!u) return
-  busyReason.value = '正在重设账号密码，请稍候'
+  busyReason.value = t('admin.busyReason.resettingPassword')
   busy.value = true
   error.value = ''
   try {
@@ -548,7 +566,7 @@ async function reset() {
     storeCredential({ name: u.name, username: u.username, password: resetPassword.value })
     resetUser.value = ''
     resetPassword.value = ''
-    notify('密码已重设，请交付新凭据')
+    notify(t('admin.notify.passwordReset'))
     await load()
   } catch (e) {
     error.value = message(e)
@@ -558,12 +576,12 @@ async function reset() {
 }
 async function backup() {
   if (busy.value) return
-  busyReason.value = '正在创建备份并验证恢复，请稍候'
+  busyReason.value = t('admin.busyReason.creatingBackup')
   busy.value = true
   error.value = ''
   try {
     await api('/admin/backup', 'POST', {})
-    notify('已生成备份，并在独立临时数据库完成恢复验证')
+    notify(t('admin.notify.backupDone'))
     await load()
   } catch (e) {
     error.value = message(e)
@@ -572,12 +590,12 @@ async function backup() {
   }
 }
 useActionFeedback(error)
-const busyReason = ref('正在处理请求，请稍候')
+const busyReason = ref(t('admin.busyReason.default'))
 </script>
 <template>
   <div class="page-heading">
     <div>
-      <div class="heading-meta">平台管理</div>
+      <div class="heading-meta">{{ t('admin.platformAdmin') }}</div>
       <h1>{{ title }}</h1>
       <!-- <p>管理员不默认拥有课堂作品读取权限。</p> -->
     </div>
@@ -585,12 +603,14 @@ const busyReason = ref('正在处理请求，请稍候')
       <Button
         variant="outline"
         :disabled="loading"
-        :data-disabled-reason="'正在加载平台数据，请稍候'"
+        :data-disabled-reason="t('admin.loadingPlatformData')"
         @click="refreshOverview">
         <RefreshCw :size="15" />
-        刷新
+        {{ t('common.refresh') }}
       </Button>
-      <Button v-if="section === 'teachers'" @click="openCreate">创建账号</Button>
+      <Button v-if="section === 'teachers'" @click="openCreate">
+        {{ t('admin.createAccount') }}
+      </Button>
     </div>
   </div>
   <Alert v-if="loadError" role="alert" type="error">
@@ -601,22 +621,18 @@ const busyReason = ref('正在处理请求，请稍候')
         variant="plain"
         class="text-button"
         :disabled="loading"
-        :data-disabled-reason="'正在加载平台数据，请稍候'"
+        :data-disabled-reason="t('admin.loadingPlatformData')"
         @click="load">
-        重试
+        {{ t('common.retry') }}
       </Button>
     </template>
   </Alert>
-  <p v-if="loading" class="muted admin-loading" role="status">正在加载…</p>
+  <p v-if="loading" class="muted admin-loading" role="status">{{ t('admin.loading') }}</p>
   <template v-if="section === 'health'">
     <div class="stat-grid">
       <div v-for="(value, key) in metrics" :key="key" class="stat-card">
         <div class="stat-top">
-          {{
-            { classrooms: '开放课堂', online: '在线成员', queued: '排队任务', failed: '平台失败' }[
-              key
-            ]
-          }}
+          {{ t(`admin.stats.${key}`) }}
         </div>
         <div class="stat-number">{{ value }}</div>
       </div>
@@ -630,70 +646,82 @@ const busyReason = ref('正在处理请求，请稍候')
         <Input
           v-model="search"
           :disabled="busy"
-          aria-label="搜索账号"
-          placeholder="搜索姓名或登录账号…" />
+          :aria-label="t('admin.users.searchLabel')"
+          :placeholder="t('admin.users.searchPlaceholder')" />
       </label>
       <div class="inline-items">
-        <Select v-model="roleFilter" :disabled="busy" aria-label="筛选身份">
-          <SelectOption value="all">全部身份</SelectOption>
-          <SelectOption value="teacher">可创建课堂</SelectOption>
-          <SelectOption value="student">普通账号</SelectOption>
-          <SelectOption value="admin">管理员</SelectOption>
+        <Select
+          v-model="roleFilter"
+          :disabled="busy"
+          :aria-label="t('admin.users.roleFilterLabel')">
+          <SelectOption value="all">{{ t('admin.users.allRoles') }}</SelectOption>
+          <SelectOption value="teacher">{{ t('admin.users.roleTeacher') }}</SelectOption>
+          <SelectOption value="student">{{ t('admin.users.roleStudent') }}</SelectOption>
+          <SelectOption value="admin">{{ t('admin.users.roleAdmin') }}</SelectOption>
         </Select>
-        <Select v-model="statusFilter" :disabled="busy" aria-label="筛选状态">
-          <SelectOption value="all">全部状态</SelectOption>
-          <SelectOption value="active">正常</SelectOption>
-          <SelectOption value="disabled">停用</SelectOption>
+        <Select
+          v-model="statusFilter"
+          :disabled="busy"
+          :aria-label="t('admin.users.statusFilterLabel')">
+          <SelectOption value="all">{{ t('admin.users.allStatuses') }}</SelectOption>
+          <SelectOption value="active">{{ t('admin.users.statusActive') }}</SelectOption>
+          <SelectOption value="disabled">{{ t('admin.users.statusDisabled') }}</SelectOption>
         </Select>
       </div>
       <Button v-if="credentials.length" variant="outline" size="sm" @click="credentialsOpen = true">
         <Download />
-        查看 / 导出凭据
+        {{ t('admin.users.viewExportCredentials') }}
       </Button>
     </div>
     <Alert v-if="batchError" type="error">{{ batchError }}</Alert>
-    <div v-if="selectedUsers.length" class="table-controls" aria-label="账号批量操作">
+    <div
+      v-if="selectedUsers.length"
+      class="table-controls"
+      :aria-label="t('admin.users.batchAria')">
       <div class="inline-items">
         <span class="muted">
           {{
             busy && batchProgress.total
-              ? `正在处理 ${batchProgress.completed}/${batchProgress.total}`
-              : `已选 ${selectedUsers.length} 个账号`
+              ? t('admin.users.batchProgress', {
+                  completed: batchProgress.completed,
+                  total: batchProgress.total,
+                })
+              : t('admin.users.selectedCount', { count: selectedUsers.length })
           }}
         </span>
         <Button variant="plain" class="text-button" :disabled="busy" @click="selectedUserIds = []">
-          取消选择
+          {{ t('admin.users.clearSelection') }}
         </Button>
         <Button
           size="sm"
           variant="outline"
           :disabled="busy || selectedUsers.some((u) => !u.disabled)"
           @click="batchUsers('enable')">
-          批量启用
+          {{ t('admin.users.batchEnable') }}
         </Button>
         <Button
           size="sm"
           variant="outline"
           :disabled="busy || selectedUsers.some((u) => u.disabled)"
           @click="batchUsers('disable')">
-          批量停用
+          {{ t('admin.users.batchDisable') }}
         </Button>
-        <Select v-model="batchRole" :disabled="busy" aria-label="批量设置平台身份">
-          <SelectOption value="student">普通账号</SelectOption>
-          <SelectOption value="teacher">可创建课堂</SelectOption>
+        <Select v-model="batchRole" :disabled="busy" :aria-label="t('admin.users.batchRoleAria')">
+          <SelectOption value="student">{{ t('admin.users.roleStudent') }}</SelectOption>
+          <SelectOption value="teacher">{{ t('admin.users.roleTeacher') }}</SelectOption>
         </Select>
         <Button
           size="sm"
           variant="outline"
           :disabled="busy || selectedUsers.some((u) => u.role === 'admin')"
           @click="batchUsers('role')">
-          调整身份
+          {{ t('admin.users.adjustRole') }}
         </Button>
         <Button size="sm" variant="warning" :disabled="busy" @click="batchUsers('reset')">
-          批量重置密码
+          {{ t('admin.users.batchReset') }}
         </Button>
         <Button size="sm" variant="destructive" :disabled="busy" @click="batchUsers('delete')">
-          批量删除
+          {{ t('admin.users.batchDelete') }}
         </Button>
       </div>
     </div>
@@ -703,17 +731,17 @@ const busyReason = ref('正在处理请求，请稍候')
           <tr>
             <th>
               <Checkbox
-                aria-label="选择本页账号"
+                :aria-label="t('admin.users.selectAllLabel')"
                 :disabled="busy || loading || !selectableUsers.length"
                 :checked="allUsersSelected"
                 :indeterminate="someUsersSelected && !allUsersSelected"
                 @change="selectUserPage" />
             </th>
-            <th>姓名</th>
-            <th>账号</th>
-            <th>身份</th>
-            <th>状态</th>
-            <th>操作</th>
+            <th>{{ t('admin.users.colName') }}</th>
+            <th>{{ t('admin.users.colAccount') }}</th>
+            <th>{{ t('admin.users.colRole') }}</th>
+            <th>{{ t('admin.users.colStatus') }}</th>
+            <th>{{ t('admin.users.colActions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -722,19 +750,17 @@ const busyReason = ref('正在处理请求，请稍候')
               <Checkbox
                 v-model="selectedUserIds"
                 :value="u.id"
-                :aria-label="'选择账号 ' + u.name"
+                :aria-label="t('admin.users.selectUser', { name: u.name })"
                 :disabled="busy || loading || u.id === currentUser?.id" />
             </td>
             <td>{{ u.name }}</td>
             <td class="admin-account">{{ u.username }}</td>
             <td>
-              {{
-                { admin: '管理员', teacher: '可创建课堂', student: '普通账号' }[u.role] ?? u.role
-              }}
+              {{ roleLabel(u.role) }}
             </td>
             <td>
               <span class="status" :class="u.disabled ? 'red' : 'positive'">
-                {{ u.disabled ? '停用' : '正常' }}
+                {{ u.disabled ? t('admin.users.statusDisabled') : t('admin.users.statusActive') }}
               </span>
             </td>
             <td>
@@ -743,7 +769,7 @@ const busyReason = ref('正在处理请求，请稍候')
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    :aria-label="'管理账号 ' + u.name"
+                    :aria-label="t('admin.users.manageUser', { name: u.name })"
                     :disabled="busy">
                     <Ellipsis />
                   </Button>
@@ -751,42 +777,52 @@ const busyReason = ref('正在处理请求，请稍候')
                 <DropdownMenuPortal>
                   <DropdownMenuContent class="ui-menu-content" align="end" :side-offset="5">
                     <DropdownMenuItem class="ui-menu-item" @select="openEdit(u)">
-                      编辑资料
+                      {{ t('admin.users.editProfile') }}
                     </DropdownMenuItem>
                     <DropdownMenuItem class="ui-menu-item" @select="openReset(u)">
-                      重设密码
+                      {{ t('admin.users.resetPassword') }}
                     </DropdownMenuItem>
                     <DropdownMenuItem class="ui-menu-item" @select="openToggle(u)">
-                      {{ u.disabled ? '启用账号' : '停用账号' }}
+                      {{
+                        u.disabled
+                          ? t('admin.users.enableAccount')
+                          : t('admin.users.disableAccount')
+                      }}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator class="account-menu-separator" />
                     <DropdownMenuItem class="ui-menu-item danger-text" @select="deleteUser(u)">
-                      删除账号
+                      {{ t('admin.users.deleteAccount') }}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
-              <span v-else class="muted">当前账号 · 在个人设置改密</span>
+              <span v-else class="muted">{{ t('admin.users.currentAccountHint') }}</span>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
     <p v-if="!users.length && !loading && !loadError" class="empty-state">
-      没有匹配的账号，请调整筛选条件。
+      {{ t('admin.users.empty') }}
     </p>
     <Pagination
       v-model:page="userPages.page.value"
       v-model:page-size="userPages.pageSize.value"
       :total="userTotal"
       :busy="busy || loading"
-      unit="个账号" />
+      :unit="t('admin.users.unit')" />
     <div v-if="recoveryTotal" class="admin-recovery-content form-stack">
-      <h3 data-guide="recovery-requests">待核实身份的恢复申请</h3>
+      <h3 data-guide="recovery-requests">{{ t('admin.recovery.heading') }}</h3>
       <div v-for="r in recoveries" :key="r.id" class="recovery-row">
         <div>
           <strong>{{ r.username }}</strong>
-          <p>{{ r.name ?? '未找到对应账号' }} · {{ new Date(r.created_at).toLocaleString() }}</p>
+          <p>
+            {{
+              (r.name ?? t('admin.recovery.notFound')) +
+              ' · ' +
+              new Date(r.created_at).toLocaleString()
+            }}
+          </p>
         </div>
         <div class="inline-items">
           <Button
@@ -796,7 +832,7 @@ const busyReason = ref('正在处理请求，请稍候')
             :disabled="busy"
             :data-disabled-reason="busyReason"
             @click="resetRecovery(r)">
-            核实后重设密码
+            {{ t('admin.recovery.verifyReset') }}
           </Button>
           <Button
             size="sm"
@@ -810,7 +846,7 @@ const busyReason = ref('正在处理请求，请稍候')
                 closeRecovery = r
               }
             ">
-            关闭申请
+            {{ t('admin.recovery.close') }}
           </Button>
         </div>
       </div>
@@ -818,7 +854,7 @@ const busyReason = ref('正在处理请求，请稍候')
         v-model:page="recoveryPage"
         v-model:page-size="recoveryPageSize"
         :total="recoveryTotal"
-        unit="条申请" />
+        :unit="t('admin.recovery.unit')" />
     </div>
   </ContentPanel>
   <ContentPanel v-else-if="section === 'tasks'" as="section" direct class="panel-fill">
@@ -827,67 +863,81 @@ const busyReason = ref('正在处理请求，请稍候')
         <Search :size="16" />
         <Input
           v-model="search"
-          aria-label="搜索失败任务"
-          placeholder="搜索课堂、任务编号或失败原因…" />
+          :aria-label="t('admin.tasks.searchLabel')"
+          :placeholder="t('admin.tasks.searchPlaceholder')" />
       </label>
     </div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th>任务</th>
-            <th>课堂</th>
-            <th>原因</th>
-            <th>时间</th>
-            <th>诊断</th>
+            <th>{{ t('admin.tasks.colTask') }}</th>
+            <th>{{ t('admin.tasks.colClassroom') }}</th>
+            <th>{{ t('admin.tasks.colReason') }}</th>
+            <th>{{ t('admin.tasks.colTime') }}</th>
+            <th>{{ t('admin.tasks.colDiagnosis') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in taskPages.paged.value" :key="t.id">
+          <tr v-for="task in taskPages.paged.value" :key="task.id">
             <td class="task-id-cell">
-              <code class="task-id">{{ t.id }}</code>
+              <code class="task-id">{{ task.id }}</code>
             </td>
-            <td>{{ t.classroom }}</td>
-            <td>{{ t.exit }}</td>
-            <td>{{ new Date(t.created_at).toLocaleString() }}</td>
-            <td><Button size="sm" variant="outline" @click="taskDetail = t">查看详情</Button></td>
+            <td>{{ task.classroom }}</td>
+            <td>{{ task.exit }}</td>
+            <td>{{ new Date(task.created_at).toLocaleString() }}</td>
+            <td>
+              <Button size="sm" variant="outline" @click="taskDetail = task">
+                {{ t('admin.tasks.viewDetail') }}
+              </Button>
+            </td>
           </tr>
         </tbody>
       </table>
-      <p v-if="!tasks.length && !loading && !loadError" class="empty-state">暂无平台失败任务</p>
+      <p v-if="!tasks.length && !loading && !loadError" class="empty-state">
+        {{ t('admin.tasks.empty') }}
+      </p>
     </div>
     <Pagination
       v-model:page="taskPages.page.value"
       v-model:page-size="taskPages.pageSize.value"
       :total="taskTotal"
-      unit="条任务" />
+      :unit="t('admin.tasks.unit')" />
   </ContentPanel>
   <template v-else>
-    <ContentPanel title="数据库备份" :icon="Database" class="admin-backup-panel">
-      <p>备份保存在服务器本地。验证会使用独立的临时数据库，保留当前课堂、账号和作品数据。</p>
+    <ContentPanel :title="t('admin.backup.title')" :icon="Database" class="admin-backup-panel">
+      <p>{{ t('admin.backup.description') }}</p>
 
       <Button :disabled="busy" :data-disabled-reason="busyReason" @click="backup">
         <Database :size="15" />
-        {{ busy ? '备份与恢复验证中…' : '创建并验证备份' }}
+        {{ busy ? t('admin.backup.running') : t('admin.backup.create') }}
       </Button>
     </ContentPanel>
     <ContentPanel as="section" direct class="panel-fill" data-guide="audit-records">
-      <div class="panel-heading"><h2>管理与备份记录</h2></div>
+      <div class="panel-heading">
+        <h2>{{ t('admin.audit.heading') }}</h2>
+      </div>
       <div class="table-controls">
         <label class="search-field">
           <Search :size="16" />
           <Input
             v-model="search"
-            aria-label="搜索管理记录"
-            placeholder="搜索操作者、事件或对象编号…" />
+            :aria-label="t('admin.audit.searchLabel')"
+            :placeholder="t('admin.audit.searchPlaceholder')" />
         </label>
       </div>
       <div class="table-scroll">
         <div v-for="a in auditPages.paged.value" :key="a.id" class="audit-item">
           <div>
             <strong>{{ eventLabel(a.event) }}</strong>
-            <p>{{ a.actor_name ?? '系统' }} · {{ new Date(a.created_at).toLocaleString() }}</p>
-            <Disclosure title="查看操作对象与详情">
+            <p>
+              {{
+                (a.actor_name ?? t('admin.audit.system')) +
+                ' · ' +
+                new Date(a.created_at).toLocaleString()
+              }}
+            </p>
+            <Disclosure :title="t('admin.audit.viewDetails')">
               <CodeBlock
                 :source="JSON.stringify(a.details, null, 2)"
                 language="json"
@@ -895,18 +945,20 @@ const busyReason = ref('正在处理请求，请稍候')
             </Disclosure>
           </div>
         </div>
-        <p v-if="!audit.length && !loading && !loadError" class="empty-state">暂无管理记录</p>
+        <p v-if="!audit.length && !loading && !loadError" class="empty-state">
+          {{ t('admin.audit.empty') }}
+        </p>
       </div>
       <Pagination
         v-model:page="auditPages.page.value"
         v-model:page-size="auditPages.pageSize.value"
         :total="auditTotal"
-        unit="条记录" />
+        :unit="t('admin.audit.unit')" />
     </ContentPanel>
   </template>
   <Modal
     :open="!!editTarget"
-    title="编辑账号"
+    :title="t('admin.editDialog.title')"
     :dismissible="!busy"
     @update:open="
       (value) => {
@@ -915,56 +967,58 @@ const busyReason = ref('正在处理请求，请稍候')
     ">
     <Form class="form-stack" @submit.prevent="saveUser">
       <label>
-        姓名
+        {{ t('admin.editDialog.name') }}
         <Input v-model="editName" required maxlength="50" />
       </label>
       <label>
-        账号
+        {{ t('admin.editDialog.account') }}
         <Input v-model="editUsername" required maxlength="80" pattern="[a-zA-Z0-9._@-]+" />
       </label>
       <label>
-        学号
+        {{ t('admin.editDialog.number') }}
         <Input v-model="editNumber" maxlength="50" />
       </label>
       <label v-if="editTarget?.role !== 'admin'">
-        身份
+        {{ t('admin.editDialog.role') }}
         <Select v-model="editRole">
-          <SelectOption value="teacher">可创建课堂</SelectOption>
-          <SelectOption value="student">普通账号</SelectOption>
+          <SelectOption value="teacher">{{ t('admin.users.roleTeacher') }}</SelectOption>
+          <SelectOption value="student">{{ t('admin.users.roleStudent') }}</SelectOption>
         </Select>
       </label>
       <p v-if="error" role="alert">{{ error }}</p>
-      <div class="modal-actions"><Button type="submit" :disabled="busy">保存</Button></div>
+      <div class="modal-actions">
+        <Button type="submit" :disabled="busy">{{ t('common.save') }}</Button>
+      </div>
     </Form>
   </Modal>
   <Modal
     v-model:open="create"
     :dismissible="!busy"
-    title="创建平台账号"
-    description="创建后可导出账号密码表，再通过可信渠道交付。">
+    :title="t('admin.createDialog.title')"
+    :description="t('admin.createDialog.description')">
     <Form class="form-stack" @submit.prevent="addUser">
       <label>
-        姓名
+        {{ t('admin.createDialog.name') }}
         <Input v-model="name" required maxlength="50" />
       </label>
       <label>
-        账号
+        {{ t('admin.createDialog.account') }}
         <Input
           v-model="account"
           required
           maxlength="80"
           pattern="[a-zA-Z0-9._@-]+"
-          placeholder="字母、数字、点、下划线或连字符" />
+          :placeholder="t('admin.createDialog.accountPlaceholder')" />
       </label>
       <label>
-        身份
+        {{ t('admin.createDialog.role') }}
         <Select v-model="userRole">
-          <SelectOption value="teacher">可创建课堂</SelectOption>
-          <SelectOption value="student">普通账号</SelectOption>
+          <SelectOption value="teacher">{{ t('admin.users.roleTeacher') }}</SelectOption>
+          <SelectOption value="student">{{ t('admin.users.roleStudent') }}</SelectOption>
         </Select>
       </label>
       <label>
-        初始密码
+        {{ t('admin.createDialog.initialPassword') }}
         <div class="password-field">
           <Input
             v-model="password"
@@ -976,7 +1030,11 @@ const busyReason = ref('正在处理请求，请稍候')
             variant="plain"
             type="button"
             class="icon-button"
-            :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+            :aria-label="
+              showPassword
+                ? t('admin.createDialog.hidePassword')
+                : t('admin.createDialog.showPassword')
+            "
             @click="showPassword = !showPassword">
             <EyeOff v-if="showPassword" :size="18" />
             <Eye v-else :size="18" />
@@ -991,10 +1049,10 @@ const busyReason = ref('正在处理请求，请稍候')
           :disabled="busy"
           :data-disabled-reason="busyReason"
           @click="create = false">
-          取消
+          {{ t('common.cancel') }}
         </Button>
         <Button type="submit" :disabled="busy" :data-disabled-reason="busyReason">
-          {{ busy ? '正在创建…' : '创建账号并生成凭据' }}
+          {{ busy ? t('admin.createDialog.submitting') : t('admin.createDialog.submit') }}
         </Button>
       </div>
     </Form>
@@ -1002,12 +1060,12 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     :open="!!resetUser"
     :dismissible="!busy"
-    title="重设账号密码"
-    description="旧登录会话将失效，正在执行的程序会停止。请核实申请人身份后操作。"
+    :title="t('admin.resetDialog.title')"
+    :description="t('admin.resetDialog.description')"
     @update:open="!$event && (resetUser = '')">
     <Form class="form-stack" @submit.prevent="reset">
       <label>
-        新密码
+        {{ t('admin.resetDialog.newPassword') }}
         <div class="password-field">
           <Input
             v-model="resetPassword"
@@ -1019,7 +1077,11 @@ const busyReason = ref('正在处理请求，请稍候')
             variant="plain"
             type="button"
             class="icon-button"
-            :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+            :aria-label="
+              showPassword
+                ? t('admin.resetDialog.hidePassword')
+                : t('admin.resetDialog.showPassword')
+            "
             @click="showPassword = !showPassword">
             <EyeOff v-if="showPassword" :size="18" />
             <Eye v-else :size="18" />
@@ -1034,11 +1096,11 @@ const busyReason = ref('正在处理请求，请稍候')
           :disabled="busy"
           :data-disabled-reason="busyReason"
           @click="resetUser = ''">
-          取消
+          {{ t('common.cancel') }}
         </Button>
         <Button type="submit" variant="warning" :disabled="busy" :data-disabled-reason="busyReason">
           <KeyRound />
-          {{ busy ? '正在重设…' : '保存并生成新凭据' }}
+          {{ busy ? t('admin.resetDialog.submitting') : t('admin.resetDialog.submit') }}
         </Button>
       </div>
     </Form>
@@ -1046,11 +1108,15 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     :open="!!toggleUser"
     :dismissible="!busy"
-    :title="toggleUser?.disabled ? '启用账号？' : '停用账号？'"
+    :title="
+      toggleUser?.disabled
+        ? t('admin.toggleDialog.enableTitle')
+        : t('admin.toggleDialog.disableTitle')
+    "
     :description="
       toggleUser?.disabled
-        ? '账号可重新登录，原有课堂和作品保留。'
-        : '此账号将无法登录，旧会话失效，运行中的程序停止。课堂和作品保留。'
+        ? t('admin.toggleDialog.enableDescription')
+        : t('admin.toggleDialog.disableDescription')
     "
     @update:open="!$event && (toggleUser = undefined)">
     <p class="body-copy">{{ toggleUser?.name }} · {{ toggleUser?.username }}</p>
@@ -1061,14 +1127,20 @@ const busyReason = ref('正在处理请求，请稍候')
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="toggleUser = undefined">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button
         :variant="toggleUser?.disabled ? 'success' : 'destructive'"
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="toggle">
-        {{ busy ? '处理中…' : toggleUser?.disabled ? '确认启用' : '确认停用' }}
+        {{
+          busy
+            ? t('admin.toggleDialog.processing')
+            : toggleUser?.disabled
+              ? t('admin.toggleDialog.confirmEnable')
+              : t('admin.toggleDialog.confirmDisable')
+        }}
       </Button>
     </div>
   </Modal>
@@ -1081,13 +1153,13 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     :open="!!closeRecovery"
     :dismissible="!busy"
-    title="关闭这条恢复申请？"
-    description="仅关闭待办，不修改账号密码。核实无效或已通过其他方式解决时，请说明原因。"
+    :title="t('admin.recovery.closeTitle')"
+    :description="t('admin.recovery.closeDescription')"
     @update:open="!$event && (closeRecovery = undefined)">
     <Form class="form-stack" @submit.prevent="resolveRecovery">
       <p>{{ closeRecovery?.username }}</p>
       <label>
-        处理原因
+        {{ t('admin.recovery.reasonLabel') }}
         <Textarea v-model="closeReason" required maxlength="500" rows="3" />
       </label>
 
@@ -1098,20 +1170,20 @@ const busyReason = ref('正在处理请求，请稍候')
           :disabled="busy"
           :data-disabled-reason="busyReason"
           @click="closeRecovery = undefined">
-          取消
+          {{ t('common.cancel') }}
         </Button>
         <Button
           type="submit"
           :disabled="busy || !closeReason.trim()"
-          :data-disabled-reason="busy ? busyReason : '请先填写关闭申请的处理原因'">
-          {{ busy ? '处理中…' : '确认关闭申请' }}
+          :data-disabled-reason="busy ? busyReason : t('admin.recovery.reasonRequired')">
+          {{ busy ? t('admin.toggleDialog.processing') : t('admin.recovery.confirm') }}
         </Button>
       </div>
     </Form>
   </Modal>
   <Modal
     :open="!!taskDetail"
-    title="平台失败任务诊断"
+    :title="t('admin.taskDialog.title')"
     wide
     @update:open="!$event && (taskDetail = undefined)">
     <div v-if="taskDetail" class="form-stack task-detail">
@@ -1123,16 +1195,16 @@ const busyReason = ref('正在处理请求，请稍候')
       <code>{{ taskDetail.id }}</code>
       <Alert type="error">{{ taskDetail.exit }}</Alert>
       <Alert type="info">
-        为保护课堂作品，管理员诊断不展示学生源代码、编译输出或程序输出。请根据失败原因与任务指标检查平台服务健康；课堂内容由授课教师核对。
+        {{ t('admin.taskDialog.privacy') }}
       </Alert>
-      <Disclosure title="任务指标">
+      <Disclosure :title="t('admin.taskDialog.metrics')">
         <CodeBlock
           :source="JSON.stringify(taskDetail.metrics ?? {}, null, 2)"
           language="json"
           label="JSON" />
       </Disclosure>
       <Button as-child variant="outline">
-        <RouterLink to="/admin/settings">检查平台服务与执行节点</RouterLink>
+        <RouterLink to="/admin/settings">{{ t('admin.taskDialog.gotoSettings') }}</RouterLink>
       </Button>
     </div>
   </Modal>

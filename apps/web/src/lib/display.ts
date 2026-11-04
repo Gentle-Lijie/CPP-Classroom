@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 export function formatTime(value?: string | null) {
   if (!value) return '—'
   const date = new Date(value)
@@ -8,10 +10,10 @@ export function shortId(value?: string) {
 }
 export function compilerLabel(profile?: string) {
   return profile?.startsWith('cpython')
-    ? 'Python 3 · 标准库'
+    ? t('lib.display.pythonStdlib')
     : profile === 'gcc13-cpp20'
       ? 'GCC 13.3 / C++20'
       : profile === 'gcc13-cpp17'
         ? 'GCC 13.3 / C++17'
-        : '未记录运行环境'
+        : t('lib.display.unknownProfile')
 }

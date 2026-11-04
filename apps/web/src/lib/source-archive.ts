@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 const crcTable = new Uint32Array(256)
 for (let index = 0; index < 256; index++) {
   let value = index
@@ -7,7 +9,7 @@ for (let index = 0; index < 256; index++) {
 
 /** A dependency-free ZIP (stored entries, UTF-8 filenames) for classroom source exports. */
 export function sourceArchive(files: { name: string; content: string }[]) {
-  if (files.length > 65535) throw new Error('文件过多，请分批导出')
+  if (files.length > 65535) throw new Error(t('lib.archive.tooManyFiles'))
   const encoder = new TextEncoder()
   const entries: { name: Uint8Array; content: Uint8Array; crc: number; offset: number }[] = []
   let size = 0
@@ -15,7 +17,7 @@ export function sourceArchive(files: { name: string; content: string }[]) {
     const name = encoder.encode(file.name)
     const content = encoder.encode(file.content)
     if (name.length > 65535 || /(^|\/)\.\.(\/|$)|^\//.test(file.name))
-      throw new Error('导出文件名无效')
+      throw new Error(t('lib.archive.invalidEntryName'))
     let crc = 0xffffffff
     for (const byte of content) {
       crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 0xff]!
@@ -25,7 +27,7 @@ export function sourceArchive(files: { name: string; content: string }[]) {
   }
   const directoryOffset = size
   for (const entry of entries) size += 46 + entry.name.length
-  if (size > 128 * 1024 * 1024) throw new Error('导出文件超过 128 MiB，请按练习或学生分批导出')
+  if (size > 128 * 1024 * 1024) throw new Error(t('lib.archive.tooLarge'))
   const bytes = new Uint8Array(size + 22)
   const view = new DataView(bytes.buffer)
   let cursor = 0
@@ -95,7 +97,7 @@ export function safeArchivePart(value: string) {
       .join('')
       .replace(/^\.+$/, '_')
       .trim()
-      .slice(0, 100) || '未命名'
+      .slice(0, 100) || t('lib.archive.unnamed')
   )
 }
 

@@ -6,8 +6,9 @@ import { Form } from '@/components/ui/form'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   Activity,
   Database,
@@ -35,6 +36,7 @@ import {
   type SourceLanguage,
 } from '@classroom/contracts'
 
+const { t, locale } = useI18n()
 const form = reactive({
   ...executionDefaults,
   languages: languageSettings(),
@@ -52,7 +54,7 @@ const command = computed(() =>
           .split(/\s+/)
           .filter(Boolean)
           .map((m) => `-D${m}`),
-        '<源文件>',
+        t('admin.settings.sourceFile'),
         '-o',
         'program',
       ].join(' ')
@@ -67,7 +69,7 @@ const command = computed(() =>
         ...(form.languages.python.optimization === 'none'
           ? []
           : [`-${form.languages.python.optimization}`]),
-        '<源文件>',
+        t('admin.settings.sourceFile'),
       ].join(' '),
 )
 const loading = ref(true),
@@ -78,45 +80,67 @@ const loadError = ref(''),
   savedSnapshot = ref('')
 const checkedAt = ref('')
 const states = reactive<Record<'api' | 'database' | 'runner', ProbeResult>>({
-  api: { status: 'idle', message: '尚未检查连接。' },
-  database: { status: 'idle', message: '尚未检查连接。' },
-  runner: { status: 'idle', message: '尚未检查连接。' },
+  api: { status: 'idle', message: '' },
+  database: { status: 'idle', message: '' },
+  runner: { status: 'idle', message: '' },
 })
-const services = [
-  { key: 'api', title: '业务服务', subtitle: '课堂与账号', icon: Activity },
-  { key: 'database', title: '数据库', subtitle: '课堂数据与任务队列', icon: Database },
-  { key: 'runner', title: '评测节点', subtitle: '原生 Linux · go-judge', icon: Server },
-] as const
+// 初始“尚未检查连接”文案需要随语言切换响应
+function syncIdleMessages() {
+  for (const state of Object.values(states))
+    if (state.status === 'idle') state.message = t('admin.settings.probeNotChecked')
+}
+syncIdleMessages()
+watch(locale, syncIdleMessages)
+const services = computed(
+  () =>
+    [
+      {
+        key: 'api',
+        title: t('admin.settings.service.api.title'),
+        subtitle: t('admin.settings.service.api.subtitle'),
+        icon: Activity,
+      },
+      {
+        key: 'database',
+        title: t('admin.settings.service.database.title'),
+        subtitle: t('admin.settings.service.database.subtitle'),
+        icon: Database,
+      },
+      {
+        key: 'runner',
+        title: t('admin.settings.service.runner.title'),
+        subtitle: t('admin.settings.service.runner.subtitle'),
+        icon: Server,
+      },
+    ] as const,
+)
 const groups = [
   {
-    title: '编译阶段',
-    // description: '限制每次编译可使用的 CPU 时间和内存。',
+    key: 'compile',
     fields: [
-      { key: 'compileTimeMs', name: '编译 CPU 时间', unit: 'ms', min: 1000, max: 20000 },
-      { key: 'compileMemoryMb', name: '编译内存', unit: 'MiB', min: 128, max: 1024 },
+      { key: 'compileTimeMs', unit: 'ms', min: 1000, max: 20000 },
+      { key: 'compileMemoryMb', unit: 'MiB', min: 128, max: 1024 },
     ],
   },
   {
-    title: '程序运行',
-    // description: '限制单次学生程序的资源用量。',
+    key: 'run',
     fields: [
-      { key: 'runTimeMs', name: '运行 CPU 时间', unit: 'ms', min: 100, max: 10000 },
-      { key: 'runMemoryMb', name: '运行内存', unit: 'MiB', min: 16, max: 512 },
+      { key: 'runTimeMs', unit: 'ms', min: 100, max: 10000 },
+      { key: 'runMemoryMb', unit: 'MiB', min: 16, max: 512 },
     ],
   },
   {
-    title: '输出限制',
-    // description: '控制平台总并发和单次程序的输出量。',
-    fields: [{ key: 'outputLimitKb', name: '输出上限', unit: 'KiB', min: 16, max: 2048 }],
+    key: 'output',
+    fields: [{ key: 'outputLimitKb', unit: 'KiB', min: 16, max: 2048 }],
   },
 ] as const
-const labels: Record<ProbeState, string> = {
-  idle: '未检查',
-  checking: '检查中',
-  healthy: '连接正常',
-  unavailable: '不可用',
-  unconfigured: '未配置',
-}
+const labels = computed<Record<ProbeState, string>>(() => ({
+  idle: t('admin.settings.probeState.idle'),
+  checking: t('admin.settings.probeState.checking'),
+  healthy: t('admin.settings.probeState.healthy'),
+  unavailable: t('admin.settings.probeState.unavailable'),
+  unconfigured: t('admin.settings.probeState.unconfigured'),
+}))
 function configuration() {
   return {
     ...form.languages.cpp,
@@ -134,7 +158,7 @@ async function load() {
     Object.assign(form, await api('/admin/settings'))
     savedSnapshot.value = JSON.stringify(configuration())
   } catch {
-    loadError.value = '无法读取平台配置，请检查连接或重新登录后重试。'
+    loadError.value = t('admin.settings.loadFailed')
   } finally {
     loading.value = false
   }
@@ -144,7 +168,7 @@ async function check() {
   checking.value = true
   for (const state of Object.values(states)) {
     state.status = 'checking'
-    state.message = '正在检查服务连接…'
+    state.message = t('admin.settings.probeChecking')
     delete state.latencyMs
   }
   try {
@@ -152,7 +176,7 @@ async function check() {
   } catch {
     for (const state of Object.values(states)) {
       state.status = 'unavailable'
-      state.message = '连接检查失败，请稍后重试。'
+      state.message = t('admin.settings.probeFailed')
     }
   } finally {
     checking.value = false
@@ -163,32 +187,33 @@ async function save() {
   if (loading.value || saving.value || loadError.value || !dirty.value) return
   if (!/^(?:[A-Za-z_]\w*(?:=[A-Za-z0-9_.+-]+)?(?:\s+|$))*$/.test(form.languages.cpp.macros)) {
     language.value = 'cpp'
-    saveError.value = '宏定义格式无效，请使用空格分隔的名称或 NAME=VALUE。'
+    saveError.value = t('admin.settings.macrosInvalid')
     return
   }
   const value = configuration()
-  if (!(await confirmAction('保存平台运行配置？后续开始的任务将使用新配置，影响所有课堂。'))) return
+  if (!(await confirmAction(t('admin.settings.saveConfirm')))) return
   saving.value = true
   saveError.value = ''
   try {
     await api('/admin/settings', 'POST', value)
     Object.assign(executionSettings, value)
     savedSnapshot.value = JSON.stringify(value)
-    notify('运行配置已保存，后续开始的任务将使用新配置')
+    notify(t('admin.settings.saveNotify'))
   } catch (error) {
-    saveError.value = error instanceof Error ? error.message : '保存失败，请重试。'
+    saveError.value = error instanceof Error ? error.message : t('admin.settings.saveFailed')
   } finally {
     saving.value = false
   }
 }
-const sections = ['服务状态', '执行节点', '运行环境', '资源限额']
-const tab = ref(sections[0])
+const sectionKeys = ['services', 'nodes', 'runtime', 'limits'] as const
+const sections = computed(() => sectionKeys.map((key) => t(`admin.settings.section.${key}`)))
+const tab = ref(sections.value[0])
 const panelEl = ref<HTMLElement | null>(null)
 let spyRaf = 0
-function goTo(name: string) {
-  tab.value = name
+function goTo(index: number) {
+  tab.value = sections.value[index]
   document
-    .getElementById(`platform-section-${sections.indexOf(name)}`)
+    .getElementById(`platform-section-${index}`)
     ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 function spy() {
@@ -196,13 +221,13 @@ function spy() {
   const panel = panelEl.value
   if (!panel) return
   const panelTop = panel.getBoundingClientRect().top
-  let current = sections[0]
-  for (let i = 0; i < sections.length; i++) {
+  let current = sections.value[0]
+  for (let i = 0; i < sections.value.length; i++) {
     const el = document.getElementById(`platform-section-${i}`)
-    if (el && el.getBoundingClientRect().top - panelTop <= 24) current = sections[i]
+    if (el && el.getBoundingClientRect().top - panelTop <= 24) current = sections.value[i]
   }
   if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4)
-    current = sections[sections.length - 1]
+    current = sections.value[sections.value.length - 1]
   tab.value = current
 }
 function onScroll() {
@@ -227,7 +252,7 @@ onBeforeUnmount(() => {
 })
 onBeforeRouteLeave(async () => {
   if (saving.value) return false
-  return !dirty.value || (await confirmAction('平台配置尚未保存。确认放弃本次更改并离开？'))
+  return !dirty.value || (await confirmAction(t('admin.settings.leaveConfirm')))
 })
 useActionFeedback(saveError)
 </script>
@@ -235,8 +260,8 @@ useActionFeedback(saveError)
   <div class="settings-page platform-settings-page">
     <div class="page-heading">
       <div>
-        <div class="heading-meta">平台管理</div>
-        <h1>平台配置</h1>
+        <div class="heading-meta">{{ t('admin.platformAdmin') }}</div>
+        <h1>{{ t('admin.settings.title') }}</h1>
       </div>
       <Button
         type="submit"
@@ -244,35 +269,43 @@ useActionFeedback(saveError)
         :disabled="loading || saving || !!loadError || !dirty"
         :data-disabled-reason="
           loading
-            ? '正在加载平台配置'
+            ? t('admin.settings.loadingReason')
             : saving
-              ? '正在保存配置'
+              ? t('admin.settings.savingReason')
               : loadError
-                ? '配置加载失败'
-                : '设置没有更改，无需保存'
+                ? t('admin.settings.loadFailReason')
+                : t('admin.settings.noChangeReason')
         ">
         <Save />
-        {{ saving ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}
+        {{
+          saving
+            ? t('admin.settings.saving')
+            : dirty
+              ? t('admin.settings.save')
+              : t('admin.settings.saved')
+        }}
       </Button>
     </div>
     <Alert v-if="dirty" role="status" type="warning">
-      有尚未保存的运行配置，点击“保存设置”后生效。节点配置单独保存。
+      {{ t('admin.settings.dirtyAlert') }}
     </Alert>
     <Alert v-if="loadError" role="alert" type="error" :icon="CircleAlert">
       <span>{{ loadError }}</span>
       <template #actions>
-        <Button variant="outline" size="sm" @click="load">重试读取</Button>
+        <Button variant="outline" size="sm" @click="load">
+          {{ t('admin.settings.retryRead') }}
+        </Button>
       </template>
     </Alert>
     <div class="settings-layout platform-layout">
-      <nav class="settings-nav" aria-label="平台配置分区">
+      <nav class="settings-nav" :aria-label="t('admin.settings.navAria')">
         <Button
-          v-for="name in sections"
+          v-for="(name, index) in sections"
           :key="name"
           variant="plain"
           :class="{ selected: tab === name }"
           :aria-current="tab === name ? 'location' : undefined"
-          @click="goTo(name)">
+          @click="goTo(index)">
           {{ name }}
           <ChevronRight :size="14" />
         </Button>
@@ -283,13 +316,13 @@ useActionFeedback(saveError)
             <div>
               <div class="settings-title">
                 <Activity :size="19" />
-                <h2>服务状态</h2>
+                <h2>{{ t('admin.settings.servicesTitle') }}</h2>
               </div>
-              <p class="section-description">查看平台服务与执行节点的连接情况。</p>
+              <p class="section-description">{{ t('admin.settings.servicesDescription') }}</p>
             </div>
             <Button variant="outline" size="sm" :disabled="checking" @click="check">
               <RefreshCw :class="{ 'probe-spinning': checking }" />
-              {{ checking ? '检查中…' : '刷新状态' }}
+              {{ checking ? t('admin.settings.checking') : t('admin.settings.refreshStatus') }}
             </Button>
           </div>
           <div class="service-list" aria-live="polite">
@@ -311,7 +344,10 @@ useActionFeedback(saveError)
             </div>
           </div>
           <p class="section-note">
-            {{ checkedAt ? '最近检查 ' + checkedAt + ' · ' : '' }}连接正常仅代表服务可达。
+            {{
+              (checkedAt ? t('admin.settings.noteRecent', { time: checkedAt }) : '') +
+              t('admin.settings.noteReachable')
+            }}
           </p>
         </div>
         <RunnerNodes id="platform-section-1" class="platform-section" />
@@ -321,11 +357,14 @@ useActionFeedback(saveError)
               <div>
                 <div class="settings-title">
                   <Settings2 :size="19" />
-                  <h2>运行环境</h2>
+                  <h2>{{ t('admin.settings.runtimeTitle') }}</h2>
                 </div>
-                <p class="section-description">配置各语言的运行选项，保存后应用于后续任务。</p>
+                <p class="section-description">{{ t('admin.settings.runtimeDescription') }}</p>
               </div>
-              <div class="filter-tabs" role="tablist" aria-label="编程语言">
+              <div
+                class="filter-tabs"
+                role="tablist"
+                :aria-label="t('admin.settings.languageAria')">
                 <Button
                   v-for="item in [
                     { id: 'cpp', label: 'C++' },
@@ -344,14 +383,18 @@ useActionFeedback(saveError)
               </div>
               <div class="field-grid">
                 <label v-if="language === 'cpp'">
-                  C++ 标准
+                  {{ t('admin.settings.cppStandard') }}
                   <Select v-model="form.languages.cpp.compilerProfile">
                     <SelectOption value="gcc13-cpp17">GCC 13.3 / C++17</SelectOption>
                     <SelectOption value="gcc13-cpp20">GCC 13.3 / C++20</SelectOption>
                   </Select>
                 </label>
                 <label>
-                  {{ language === 'cpp' ? '优化等级' : 'Python 优化模式' }}
+                  {{
+                    language === 'cpp'
+                      ? t('admin.settings.optimization')
+                      : t('admin.settings.pythonOptimization')
+                  }}
                   <Select v-if="language === 'cpp'" v-model="form.languages.cpp.optimization">
                     <SelectOption
                       v-for="option in ['O0', 'O1', 'O2', 'O3']"
@@ -361,7 +404,9 @@ useActionFeedback(saveError)
                     </SelectOption>
                   </Select>
                   <Select v-else v-model="form.languages.python.optimization">
-                    <SelectOption value="none">默认</SelectOption>
+                    <SelectOption value="none">
+                      {{ t('admin.settings.optimizationDefault') }}
+                    </SelectOption>
                     <SelectOption value="O">-O</SelectOption>
                     <SelectOption value="OO">-OO</SelectOption>
                   </Select>
@@ -369,38 +414,51 @@ useActionFeedback(saveError)
               </div>
               <template v-if="language === 'cpp'">
                 <label>
-                  宏定义
+                  {{ t('admin.settings.macros') }}
                   <Input
                     v-model="form.languages.cpp.macros"
-                    placeholder="例如 DEBUG LEVEL=2"
+                    :placeholder="t('admin.settings.macrosPlaceholder')"
                     maxlength="1000" />
-                  <small>以空格或换行分隔宏名称或 NAME=VALUE。</small>
+                  <small>{{ t('admin.settings.macrosHint') }}</small>
                 </label>
                 <label class="toggle-row">
                   <span>
-                    <strong>启用编译警告</strong>
-                    <small>使用 -Wall 和 -Wextra 输出编译诊断。</small>
+                    <strong>{{ t('admin.settings.warningsTitle') }}</strong>
+                    <small>{{ t('admin.settings.warningsHint') }}</small>
                   </span>
                   <Switch v-model="form.languages.cpp.warnings" />
                 </label>
               </template>
               <div class="command-block">
-                <span>{{ language === 'cpp' ? '编译指令' : '运行指令' }}</span>
+                <span>
+                  {{
+                    language === 'cpp'
+                      ? t('admin.settings.compileCommand')
+                      : t('admin.settings.runCommand')
+                  }}
+                </span>
                 <code>{{ command }}</code>
-                <small>执行程序与隔离参数由平台固定。</small>
+                <small>{{ t('admin.settings.commandNote') }}</small>
               </div>
             </div>
             <div id="platform-section-3" class="platform-section form-stack">
               <div>
                 <div class="settings-title">
                   <SlidersHorizontal :size="19" />
-                  <h2>资源限额</h2>
+                  <h2>{{ t('admin.settings.limitsTitle') }}</h2>
                 </div>
                 <p class="section-description">
-                  设置 {{ language === 'cpp' ? 'C++' : 'Python' }} 任务的资源上限及平台共享并发。
+                  {{
+                    t('admin.settings.limitsDescription', {
+                      language: language === 'cpp' ? 'C++' : 'Python',
+                    })
+                  }}
                 </p>
               </div>
-              <div class="filter-tabs" role="tablist" aria-label="资源限额语言">
+              <div
+                class="filter-tabs"
+                role="tablist"
+                :aria-label="t('admin.settings.limitsLanguageAria')">
                 <Button
                   v-for="item in [
                     { id: 'cpp', label: 'C++' },
@@ -417,9 +475,9 @@ useActionFeedback(saveError)
                   <PythonBeta v-if="item.id === 'python'" />
                 </Button>
               </div>
-              <template v-for="group in groups" :key="group.title">
-                <div v-if="language === 'cpp' || group.title !== '编译阶段'" class="limit-group">
-                  <h3>{{ group.title }}</h3>
+              <template v-for="group in groups" :key="group.key">
+                <div v-if="language === 'cpp' || group.key !== 'compile'" class="limit-group">
+                  <h3>{{ t(`admin.settings.group.${group.key}`) }}</h3>
                   <div class="field-grid">
                     <NumberInputField
                       v-for="field in group.fields"
@@ -429,7 +487,7 @@ useActionFeedback(saveError)
                           ? form.languages.cpp
                           : (activeLanguage as typeof form.languages.cpp))[field.key]
                       "
-                      :label="field.name"
+                      :label="t(`admin.settings.field.${field.key}`)"
                       :hint="`${field.min}–${field.max} ${field.unit}`"
                       :unit="field.unit"
                       :min="field.min"
@@ -440,13 +498,13 @@ useActionFeedback(saveError)
                 </div>
               </template>
               <div class="limit-group">
-                <h3>平台共享</h3>
+                <h3>{{ t('admin.settings.sharedTitle') }}</h3>
                 <div class="field-grid">
                   <NumberInputField
                     v-model.number="form.executionConcurrency"
-                    label="执行槽位"
-                    hint="所有语言共享"
-                    unit="个"
+                    :label="t('admin.settings.executionSlots')"
+                    :hint="t('admin.settings.sharedHint')"
+                    :unit="t('admin.settings.slotsUnit')"
                     :min="1"
                     :max="executionLimits.maxConcurrentRuns"
                     :step="1"
@@ -454,17 +512,31 @@ useActionFeedback(saveError)
                 </div>
               </div>
               <div class="wall-clock">
-                <strong>墙钟时间上限</strong>
+                <strong>{{ t('admin.settings.wallClockTitle') }}</strong>
                 <span v-if="language === 'cpp'">
-                  编译 {{ wallClockLimitMs(form.languages.cpp.compileTimeMs) / 1000 }} 秒
+                  {{
+                    t('admin.settings.wallCompile', {
+                      seconds: wallClockLimitMs(form.languages.cpp.compileTimeMs) / 1000,
+                    })
+                  }}
                 </span>
-                <span>非交互运行 {{ wallClockLimitMs(activeLanguage.runTimeMs) / 1000 }} 秒</span>
                 <span>
-                  交互运行 {{ wallClockLimitMs(activeLanguage.runTimeMs, true) / 1000 }} 秒
+                  {{
+                    t('admin.settings.wallRun', {
+                      seconds: wallClockLimitMs(activeLanguage.runTimeMs) / 1000,
+                    })
+                  }}
+                </span>
+                <span>
+                  {{
+                    t('admin.settings.wallInteractive', {
+                      seconds: wallClockLimitMs(activeLanguage.runTimeMs, true) / 1000,
+                    })
+                  }}
                 </span>
               </div>
               <Alert type="info" :icon="ShieldCheck">
-                学生代码在独立评测节点运行；更改不会影响已经开始的任务。
+                {{ t('admin.settings.limitsInfo') }}
               </Alert>
             </div>
           </fieldset>

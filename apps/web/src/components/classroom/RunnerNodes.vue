@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Server, Plus, RefreshCw } from '@lucide/vue'
 import { api } from '@/lib/api'
 import { confirmAction } from '@/lib/confirm'
@@ -8,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Form } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import Modal from './Modal.vue'
+
+const { t } = useI18n()
 
 type Node = {
   id: string
@@ -69,13 +72,13 @@ async function load() {
     nodes.value = await api<Node[]>('/admin/runners')
     loadError.value = ''
   } catch (e) {
-    loadError.value = e instanceof Error ? e.message : '读取节点失败'
+    loadError.value = e instanceof Error ? e.message : t('runner.nodes.errors.loadFailed')
   }
 }
 async function remove(node: Node) {
   if (
     busy.value ||
-    !(await confirmAction(`永久删除执行节点 ${node.name}？历史运行记录会保留，但不再关联此节点。`, {
+    !(await confirmAction(t('runner.nodes.confirmDelete', { name: node.name }), {
       destructive: true,
     }))
   )
@@ -85,7 +88,7 @@ async function remove(node: Node) {
     await api(`/admin/runners/${node.id}`, 'DELETE')
     await load()
   } catch (e) {
-    loadError.value = e instanceof Error ? e.message : '删除节点失败'
+    loadError.value = e instanceof Error ? e.message : t('runner.nodes.errors.deleteFailed')
   } finally {
     busy.value = false
   }
@@ -111,7 +114,7 @@ async function save() {
     reset()
     await load()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '保存节点失败'
+    error.value = e instanceof Error ? e.message : t('runner.nodes.errors.saveFailed')
   } finally {
     busy.value = false
   }
@@ -125,7 +128,7 @@ watch(
 async function test() {
   if (busy.value || testing.value) return
   if (!form.url.trim()) {
-    testResult.value = { ok: false, message: '请先填写节点地址。' }
+    testResult.value = { ok: false, message: t('runner.nodes.errors.fillUrl') }
     return
   }
   testing.value = true
@@ -138,7 +141,10 @@ async function test() {
       ...(form.token || form.clearToken ? { token: form.token } : {}),
     })
   } catch (e) {
-    testResult.value = { ok: false, message: e instanceof Error ? e.message : '测试失败，请重试。' }
+    testResult.value = {
+      ok: false,
+      message: e instanceof Error ? e.message : t('runner.nodes.errors.testFailed'),
+    }
   } finally {
     testing.value = false
   }
@@ -153,53 +159,60 @@ onMounted(() => {
       <div>
         <div class="settings-title">
           <Server :size="19" />
-          <h2>执行节点</h2>
+          <h2>{{ t('runner.nodes.title') }}</h2>
         </div>
-        <p class="runner-hint">节点配置由所有 worker 共享，容量为该节点的并发上限。</p>
+        <p class="runner-hint">{{ t('runner.nodes.hint') }}</p>
       </div>
       <Button type="button" variant="outline" size="sm" @click="add">
         <Plus />
-        添加节点
+        {{ t('runner.nodes.addNode') }}
       </Button>
     </div>
     <p v-if="loadError" role="alert" class="runner-error">{{ loadError }}</p>
     <p v-if="!nodes.length && !loadError" class="runner-empty">
-      暂无数据库节点配置；系统将使用环境变量中配置的节点。
+      {{ t('runner.nodes.emptyHint') }}
     </p>
     <div v-for="node in nodes" :key="node.id" class="runner-row">
       <div>
         <strong>{{ node.name }}</strong>
         <p>{{ node.url }}</p>
         <small>
-          {{ node.enabled ? '已启用' : '已停用' }} · 运行 {{ node.activeCount }} /
-          {{ node.capacity }} · {{ node.hasToken ? '令牌已配置' : '未配置令牌' }}
+          {{ node.enabled ? t('common.enabled') : t('common.disabled') }} ·
+          {{ t('runner.nodes.running', { active: node.activeCount, capacity: node.capacity }) }} ·
+          {{ node.hasToken ? t('runner.nodes.tokenConfigured') : t('runner.nodes.tokenMissing') }}
         </small>
       </div>
       <div class="inline-items">
-        <Button type="button" variant="outline" size="sm" @click="edit(node)">编辑</Button>
+        <Button type="button" variant="outline" size="sm" @click="edit(node)">
+          {{ t('common.edit') }}
+        </Button>
         <Button
           type="button"
           variant="destructive"
           size="sm"
           :disabled="busy"
           @click="remove(node)">
-          删除
+          {{ t('common.delete') }}
         </Button>
       </div>
     </div>
     <Modal
       v-model:open="open"
-      :title="editing ? '编辑节点' : '添加节点'"
-      description="配置执行节点的连接方式和并发容量。"
+      :title="editing ? t('runner.nodes.editTitle') : t('runner.nodes.addTitle')"
+      :description="t('runner.nodes.modalDescription')"
       :busy="busy || testing">
       <Form id="runner-node-form" class="runner-form" @submit="save">
         <fieldset :disabled="busy || testing" class="runner-fieldset">
           <label>
-            名称
-            <Input v-model="form.name" required maxlength="100" placeholder="例如：教学评测节点" />
+            {{ t('runner.nodes.nameLabel') }}
+            <Input
+              v-model="form.name"
+              required
+              maxlength="100"
+              :placeholder="t('runner.nodes.namePlaceholder')" />
           </label>
           <label>
-            节点地址
+            {{ t('runner.nodes.urlLabel') }}
             <Input
               v-model="form.url"
               type="url"
@@ -207,35 +220,39 @@ onMounted(() => {
               placeholder="https://runner.example.com" />
           </label>
           <label>
-            认证令牌
+            {{ t('runner.nodes.tokenLabel') }}
             <Input
               v-model="form.token"
               type="password"
               autocomplete="new-password"
-              :placeholder="editing ? '留空以保留现有令牌' : '可选'" />
-            <small>令牌保存后不会再次显示。</small>
+              :placeholder="
+                editing
+                  ? t('runner.nodes.tokenKeepPlaceholder')
+                  : t('runner.nodes.tokenPlaceholder')
+              " />
+            <small>{{ t('runner.nodes.tokenHint') }}</small>
           </label>
           <label>
-            并发容量
+            {{ t('runner.nodes.capacityLabel') }}
             <Input v-model.number="form.capacity" type="number" min="1" max="128" required />
-            <small>该节点同时处理的最大任务数。</small>
+            <small>{{ t('runner.nodes.capacityHint') }}</small>
           </label>
           <label class="runner-option">
             <span>
-              <strong>启用节点</strong>
-              <small>停用不会中断正在运行的任务。</small>
+              <strong>{{ t('runner.nodes.enableNode') }}</strong>
+              <small>{{ t('runner.nodes.enableHint') }}</small>
             </span>
-            <Switch v-model="form.enabled" aria-label="启用节点" />
+            <Switch v-model="form.enabled" :aria-label="t('runner.nodes.enableNode')" />
           </label>
           <label v-if="editing" class="runner-option">
             <span>
-              <strong>清除已保存令牌</strong>
-              <small>保存后移除现有令牌。</small>
+              <strong>{{ t('runner.nodes.clearToken') }}</strong>
+              <small>{{ t('runner.nodes.clearTokenHint') }}</small>
             </span>
             <Switch
               v-model="form.clearToken"
               :disabled="!!form.token"
-              aria-label="清除已保存令牌" />
+              :aria-label="t('runner.nodes.clearToken')" />
           </label>
         </fieldset>
         <p v-if="error" role="alert" class="runner-error">{{ error }}</p>
@@ -250,14 +267,14 @@ onMounted(() => {
         <div class="runner-actions">
           <Button type="button" variant="outline" :disabled="busy || testing" @click="test">
             <RefreshCw :class="{ 'probe-spinning': testing }" />
-            {{ testing ? '测试中…' : '测试连接' }}
+            {{ testing ? t('runner.nodes.testing') : t('runner.nodes.testConnection') }}
           </Button>
           <span class="runner-action-spacer" />
           <Button type="button" variant="outline" :disabled="busy || testing" @click="open = false">
-            取消
+            {{ t('common.cancel') }}
           </Button>
           <Button type="submit" :disabled="busy || testing">
-            {{ busy ? '保存中…' : '保存节点' }}
+            {{ busy ? t('runner.nodes.saving') : t('runner.nodes.saveNode') }}
           </Button>
         </div>
       </Form>

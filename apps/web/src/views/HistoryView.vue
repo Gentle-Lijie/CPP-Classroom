@@ -22,6 +22,9 @@ import {
 } from '@/data/demo'
 import { api } from '@/lib/api'
 import { compilerLabel, formatTime } from '@/lib/display'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
 const records = ref<RunRecord[]>([])
 const run = ref<RunRecord>()
 const page = ref(1),
@@ -32,10 +35,19 @@ const page = ref(1),
   filter = ref(''),
   status = ref('')
 const filtered = computed(() => !!filter.value || !!status.value)
+const statusOptions = computed(() => [
+  { value: 'finished', label: t('student.history.status.runCompleted') },
+  { value: 'compile_error', label: t('student.history.status.compileFailed') },
+  { value: 'runtime_error', label: t('student.history.status.runFailed') },
+  { value: 'resource_limited', label: t('student.history.status.resourceLimited') },
+  { value: 'timeout', label: t('student.history.status.timeout') },
+  { value: 'stopped', label: t('student.history.status.stopped') },
+  { value: 'platform_error', label: t('student.history.status.platformFailed') },
+])
 const owner = computed(() =>
   currentUser.value?.name && currentUser.value.name !== currentUser.value.username
     ? `${currentUser.value.name} · ${currentUser.value.username}`
-    : (currentUser.value?.username ?? '当前用户'),
+    : (currentUser.value?.username ?? t('student.history.currentUser')),
 )
 function exerciseTitle(record: RunRecord) {
   return exercises.find((exercise) => exercise.id === record.exerciseId)?.title || record.filename
@@ -63,7 +75,8 @@ async function load() {
     total.value = result.total
     run.value = result.items.find((r) => r.id === run.value?.id) ?? result.items[0]
   } catch (e) {
-    if (current === generation) error.value = e instanceof Error ? e.message : '历史记录加载失败'
+    if (current === generation)
+      error.value = e instanceof Error ? e.message : t('student.history.loadFailed')
   } finally {
     if (current === generation) loading.value = false
   }
@@ -87,88 +100,80 @@ void load()
 <template>
   <div class="page-heading">
     <div>
-      <div class="heading-meta">我的编程记录</div>
-      <h1>运行历史</h1>
+      <div class="heading-meta">{{ t('student.history.meta') }}</div>
+      <h1>{{ t('student.history.title') }}</h1>
     </div>
     <div class="heading-actions">
       <Button
         variant="outline"
         :disabled="loading"
-        data-disabled-reason="正在读取运行记录，请稍候"
+        :data-disabled-reason="t('student.history.refreshReason')"
         data-guide="history-refresh"
         @click="load">
         <RefreshCw />
-        刷新
+        {{ t('common.refresh') }}
       </Button>
       <Button
         data-guide="history-download"
         :disabled="!run"
-        data-disabled-reason="暂无可下载的运行快照，请先选择一条运行记录"
+        :data-disabled-reason="t('student.history.downloadReason')"
         variant="outline"
         @click="run && download(run.id + '-' + run.filename, run.code)">
         <Download />
-        下载当前快照
+        {{ t('student.history.downloadSnapshot') }}
       </Button>
     </div>
   </div>
   <div class="history-filter">
     <label>
-      练习
-      <Select v-model="filter" aria-label="按练习筛选历史">
-        <SelectOption value="">全部练习</SelectOption>
+      {{ t('student.history.exerciseLabel') }}
+      <Select v-model="filter" :aria-label="t('student.history.filterExerciseAria')">
+        <SelectOption value="">{{ t('student.history.allExercises') }}</SelectOption>
         <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</SelectOption>
       </Select>
     </label>
     <label>
-      状态
-      <Select v-model="status" aria-label="按状态筛选历史">
-        <SelectOption value="">全部状态</SelectOption>
-        <SelectOption
-          v-for="s in [
-            '运行完成',
-            '编译失败',
-            '运行失败',
-            '资源超限',
-            '超时',
-            '已停止',
-            '平台执行失败',
-          ]"
-          :key="s">
-          {{ s }}
+      {{ t('student.history.statusLabel') }}
+      <Select v-model="status" :aria-label="t('student.history.filterStatusAria')">
+        <SelectOption value="">{{ t('student.history.allStatuses') }}</SelectOption>
+        <SelectOption v-for="s in statusOptions" :key="s.value" :value="s.value">
+          {{ s.label }}
         </SelectOption>
       </Select>
     </label>
-    <span>{{ total }} 条运行记录</span>
+    <span>{{ t('student.history.totalRuns', { count: total }) }}</span>
   </div>
   <Alert v-if="error" role="alert" type="error">
     {{ error }}
 
-    <template #actions><Button variant="outline" size="sm" @click="load">重试</Button></template>
+    <template #actions>
+      <Button variant="outline" size="sm" @click="load">{{ t('common.retry') }}</Button>
+    </template>
   </Alert>
   <ContentPanel v-if="loading && !records.length" content-class="empty-state" role="status">
-    正在读取运行历史…
+    {{ t('student.history.loading') }}
   </ContentPanel>
   <ContentPanel v-else-if="!records.length && !error" content-class="empty-state">
     <History :size="32" />
-    <h2>{{ filtered ? '没有符合筛选条件的运行记录' : '还没有运行记录' }}</h2>
+    <h2>
+      {{ filtered ? t('student.history.emptyFilteredTitle') : t('student.history.emptyTitle') }}
+    </h2>
     <p>
-      {{
-        filtered
-          ? '可以清除筛选，或选择其他练习和运行状态。'
-          : '进入课堂编写并运行程序后，代码与结果会保存在这里。'
-      }}
+      {{ filtered ? t('student.history.emptyFilteredBody') : t('student.history.emptyBody') }}
     </p>
     <div v-if="filtered">
-      <Button variant="outline" @click="clearFilters">清除筛选</Button>
+      <Button variant="outline" @click="clearFilters">
+        {{ t('student.history.clearFilters') }}
+      </Button>
     </div>
     <RouterLink v-else data-guide="history-empty-back" to="/student/classes" class="text-button">
-      前往我的课堂 →
+      {{ t('student.history.goClasses') }}
     </RouterLink>
   </ContentPanel>
   <div v-else-if="records.length" class="history-page-layout fill-stack" :aria-busy="loading">
     <ContentPanel as="section" direct class="panel-fill">
       <div class="panel-heading">
-        <h2>运行记录</h2>
+        <h2>{{ t('student.history.recordsTitle') }}</h2>
         <History :size="17" class="muted" />
       </div>
       <div class="history-list fill-body">
@@ -182,7 +187,7 @@ void load()
           <span>
             <span class="history-record-heading">
               <strong>{{ exerciseTitle(r) }}</strong>
-              <span class="status" :class="tone(r.status)">{{ r.status }}</span>
+              <span class="status" :class="tone(r.status)">{{ statusLabel(r.status) }}</span>
             </span>
             <small>{{ owner }}</small>
             <small>{{ formatTime(r.time) }} · {{ r.id.slice(0, 8) }}</small>
@@ -194,18 +199,18 @@ void load()
         v-model:page-size="pageSize"
         :total="total"
         :busy="loading"
-        unit="条记录" />
+        :unit="t('student.history.recordUnit')" />
     </ContentPanel>
     <ContentPanel v-if="run" as="section" direct class="panel-fill">
       <div class="panel-heading">
         <div class="history-detail-heading">
           <div class="inline-items">
             <h2>{{ exerciseTitle(run) }}</h2>
-            <span class="status" :class="tone(run.status)">{{ run.status }}</span>
+            <span class="status" :class="tone(run.status)">{{ statusLabel(run.status) }}</span>
           </div>
           <p class="muted text-sm">{{ owner }} · {{ run.id.slice(0, 8) }}</p>
         </div>
-        <span class="muted text-xs">只读代码快照</span>
+        <span class="muted text-xs">{{ t('student.history.readonlySnapshot') }}</span>
       </div>
       <div class="fill-body">
         <div class="code-toolbar">
@@ -225,7 +230,10 @@ void load()
         </div>
         <div class="detail-io">
           <section class="detail-input">
-            <CodeBlock :source="run.input" label="当次输入" empty-text="无预填输入" />
+            <CodeBlock
+              :source="run.input"
+              :label="t('student.detail.inputLabel')"
+              :empty-text="t('student.detail.inputEmpty')" />
           </section>
           <RunOutput :key="run.id" :run="run" readonly-context />
         </div>

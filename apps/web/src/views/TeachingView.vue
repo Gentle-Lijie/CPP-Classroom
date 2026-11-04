@@ -10,6 +10,7 @@ import { Select, SelectOption } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -51,6 +52,8 @@ import { api, ApiError } from '@/lib/api'
 import { openTeachingWindow } from '@/lib/teaching-windows'
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
 const initial = String(route.query.exercise ?? demo.recommended)
 const selected = ref(exercises.some((e) => e.id === initial) ? initial : (exercises[0]?.id ?? ''))
 const language = ref<SourceLanguage>(
@@ -66,7 +69,7 @@ const language = ref<SourceLanguage>(
 const runtimeProfile = computed(() =>
   language.value === 'python' ? 'cpython3-stdlib' : executionSettings.compilerProfile,
 )
-const mode = ref('题面'),
+const mode = ref<'problem' | 'code' | 'split'>('problem'),
   fontSize = ref(20),
   teacherCode = ref(''),
   fullscreen = ref(false)
@@ -74,9 +77,17 @@ const loading = ref(true),
   dirty = ref(false),
   error = ref(''),
   conflict = ref(false),
-  saveStatus = ref('读取中…'),
+  saveStatus = ref(t('teaching.status.loading')),
   switching = ref(false),
   monitorBlocked = ref(false)
+const viewModes = computed(
+  () =>
+    [
+      { key: 'problem', label: t('teaching.view.problem'), icon: BookOpen },
+      { key: 'code', label: t('teaching.view.code'), icon: CodeXml },
+      { key: 'split', label: t('teaching.view.split'), icon: Columns2 },
+    ] as const,
+)
 type TeachingRun = RunRecord & { interactive?: boolean }
 const run = ref<TeachingRun>(),
   otherRun = ref<TeachingRun>(),
@@ -86,7 +97,7 @@ const run = ref<TeachingRun>(),
   stopping = ref(false),
   runError = ref('')
 const isActive = (record?: TeachingRun) =>
-  !!record && ['排队', '编译中', '运行中／可输入'].includes(record.status)
+  !!record && ['queued', 'compiling', 'running'].includes(record.status)
 const activeRun = computed(() => (isActive(run.value) ? run.value : otherRun.value))
 const runBusy = computed(() => runningRequest.value || stopping.value || !!activeRun.value)
 const exercise = computed(() => {
@@ -95,7 +106,7 @@ const exercise = computed(() => {
     ? {
         ...found,
         filename: exerciseSourceFilename(found, language.value),
-        title: found.title || '未命名题目',
+        title: found.title || t('teaching.untitled'),
       }
     : undefined
 })
@@ -105,26 +116,26 @@ const readonly = computed(
     loading.value ||
     !!error.value ||
     conflict.value ||
-    activeClassroom.value.status !== '进行中' ||
-    exercise.value?.status !== '已发布',
+    activeClassroom.value.status !== 'ongoing' ||
+    exercise.value?.status !== 'published',
 )
 const readonlyReason = computed(() => {
-  if (loading.value) return '正在读取示范代码，请稍候'
-  if (error.value) return '示范代码读取失败，请重试后再运行'
-  if (conflict.value) return '示范代码存在版本冲突，请先处理冲突'
-  if (activeClassroom.value.status !== '进行中') return '课堂未在进行中，暂时不能运行'
-  if (exercise.value?.status !== '已发布') return '当前练习未发布或已关闭'
+  if (loading.value) return t('teaching.readonlyReason.loading')
+  if (error.value) return t('teaching.readonlyReason.error')
+  if (conflict.value) return t('teaching.readonlyReason.conflict')
+  if (activeClassroom.value.status !== 'ongoing') return t('teaching.readonlyReason.notActive')
+  if (exercise.value?.status !== 'published') return t('teaching.readonlyReason.notPublished')
   return ''
 })
 const runBusyReason = computed(() => {
-  if (runningRequest.value) return '正在创建运行任务，请稍候'
-  if (stopping.value) return '正在停止程序，请稍候'
-  if (otherRun.value) return '其他练习或课堂仍有运行任务，请先停止运行'
-  return '当前程序尚未结束，请等待或停止运行'
+  if (runningRequest.value) return t('teaching.busyReason.creating')
+  if (stopping.value) return t('teaching.busyReason.stopping')
+  if (otherRun.value) return t('teaching.busyReason.otherRun')
+  return t('teaching.busyReason.notFinished')
 })
 const switchingReason = computed(() => {
-  if (loading.value) return '正在读取练习，请稍候'
-  if (switching.value) return '正在切换练习，请稍候'
+  if (loading.value) return t('teaching.switchingReason.loading')
+  if (switching.value) return t('teaching.switchingReason.switching')
   return runBusyReason.value
 })
 let revision = 0,
@@ -164,7 +175,7 @@ function backup() {
       JSON.stringify({ code: teacherCode.value, revision, pending: dirty.value }),
     )
   } catch {
-    saveStatus.value = '本机备份不可用，请及时下载示范代码'
+    saveStatus.value = t('teaching.status.backupUnavailable')
   }
 }
 async function load() {
@@ -180,7 +191,7 @@ async function load() {
   runError.value = ''
   input.value = exercise.value?.sampleInput ?? ''
   revision = 0
-  saveStatus.value = '读取中…'
+  saveStatus.value = t('teaching.status.loading')
   clearTimeout(timer)
   if (!c.id) {
     loading.value = false
@@ -202,13 +213,13 @@ async function load() {
       /* Remote code remains available without local storage. */
     }
     saveStatus.value = conflict.value
-      ? '发现版本冲突，本机修改已保留'
+      ? t('teaching.status.conflictKept')
       : dirty.value
-        ? '本机修改待同步'
-        : '已同步到服务器'
+        ? t('teaching.status.localPending')
+        : t('teaching.status.synced')
     await loadRuns(c)
   } catch (e) {
-    if (matches(c)) error.value = e instanceof Error ? e.message : '示范代码读取失败'
+    if (matches(c)) error.value = e instanceof Error ? e.message : t('teaching.status.readFailed')
   } finally {
     if (matches(c)) {
       await nextTick()
@@ -238,14 +249,15 @@ async function loadRuns(c: ReturnType<typeof context>) {
         r.classroomId !== c.classroom || r.exerciseId !== c.id || sourceLanguage(r) !== c.language,
     )
   } catch (e) {
-    if (matches(c)) runError.value = e instanceof Error ? e.message : '运行记录读取失败'
+    if (matches(c))
+      runError.value = e instanceof Error ? e.message : t('teaching.status.runsReadFailed')
   }
 }
 watch([selected, language], () => void load(), { immediate: true })
 watch(teacherCode, () => {
   if (readonly.value) return
   dirty.value = true
-  saveStatus.value = '待同步'
+  saveStatus.value = t('teaching.status.pending')
   backup()
   clearTimeout(timer)
   timer = setTimeout(() => void persist(), 600)
@@ -261,7 +273,7 @@ async function persist(): Promise<boolean> {
   const c = context(),
     content = teacherCode.value,
     expected = revision
-  saveStatus.value = '同步中…'
+  saveStatus.value = t('teaching.status.syncing')
   saving = (async () => {
     try {
       const result = await api<{ revision: number }>(draftPath(c), 'PUT', {
@@ -272,13 +284,13 @@ async function persist(): Promise<boolean> {
       if (!matches(c)) return false
       revision = result.revision
       dirty.value = teacherCode.value !== content
-      saveStatus.value = dirty.value ? '待同步' : '已同步到服务器'
+      saveStatus.value = dirty.value ? t('teaching.status.pending') : t('teaching.status.synced')
       backup()
       return true
     } catch (e) {
       if (!matches(c)) return false
       backup()
-      saveStatus.value = e instanceof Error ? e.message : '保存失败，请重试'
+      saveStatus.value = e instanceof Error ? e.message : t('teaching.status.saveFailed')
       if (e instanceof ApiError && e.status === 409) conflict.value = true
       return false
     }
@@ -289,7 +301,7 @@ async function persist(): Promise<boolean> {
 }
 async function switchExercise(id: string, nextLanguage?: SourceLanguage) {
   if (runBusy.value) {
-    notify('请先停止当前运行或等待完成，再切换练习')
+    notify(t('teaching.messages.stopBeforeSwitch'))
     return
   }
   if (
@@ -302,12 +314,15 @@ async function switchExercise(id: string, nextLanguage?: SourceLanguage) {
   try {
     if (
       dirty.value &&
-      (activeClassroom.value.status !== '进行中' || exercise.value?.status !== '已发布')
+      (activeClassroom.value.status !== 'ongoing' || exercise.value?.status !== 'published')
     ) {
-      if (!(await confirmAction('当前练习已只读，示范修改无法上传。下载代码备份后切换？'))) return
-      download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
+      if (!(await confirmAction(t('teaching.messages.readonlySwitch')))) return
+      download(
+        t('teaching.draft.unsyncedFile', { name: exercise.value?.filename ?? 'source.cpp' }),
+        teacherCode.value,
+      )
     } else if (!(await persist())) {
-      notify('示范代码尚未同步，请先重试或下载备份', 'error')
+      notify(t('teaching.draft.syncFirstSwitch'), 'error')
       return
     }
     language.value =
@@ -338,7 +353,7 @@ async function startRun() {
   try {
     // A fresh exercise has revision 0 until its first saved snapshot.
     if (revision === 0) dirty.value = true
-    if (!(await persist()) || !matches(c)) throw new Error('请先完成示范代码同步')
+    if (!(await persist()) || !matches(c)) throw new Error(t('teaching.run.syncFirst'))
     const result = await api<TeachingRun>(runPath(c), 'POST', {
       exerciseId: c.id,
       language: c.language,
@@ -349,7 +364,7 @@ async function startRun() {
     if (matches(c)) run.value = result
   } catch (e) {
     if (matches(c)) {
-      runError.value = e instanceof Error ? e.message : '运行失败'
+      runError.value = e instanceof Error ? e.message : t('teaching.run.failed')
       await loadRuns(c)
     }
   } finally {
@@ -373,9 +388,9 @@ async function stopRun(): Promise<boolean> {
       if (!isActive(result)) return true
       await new Promise((resolve) => setTimeout(resolve, 150))
     }
-    throw new Error('停止请求已发送，请等待程序结束')
+    throw new Error(t('teaching.run.stopSent'))
   } catch (e) {
-    if (matches(c)) runError.value = e instanceof Error ? e.message : '停止失败'
+    if (matches(c)) runError.value = e instanceof Error ? e.message : t('teaching.run.stopFailed')
     return false
   } finally {
     stopping.value = false
@@ -387,7 +402,7 @@ async function sendInput(text: string): Promise<boolean> {
     await api(runPath(context(), '/' + run.value.id + '/input'), 'POST', { text: text + '\n' })
     return true
   } catch (e) {
-    runError.value = e instanceof Error ? e.message : '输入发送失败'
+    runError.value = e instanceof Error ? e.message : t('teaching.run.inputFailed')
     return false
   }
 }
@@ -399,7 +414,7 @@ async function closeInput(): Promise<boolean> {
     if (run.value?.id === target.id) run.value = { ...run.value, eof: true }
     return true
   } catch (e) {
-    runError.value = e instanceof Error ? e.message : 'EOF 发送失败'
+    runError.value = e instanceof Error ? e.message : t('teaching.run.eofFailed')
     return false
   }
 }
@@ -438,13 +453,11 @@ function openMonitor() {
   )
 }
 async function useServer() {
-  if (
-    !(await confirmAction(
-      '采用服务器版本？当前未同步的示范代码会先下载备份，然后替换编辑器中的代码。',
-    ))
+  if (!(await confirmAction(t('teaching.messages.useServerConfirm')))) return
+  download(
+    t('teaching.draft.unsyncedFile', { name: exercise.value?.filename ?? 'source.cpp' }),
+    teacherCode.value,
   )
-    return
-  download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
   try {
     localStorage.removeItem(backupKey(context()))
   } catch {
@@ -467,20 +480,22 @@ onBeforeRouteLeave(async (to) => {
   if (runningRequest.value) return false
   if (
     activeRun.value &&
-    (!(await confirmAction('程序仍在运行，停止运行并离开授课？')) || !(await stopRun()))
+    (!(await confirmAction(t('teaching.messages.leaveStop'))) || !(await stopRun()))
   )
     return false
   if (
     dirty.value &&
-    (activeClassroom.value.status !== '进行中' || exercise.value?.status !== '已发布')
+    (activeClassroom.value.status !== 'ongoing' || exercise.value?.status !== 'published')
   ) {
-    if (!(await confirmAction('课堂或练习已只读，示范修改无法上传。下载代码备份后离开？')))
-      return false
-    download('未同步示范-' + (exercise.value?.filename ?? 'source.cpp'), teacherCode.value)
+    if (!(await confirmAction(t('teaching.messages.leaveReadonly')))) return false
+    download(
+      t('teaching.draft.unsyncedFile', { name: exercise.value?.filename ?? 'source.cpp' }),
+      teacherCode.value,
+    )
     return true
   }
   const saved = await persist()
-  if (!saved) notify('示范代码尚未同步，请重试保存或下载备份', 'error')
+  if (!saved) notify(t('teaching.draft.syncFirstLeave'), 'error')
   return saved
 })
 async function toggleFullscreen() {
@@ -488,7 +503,7 @@ async function toggleFullscreen() {
     if (document.fullscreenElement) await document.exitFullscreen()
     else await document.documentElement.requestFullscreen()
   } catch {
-    notify('浏览器未允许全屏，请使用系统全屏功能')
+    notify(t('teaching.messages.fullscreenBlocked'))
   }
 }
 function fullscreenChange() {
@@ -519,7 +534,7 @@ function saveShortcut(event: KeyboardEvent) {
   event.preventDefault()
   if (readonly.value) return
   void nextTick().then(async () => {
-    if (!(await persist())) notify('示范代码尚未同步，请检查保存状态', 'error')
+    if (!(await persist())) notify(t('teaching.draft.syncFirstCheck'), 'error')
   })
 }
 onMounted(() => {
@@ -543,12 +558,15 @@ onBeforeUnmount(() => {
   <main v-if="exercise" class="teaching-page">
     <header class="teaching-toolbar">
       <div class="inline-items">
-        <RouterLink to="/teacher/exercises" class="icon-button" aria-label="结束授课">
+        <RouterLink
+          to="/teacher/exercises"
+          class="icon-button"
+          :aria-label="t('teaching.toolbar.endTeaching')">
           <ArrowLeft :size="19" />
         </RouterLink>
         <span class="teaching-mark">
           <Monitor :size="19" />
-          授课模式
+          {{ t('teaching.toolbar.mode') }}
         </span>
         <span class="teaching-class-name">{{ activeClassroom.name }}</span>
       </div>
@@ -556,8 +574,8 @@ onBeforeUnmount(() => {
         <span class="inline-items">
           <span class="lesson-number">{{ String(index + 1).padStart(2, '0') }}</span>
           <span class="teaching-topic" :title="exercise.topic">{{ exercise.topic }}</span>
-          <span class="status" :class="exercise.status === '已发布' ? 'positive' : 'amber'">
-            {{ exercise.status }}
+          <span class="status" :class="exercise.status === 'published' ? 'positive' : 'amber'">
+            {{ statusLabel(exercise.status) }}
           </span>
         </span>
         <div class="inline-items">
@@ -569,24 +587,20 @@ onBeforeUnmount(() => {
           <Button
             variant="plain"
             class="text-button"
-            aria-label="编辑题目"
+            :aria-label="t('teaching.toolbar.editExercise')"
             @click="router.push('/teacher/exercises/' + exercise.id + '/edit')">
             <Pencil :size="13" />
-            编辑题目
+            {{ t('teaching.toolbar.editExercise') }}
           </Button>
         </div>
       </div>
-      <div class="teaching-view-switch" aria-label="授课布局">
+      <div class="teaching-view-switch" :aria-label="t('teaching.toolbar.layout')">
         <Button
-          v-for="m in [
-            { label: '题面', icon: BookOpen },
-            { label: '代码', icon: CodeXml },
-            { label: '对照', icon: Columns2 },
-          ]"
-          :key="m.label"
+          v-for="m in viewModes"
+          :key="m.key"
           variant="plain"
-          :class="{ selected: mode === m.label }"
-          @click="mode = m.label">
+          :class="{ selected: mode === m.key }"
+          @click="mode = m.key">
           <component :is="m.icon" :size="16" />
           {{ m.label }}
         </Button>
@@ -596,8 +610,8 @@ onBeforeUnmount(() => {
           variant="plain"
           class="icon-button"
           :disabled="index <= 0 || loading || switching || runBusy"
-          :data-disabled-reason="index <= 0 ? '已经是第一道练习' : switchingReason"
-          aria-label="上一道授课练习"
+          :data-disabled-reason="index <= 0 ? t('teaching.pagination.first') : switchingReason"
+          :aria-label="t('teaching.pagination.prev')"
           @click="next(-1)">
           <ChevronLeft :size="20" />
         </Button>
@@ -605,10 +619,10 @@ onBeforeUnmount(() => {
           :model-value="selected"
           :disabled="loading || switching || runBusy"
           :data-disabled-reason="switchingReason"
-          aria-label="授课练习"
+          :aria-label="t('teaching.pagination.select')"
           @update:model-value="changeExercise">
           <SelectOption v-for="(e, i) in exercises" :key="e.id" :value="e.id">
-            {{ i + 1 }} / {{ exercises.length }} · {{ e.title || '未命名题目' }}
+            {{ i + 1 }} / {{ exercises.length }} · {{ e.title || t('teaching.untitled') }}
           </SelectOption>
         </Select>
         <Button
@@ -616,9 +630,9 @@ onBeforeUnmount(() => {
           class="icon-button"
           :disabled="index === exercises.length - 1 || loading || switching || runBusy"
           :data-disabled-reason="
-            index === exercises.length - 1 ? '已经是最后一道练习' : switchingReason
+            index === exercises.length - 1 ? t('teaching.pagination.last') : switchingReason
           "
-          aria-label="下一道授课练习"
+          :aria-label="t('teaching.pagination.next')"
           @click="next(1)">
           <ChevronRight :size="20" />
         </Button>
@@ -627,13 +641,15 @@ onBeforeUnmount(() => {
         <ThemeToggle />
         <Button variant="outline" @click="openMonitor">
           <Users />
-          巡视窗口
+          {{ t('teaching.toolbar.monitor') }}
           <span class="online-count">{{ counts.online }}</span>
         </Button>
         <Button
           variant="plain"
           class="icon-button"
-          :aria-label="fullscreen ? '退出授课全屏' : '授课全屏'"
+          :aria-label="
+            fullscreen ? t('teaching.toolbar.exitFullscreen') : t('teaching.toolbar.fullscreen')
+          "
           @click="toggleFullscreen">
           <Minimize v-if="fullscreen" :size="19" />
           <Maximize v-else :size="19" />
@@ -642,22 +658,22 @@ onBeforeUnmount(() => {
     </header>
     <div class="teaching-stage">
       <Alert v-if="monitorBlocked" type="warning">
-        独立窗口被拦截。
+        {{ t('teaching.alert.windowBlocked') }}
         <a href="/teacher/monitor" target="_blank" rel="noopener" class="text-button">
-          点此打开巡视窗口
+          {{ t('teaching.alert.openMonitor') }}
         </a>
       </Alert>
       <Alert v-if="runError" role="alert" type="error">{{ runError }}</Alert>
       <Alert v-if="otherRun" type="warning">
-        其他练习或课堂仍有运行任务（{{ otherRun.status }}）。
+        {{ t('teaching.run.otherRunActive', { status: otherRun.status }) }}
         <template #actions>
           <Button
             variant="outline"
             size="sm"
             :disabled="stopping"
-            data-disabled-reason="正在停止程序，请稍候"
+            :data-disabled-reason="t('teaching.busyReason.stopping')"
             @click="stopRun">
-            停止运行
+            {{ t('teaching.run.stopRun') }}
           </Button>
         </template>
       </Alert>
@@ -665,15 +681,17 @@ onBeforeUnmount(() => {
         {{ error }}
 
         <template #actions>
-          <Button variant="outline" size="sm" @click="load">重试读取</Button>
+          <Button variant="outline" size="sm" @click="load">
+            {{ t('teaching.alert.retryRead') }}
+          </Button>
         </template>
       </Alert>
       <Alert v-if="conflict" role="alert" type="warning">
-        其他窗口已修改示范代码。先下载本机修改，再读取服务器版本。
+        {{ t('teaching.alert.conflict') }}
 
         <template #actions>
           <Button variant="outline" size="sm" @click="useServer">
-            下载本机修改并读取服务器版本
+            {{ t('teaching.alert.useServer') }}
           </Button>
         </template>
       </Alert>
@@ -684,15 +702,15 @@ onBeforeUnmount(() => {
         direction="horizontal"
         :auto-save-id="'teacher-teaching-layout-' + mode"
         class="teaching-slide"
-        :class="{ 'with-code': mode !== '题面', 'teaching-split': mode === '对照' }"
+        :class="{ 'with-code': mode !== 'problem', 'teaching-split': mode === 'split' }"
         :keyboard-resize-by="2">
         <SplitterPanel
-          v-if="mode !== '代码'"
+          v-if="mode !== 'code'"
           id="teaching-problem"
           as="section"
           class="teaching-problem"
           :style="{ overflow: 'auto' }"
-          :default-size="mode === '对照' ? 40 : 100"
+          :default-size="mode === 'split' ? 40 : 100"
           :min-size="25">
           <div class="slide-title-row">
             <h1>{{ exercise.title }}</h1>
@@ -704,30 +722,33 @@ onBeforeUnmount(() => {
           <div class="slide-description"><MarkdownContent :source="exercise.description" /></div>
           <div class="slide-io-notes">
             <div>
-              <h2>输入</h2>
+              <h2>{{ t('teaching.slide.input') }}</h2>
               <MarkdownContent :source="exercise.input" />
             </div>
             <div>
-              <h2>输出</h2>
+              <h2>{{ t('teaching.slide.output') }}</h2>
               <MarkdownContent :source="exercise.output" />
             </div>
           </div>
           <div class="slide-samples">
-            <CodeBlock :source="exercise.sampleInput" label="样例输入" empty-text="无输入" />
-            <CodeBlock :source="exercise.sampleOutput" label="样例输出" />
+            <CodeBlock
+              :source="exercise.sampleInput"
+              :label="t('teaching.slide.sampleInput')"
+              :empty-text="t('teaching.slide.noInput')" />
+            <CodeBlock :source="exercise.sampleOutput" :label="t('teaching.slide.sampleOutput')" />
           </div>
         </SplitterPanel>
         <SplitterResizeHandle
-          v-if="mode === '对照'"
+          v-if="mode === 'split'"
           class="teaching-resize-handle"
-          aria-label="调整题面与代码宽度"
+          :aria-label="t('teaching.resize.problemCode')"
           aria-orientation="vertical" />
         <SplitterPanel
-          v-if="mode !== '题面'"
+          v-if="mode !== 'problem'"
           id="teaching-workspace"
           as="section"
           class="teaching-code"
-          :default-size="mode === '对照' ? 60 : 100"
+          :default-size="mode === 'split' ? 60 : 100"
           :min-size="35">
           <SplitterGroup
             direction="vertical"
@@ -746,18 +767,18 @@ onBeforeUnmount(() => {
                   class="teaching-save-status"
                   role="status"
                   :class="{ 'danger-text': conflict || error, 'amber-text': dirty }">
-                  {{ loading ? '读取中…' : saveStatus }}
+                  {{ loading ? t('teaching.status.loading') : saveStatus }}
                 </span>
                 <Button v-if="dirty && !conflict" variant="plain" size="sm" @click="persist">
-                  重试保存
+                  {{ t('teaching.draft.retrySave') }}
                 </Button>
                 <div class="inline-items ml-auto">
                   <Button
                     variant="plain"
                     class="icon-button"
-                    aria-label="缩小示范代码字号"
+                    :aria-label="t('teaching.font.zoomOut')"
                     :disabled="fontSize <= 14"
-                    data-disabled-reason="字号已达到最小值 14 px"
+                    :data-disabled-reason="t('teaching.font.min', { size: 14 })"
                     @click="fontSize -= 2">
                     <Minus :size="15" />
                   </Button>
@@ -765,16 +786,16 @@ onBeforeUnmount(() => {
                   <Button
                     variant="plain"
                     class="icon-button"
-                    aria-label="放大示范代码字号"
+                    :aria-label="t('teaching.font.zoomIn')"
                     :disabled="fontSize >= 34"
-                    data-disabled-reason="字号已达到最大值 34 px"
+                    :data-disabled-reason="t('teaching.font.max', { size: 34 })"
                     @click="fontSize += 2">
                     <Plus :size="15" />
                   </Button>
                   <Button
                     variant="plain"
                     class="icon-button"
-                    aria-label="下载教师示范代码"
+                    :aria-label="t('teaching.download.code')"
                     @click="download(exercise.filename, teacherCode)">
                     <Download :size="15" />
                   </Button>
@@ -785,10 +806,10 @@ onBeforeUnmount(() => {
                     variant="outline"
                     size="sm"
                     :disabled="stopping"
-                    data-disabled-reason="正在停止程序，请稍候"
+                    :data-disabled-reason="t('teaching.busyReason.stopping')"
                     @click="stopRun">
                     <Square :size="14" />
-                    {{ stopping ? '停止中…' : '停止' }}
+                    {{ stopping ? t('teaching.run.stopping') : t('teaching.run.stop') }}
                   </Button>
                   <Button
                     v-else
@@ -803,14 +824,14 @@ onBeforeUnmount(() => {
                       readonly
                         ? readonlyReason
                         : switching
-                          ? '正在切换练习，请稍候'
+                          ? t('teaching.switchingReason.switching')
                           : runningRequest
-                            ? '正在创建运行任务，请稍候'
-                            : '教师已关闭课堂运行功能'
+                            ? t('teaching.busyReason.creating')
+                            : t('teaching.run.disabled')
                     "
                     @click="startRun">
                     <Play :size="14" />
-                    {{ runningRequest ? '提交中…' : '运行' }}
+                    {{ runningRequest ? t('teaching.run.submitting') : t('teaching.run.label') }}
                   </Button>
                 </div>
               </div>
@@ -823,7 +844,7 @@ onBeforeUnmount(() => {
             </SplitterPanel>
             <SplitterResizeHandle
               class="teaching-resize-handle"
-              aria-label="调整代码与输入输出高度"
+              :aria-label="t('teaching.resize.codeIo')"
               aria-orientation="horizontal" />
             <SplitterPanel
               id="teaching-io"
@@ -843,7 +864,7 @@ onBeforeUnmount(() => {
                   :min-size="20"
                   :max-size="65">
                   <div class="code-toolbar teaching-input-toolbar">
-                    <label for="teaching-stdin">标准输入</label>
+                    <label for="teaching-stdin">{{ t('teaching.input.stdin') }}</label>
                     <Button
                       variant="plain"
                       size="sm"
@@ -851,7 +872,7 @@ onBeforeUnmount(() => {
                       :disabled="runBusy"
                       :data-disabled-reason="runBusyReason"
                       @click="input = exercise.sampleInput">
-                      填入样例
+                      {{ t('teaching.input.fillSample') }}
                     </Button>
                   </div>
                   <Textarea
@@ -860,18 +881,18 @@ onBeforeUnmount(() => {
                     :disabled="runBusy"
                     :data-disabled-reason="runBusyReason"
                     :maxlength="65536"
-                    placeholder="运行前输入，默认使用题目样例" />
+                    :placeholder="t('teaching.input.placeholder')" />
                   <label class="teaching-interactive">
                     <Checkbox
                       v-model="interactive"
                       :disabled="runBusy"
                       :data-disabled-reason="runBusyReason" />
-                    交互输入
+                    {{ t('teaching.input.interactive') }}
                   </label>
                 </SplitterPanel>
                 <SplitterResizeHandle
                   class="teaching-resize-handle"
-                  aria-label="调整输入与输出宽度"
+                  :aria-label="t('teaching.resize.inputOutput')"
                   aria-orientation="vertical" />
                 <SplitterPanel
                   id="teaching-output"
@@ -881,7 +902,7 @@ onBeforeUnmount(() => {
                   <RunOutput
                     :run="run"
                     :language="language"
-                    :interactive="run?.status === '运行中／可输入' && run.interactive"
+                    :interactive="run?.status === 'running' && run.interactive"
                     :send-input="sendInput"
                     :close-input="closeInput" />
                 </SplitterPanel>
@@ -894,8 +915,8 @@ onBeforeUnmount(() => {
   </main>
   <div v-else class="empty-state">
     <BookOpen :size="32" />
-    <h1>课堂还没有练习</h1>
-    <RouterLink to="/teacher/exercises/new">创建第一个练习</RouterLink>
+    <h1>{{ t('teaching.empty.noExercises') }}</h1>
+    <RouterLink to="/teacher/exercises/new">{{ t('teaching.empty.createFirst') }}</RouterLink>
   </div>
 </template>
 

@@ -80,12 +80,12 @@ describe.skipIf(!connectionString)('classroom roles with PostgreSQL', () => {
       await assignments.assign(id, { userId, role }, request(owner, 'teacher'))
     }
     await assignments.assign(second, { userId: ta, role: 'student' }, request(owner, 'teacher'))
-    await classroom.update(id, { status: '进行中' }, request(owner, 'teacher'))
-    await classroom.update(second, { status: '进行中' }, request(owner, 'teacher'))
+    await classroom.update(id, { status: 'ongoing' }, request(owner, 'teacher'))
+    await classroom.update(second, { status: 'ongoing' }, request(owner, 'teacher'))
     exerciseId = (
       await classroom.createExercise(
         id,
-        { filename: 'test.cpp', status: '已发布' },
+        { filename: 'test.cpp', status: 'published' },
         request(owner, 'teacher'),
       )
     ).id
@@ -155,7 +155,7 @@ describe.skipIf(!connectionString)('classroom roles with PostgreSQL', () => {
   it('lets a TA observe students and complete their own work but denies management', async () => {
     const draft = await classroom.createExercise(
       id,
-      { filename: 'draft.cpp', status: '草稿' },
+      { filename: 'draft.cpp', status: 'draft' },
       request(owner, 'teacher'),
     )
     expect((await classroom.exercises(id, request(ta))).some((e) => e.id === draft.id)).toBe(false)
@@ -206,7 +206,7 @@ describe.skipIf(!connectionString)('classroom roles with PostgreSQL', () => {
     const otherExercise = (
       await classroom.createExercise(
         second,
-        { filename: 'other.cpp', status: '已发布' },
+        { filename: 'other.cpp', status: 'published' },
         request(owner, 'teacher'),
       )
     ).id

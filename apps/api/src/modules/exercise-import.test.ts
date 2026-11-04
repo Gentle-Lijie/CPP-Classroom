@@ -43,7 +43,7 @@ describe('atomic exercise batch import', () => {
             {
               title: '第一题',
               filename: 'sum.cpp',
-              status: '已发布',
+              status: 'published',
               position: 1,
               version: 99,
               id: 'old',
@@ -57,9 +57,9 @@ describe('atomic exercise batch import', () => {
     ).resolves.toEqual({ ids: ['new-1', 'new-2', 'new-3'] })
     expect(mock.access).toHaveBeenCalledWith(req.actor, classId, 'teacher')
     expect(mock.writes.map((write) => write.slice(1, 4))).toEqual([
-      ['sum.cpp', '草稿', 8],
-      ['', '草稿', 9],
-      ['', '草稿', 10],
+      ['sum.cpp', 'draft', 8],
+      ['', 'draft', 9],
+      ['', 'draft', 10],
     ])
     const content = JSON.parse(String(mock.writes[0]![4]))
     expect(content).toMatchObject({ title: '第一题', code: '' })

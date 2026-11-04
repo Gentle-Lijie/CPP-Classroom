@@ -127,7 +127,7 @@ describe('exercise publication validation', () => {
       title: '输出 Hello',
       topic: '基础',
       filename: 'hello.cpp',
-      status: '已发布',
+      status: 'published',
       description: '输出 Hello',
       input: '',
       output: 'Hello',
@@ -136,7 +136,7 @@ describe('exercise publication validation', () => {
       code: 'int main() {}',
     }
     expect(exerciseSchema.safeParse(exercise).success).toBe(true)
-    expect(exerciseSchema.parse({ status: '已发布' })).toMatchObject({
+    expect(exerciseSchema.parse({ status: 'published' })).toMatchObject({
       title: '',
       topic: '',
       filename: '',
@@ -146,9 +146,9 @@ describe('exercise publication validation', () => {
       sampleInput: '',
       sampleOutput: '',
       code: '',
-      status: '已发布',
+      status: 'published',
     })
-    expect(exerciseSchema.parse({})).toMatchObject({ status: '草稿', title: '', filename: '' })
+    expect(exerciseSchema.parse({})).toMatchObject({ status: 'draft', title: '', filename: '' })
     expect(exerciseSchema.safeParse({ ...exercise, description: '   ' }).success).toBe(true)
     expect(exerciseSchema.safeParse({ ...exercise, filename: '../hello.cpp' }).success).toBe(false)
     expect(exerciseSchema.safeParse({ ...exercise, filename: 'CON.cpp' }).success).toBe(false)
@@ -177,7 +177,7 @@ describe('teacher classroom write policy', () => {
     const query = vi.fn(async (sql: string) => ({
       rows: sql.includes('from memberships')
         ? [{ status: 'active', role: 'teacher' }]
-        : [{ id: classId, owner_id: teacherId, status: '已归档', settings: {} }],
+        : [{ id: classId, owner_id: teacherId, status: 'archived', settings: {} }],
       rowCount: 1,
     }))
     const classroom = new ClassroomService({
@@ -188,7 +188,7 @@ describe('teacher classroom write policy', () => {
     )
     await expect(classroom.access(req().actor!, classId, true, false)).resolves.toMatchObject({
       id: classId,
-      status: '已归档',
+      status: 'archived',
     })
   })
 })

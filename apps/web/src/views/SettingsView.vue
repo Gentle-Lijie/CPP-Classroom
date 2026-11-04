@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectOption } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Save, Copy, RefreshCw, ShieldCheck, Archive, Settings2, ChevronRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/classroom/Modal.vue'
@@ -29,6 +30,7 @@ import { classroomPolicyChanges } from '@/lib/sensitive-actions'
 import { useRouter } from 'vue-router'
 import { refresh } from '@/data/demo'
 const router = useRouter()
+const { t } = useI18n()
 import { onBeforeRouteLeave } from 'vue-router'
 const environmentLanguage = ref<SourceLanguage>('cpp')
 const languageEnvironment = computed(() => executionSettings.languages[environmentLanguage.value])
@@ -78,7 +80,9 @@ onBeforeUnmount(() => {
   panelEl.value?.removeEventListener('scroll', onScroll)
   if (spyRaf) cancelAnimationFrame(spyRaf)
 })
-const sections = ['基本信息', '加入与邀请', '编程环境', '课堂策略', '归档课堂']
+// 各分区使用稳定 id，展示文案由 i18n 提供；导览 surface 键同样基于 id
+const sections = ['basic', 'join', 'environment', 'policy', 'archive']
+const sectionLabel = (id: string) => t(`settings.sections.${id}`)
 const tab = ref(sections[0])
 function goTo(name: string) {
   tab.value = name
@@ -122,10 +126,18 @@ function onScroll() {
 const archive = ref(false)
 const reopen = ref(false)
 const confirmState = ref('')
+// 课堂状态在数据层使用中文取值，仅展示时翻译
+const statusKeys: Record<string, string> = {
+  not_started: 'settings.status.notStarted',
+  ongoing: 'settings.status.ongoing',
+  closed: 'settings.status.closed',
+  archived: 'settings.status.archived',
+}
+const statusLabel = (status: string) => t(statusKeys[status] ?? 'settings.status.ongoing')
 const inviteExpires = computed(() =>
   activeClassroom.value.inviteExpiresAt
     ? new Date(activeClassroom.value.inviteExpiresAt).toLocaleString('zh-CN')
-    : '未获取到到期时间，请重新生成',
+    : t('settings.join.expireMissing'),
 )
 const inviteExpired = computed(
   () =>
@@ -136,24 +148,26 @@ async function save(status = form.state, confirmed = false) {
   if (busy.value) return false
   error.value = ''
   if (!form.name.trim()) {
-    error.value = '请填写课堂名称'
-    goTo('基本信息')
+    error.value = t('settings.save.nameRequired')
+    goTo('basic')
     return false
   }
   if (!Number.isInteger(form.capacity) || form.capacity < 1 || form.capacity > 50) {
-    error.value = '课堂人数上限必须为 1–50 的整数'
-    goTo('课堂策略')
+    error.value = t('settings.save.capacityInvalid')
+    goTo('policy')
     return false
   }
   if (form.capacity < activeClassroom.value.students) {
-    error.value = `当前已有 ${activeClassroom.value.students} 位学生，人数上限不能小于现有人数`
-    goTo('课堂策略')
+    error.value = t('settings.save.capacityBelowStudents', {
+      count: activeClassroom.value.students,
+    })
+    goTo('policy')
     return false
   }
   if (
     !confirmed &&
     status !== activeClassroom.value.status &&
-    ['未开始', '已关闭', '已归档'].includes(status)
+    ['not_started', 'closed', 'archived'].includes(status)
   ) {
     confirmState.value = status
     return false
@@ -178,17 +192,23 @@ async function save(status = form.state, confirmed = false) {
     },
   )
   if (!confirmed && (changedPolicies.length || status !== activeClassroom.value.status)) {
-    const policySummary = changedPolicies.length ? `将修改：${changedPolicies.join('、')}。` : ''
+    const policySummary = changedPolicies.length
+      ? t('settings.save.confirmPolicies', {
+          policies: changedPolicies.join(t('settings.listSeparator')),
+        })
+      : ''
     const statusSummary =
-      status !== activeClassroom.value.status ? `课堂状态将更改为${status}。` : ''
+      status !== activeClassroom.value.status
+        ? t('settings.save.confirmStatus', { status: statusLabel(status) })
+        : ''
     if (
       !(await confirmAction(
-        `保存课堂设置？${statusSummary}${policySummary}关闭运行权限会停止正在执行的任务。`,
+        `${t('settings.save.confirmTitle')}${statusSummary}${policySummary}${t('settings.save.confirmTail')}`,
       ))
     )
       return false
   }
-  busyReason.value = '正在保存课堂设置，请稍候'
+  busyReason.value = t('settings.save.busy')
   busy.value = true
   try {
     await updateClass({
@@ -206,10 +226,10 @@ async function save(status = form.state, confirmed = false) {
     })
     form.state = status
     initial.value = JSON.stringify(form)
-    notify('课堂设置已保存')
+    notify(t('settings.save.success'))
     return true
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '保存失败，请重试'
+    error.value = e instanceof Error ? e.message : t('settings.save.failed')
     return false
   } finally {
     busy.value = false
@@ -218,14 +238,14 @@ async function save(status = form.state, confirmed = false) {
 async function copy() {
   try {
     await navigator.clipboard.writeText(`${location.origin}/join?code=${demo.inviteCode}`)
-    notify('邀请链接已复制')
+    notify(t('settings.join.inviteCopied'))
   } catch {
-    notify('请手动复制课堂码 ' + demo.inviteCode)
+    notify(t('settings.join.copyManual', { code: demo.inviteCode }))
   }
 }
 async function regenerateInvite() {
   if (busy.value) return
-  busyReason.value = '正在重新生成课堂码，请稍候'
+  busyReason.value = t('settings.join.regenerating')
   busy.value = true
   try {
     const data = await api<{ inviteCode: string; inviteExpiresAt?: string }>(
@@ -237,7 +257,7 @@ async function regenerateInvite() {
     activeClassroom.value.inviteCode = data.inviteCode
     if (data.inviteExpiresAt) activeClassroom.value.inviteExpiresAt = data.inviteExpiresAt
     regenerate.value = false
-    notify('课堂码已更新，旧邀请失效')
+    notify(t('settings.join.codeUpdated'))
   } catch (e) {
     reportError(e)
   } finally {
@@ -248,8 +268,10 @@ async function deleteClass() {
   if (
     busy.value ||
     !(await confirmAction(
-      `永久删除课堂「${activeClassroom.value.name}」？课堂内所有题目、成员关系、草稿、提交、求助、投屏和运行记录都会删除，且无法恢复。账号会保留。`,
-      { destructive: true },
+      t('settings.archive.deleteConfirm', { name: activeClassroom.value.name }),
+      {
+        destructive: true,
+      },
     ))
   )
     return
@@ -258,48 +280,54 @@ async function deleteClass() {
     await api(classPath(), 'DELETE')
     initial.value = JSON.stringify(form)
     await refresh()
-    notify('课堂已永久删除')
+    notify(t('settings.archive.deleted'))
     await router.push('/teacher/classes')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '删除课堂失败'
+    error.value = e instanceof Error ? e.message : t('settings.archive.deleteFailed')
   } finally {
     busy.value = false
   }
 }
 async function archiveClass() {
-  if (await save('已归档', true)) archive.value = false
+  if (await save('archived', true)) archive.value = false
 }
 useActionFeedback(error)
-const busyReason = ref('正在处理请求，请稍候')
+const busyReason = ref(t('settings.busyDefault'))
 </script>
 <template>
   <div class="settings-page">
     <div class="page-heading">
       <div>
-        <div class="heading-meta">课堂管理</div>
-        <h1>课堂设置</h1>
+        <div class="heading-meta">{{ t('settings.headingMeta') }}</div>
+        <h1>{{ t('settings.title') }}</h1>
       </div>
       <Button
         :disabled="busy || !dirty"
-        :data-disabled-reason="busy ? busyReason : '设置没有更改，无需保存'"
+        :data-disabled-reason="busy ? busyReason : t('settings.save.noChanges')"
         @click="save()">
         <Save />
-        {{ busy ? '正在保存…' : dirty ? '保存设置' : '设置已保存' }}
+        {{
+          busy
+            ? t('settings.save.saving')
+            : dirty
+              ? t('settings.save.button')
+              : t('settings.save.saved')
+        }}
       </Button>
     </div>
 
     <Alert v-if="dirty" role="status" type="warning">
-      有尚未保存的课堂设置，开关调整需点击“保存设置”后生效。
+      {{ t('settings.save.unsavedAlert') }}
     </Alert>
     <div class="settings-layout" :inert="busy">
       <nav class="settings-nav">
         <Button
-          v-for="t in sections"
-          :key="t"
+          v-for="section in sections"
+          :key="section"
           variant="plain"
-          :class="{ selected: tab === t }"
-          @click="goTo(t)">
-          {{ t }}
+          :class="{ selected: tab === section }"
+          @click="goTo(section)">
+          {{ sectionLabel(section) }}
           <ChevronRight :size="14" />
         </Button>
       </nav>
@@ -307,62 +335,66 @@ const busyReason = ref('正在处理请求，请稍候')
         <Form id="settings-section-0" class="form-stack settings-section" @submit.prevent="save()">
           <div class="settings-title">
             <Settings2 :size="19" />
-            <h2>基本信息</h2>
+            <h2>{{ t('settings.basic.title') }}</h2>
           </div>
           <label>
-            课堂名称
+            {{ t('settings.basic.name') }}
             <Input v-model="form.name" required maxlength="50" />
           </label>
           <label>
-            课堂说明
+            {{ t('settings.basic.description') }}
             <Textarea v-model="form.description" rows="5" />
           </label>
           <label>
-            课堂状态
+            {{ t('settings.basic.status') }}
             <Select
               v-model="form.state"
-              :disabled="busy || activeClassroom.status === '已归档'"
-              :data-disabled-reason="busy ? busyReason : '课堂已归档，请先恢复课堂教学'">
-              <SelectOption>未开始</SelectOption>
-              <SelectOption>进行中</SelectOption>
-              <SelectOption>已关闭</SelectOption>
-              <SelectOption v-if="activeClassroom.status === '已归档'">已归档</SelectOption>
+              :disabled="busy || activeClassroom.status === 'archived'"
+              :data-disabled-reason="busy ? busyReason : t('settings.basic.archivedReason')">
+              <SelectOption value="not_started">{{ t('settings.status.notStarted') }}</SelectOption>
+              <SelectOption value="ongoing">{{ t('settings.status.ongoing') }}</SelectOption>
+              <SelectOption value="closed">{{ t('settings.status.closed') }}</SelectOption>
+              <SelectOption v-if="activeClassroom.status === 'archived'" value="archived">
+                {{ t('settings.status.archived') }}
+              </SelectOption>
             </Select>
           </label>
         </Form>
         <div id="settings-section-1" class="form-stack settings-section">
           <div class="settings-title">
             <ShieldCheck :size="19" />
-            <h2>加入与邀请</h2>
+            <h2>{{ t('settings.join.title') }}</h2>
           </div>
           <label class="toggle-row">
             <span>
-              <strong>允许新成员加入</strong>
-              <small>关闭后，已有成员仍可访问课堂。</small>
+              <strong>{{ t('settings.join.allowJoin') }}</strong>
+              <small>{{ t('settings.join.allowJoinHint') }}</small>
             </span>
             <Switch v-model="form.allowJoin" />
           </label>
           <label>
-            入班方式
+            {{ t('settings.join.access') }}
             <Select v-model="form.access">
-              <SelectOption value="approval">教师审批后加入</SelectOption>
-              <SelectOption value="roster">仅名单中的学生可加入</SelectOption>
+              <SelectOption value="approval">{{ t('settings.join.accessApproval') }}</SelectOption>
+              <SelectOption value="roster">{{ t('settings.join.accessRoster') }}</SelectOption>
             </Select>
           </label>
           <label>
-            当前课堂码
+            {{ t('settings.join.currentCode') }}
             <div class="copy-row">
               <Input :value="demo.inviteCode" readonly />
               <Button variant="outline" @click="copy">
                 <Copy />
-                复制邀请
+                {{ t('settings.join.copyInvite') }}
               </Button>
             </div>
           </label>
           <p class="form-hint" :class="{ 'danger-text': inviteExpired }">
-            {{ inviteExpired ? '课堂码已过期' : '有效至' }}：{{
-              inviteExpires
-            }}。重新生成后原课堂码失效。
+            {{
+              (inviteExpired ? t('settings.join.codeExpired') : t('settings.join.validUntil')) +
+              inviteExpires +
+              t('settings.join.expireNote')
+            }}
           </p>
           <Button
             variant="outline"
@@ -371,16 +403,19 @@ const busyReason = ref('正在处理请求，请稍候')
             :data-disabled-reason="busyReason"
             @click="regenerate = true">
             <RefreshCw />
-            重新生成
+            {{ t('settings.join.regenerate') }}
           </Button>
         </div>
         <div id="settings-section-2" class="form-stack settings-section">
           <div class="settings-title">
             <Settings2 :size="19" />
-            <h2>统一编程环境</h2>
+            <h2>{{ t('settings.environment.title') }}</h2>
           </div>
-          <Alert type="info">编译标准与运行限制由平台管理员统一配置。</Alert>
-          <div class="filter-tabs" role="tablist" aria-label="编程语言">
+          <Alert type="info">{{ t('settings.environment.adminNote') }}</Alert>
+          <div
+            class="filter-tabs"
+            role="tablist"
+            :aria-label="t('settings.environment.languageLabel')">
             <Button
               variant="plain"
               type="button"
@@ -407,93 +442,101 @@ const busyReason = ref('正在处理请求，请稍候')
                 ? executionSettings.languages.cpp.compilerProfile === 'gcc13-cpp20'
                   ? 'GCC · C++20'
                   : 'GCC · C++17'
-                : 'CPython 3 · 标准库'
+                : t('settings.environment.python')
             }}
           </p>
           <div class="environment-grid">
             <div>
-              <span>项目类型</span>
+              <span>{{ t('settings.environment.projectType') }}</span>
               <strong>
-                每题一个 {{ environmentLanguage === 'cpp' ? 'C++' : 'Python' }} 源文件
+                {{
+                  t('settings.environment.projectTypeValue', {
+                    language: environmentLanguage === 'cpp' ? 'C++' : 'Python',
+                  })
+                }}
               </strong>
             </div>
             <div>
-              <span>运行时间</span>
+              <span>{{ t('settings.environment.runTime') }}</span>
               <strong>{{ languageEnvironment.runTimeMs }} ms</strong>
             </div>
             <div>
-              <span>内存上限</span>
+              <span>{{ t('settings.environment.memory') }}</span>
               <strong>{{ languageEnvironment.runMemoryMb }} MiB</strong>
             </div>
             <div>
-              <span>输出上限</span>
+              <span>{{ t('settings.environment.output') }}</span>
               <strong>{{ languageEnvironment.outputLimitKb }} KiB</strong>
             </div>
             <div v-if="environmentLanguage === 'cpp'">
-              <span>编译时间</span>
+              <span>{{ t('settings.environment.compileTime') }}</span>
               <strong>{{ executionSettings.languages.cpp.compileTimeMs }} ms</strong>
             </div>
             <div v-if="environmentLanguage === 'cpp'">
-              <span>编译内存</span>
+              <span>{{ t('settings.environment.compileMemory') }}</span>
               <strong>{{ executionSettings.languages.cpp.compileMemoryMb }} MiB</strong>
             </div>
           </div>
         </div>
         <div id="settings-section-3" class="form-stack settings-section">
-          <h2>练习与课后访问</h2>
+          <h2>{{ t('settings.policy.title') }}</h2>
           <label class="toggle-row">
             <span>
-              <strong>允许编译运行</strong>
-              <small>关闭后仍可编辑，并查看已有记录。</small>
+              <strong>{{ t('settings.policy.allowRun') }}</strong>
+              <small>{{ t('settings.policy.allowRunHint') }}</small>
             </span>
             <Switch v-model="form.allowRun" />
           </label>
           <label class="toggle-row">
             <span>
-              <strong>允许重复提交</strong>
-              <small>每次主动提交保留独立版本。</small>
+              <strong>{{ t('settings.policy.allowResubmit') }}</strong>
+              <small>{{ t('settings.policy.allowResubmitHint') }}</small>
             </span>
             <Switch v-model="form.allowResubmit" />
           </label>
           <label class="toggle-row">
             <span>
-              <strong>归档后保留只读访问</strong>
-              <small>学生仍可查看和下载自己的作品。</small>
+              <strong>{{ t('settings.policy.readonly') }}</strong>
+              <small>{{ t('settings.policy.readonlyHint') }}</small>
             </span>
             <Switch v-model="form.readonly" />
           </label>
           <label>
-            课堂人数上限
+            {{ t('settings.policy.capacity') }}
             <NumberInput v-model.number="form.capacity" min="1" max="50" />
           </label>
           <p class="form-hint">
-            当前已有 {{ activeClassroom.students }} 位学生。上限不可低于现有人数；最多 50 人。
+            {{ t('settings.policy.capacityHint', { count: activeClassroom.students }) }}
           </p>
         </div>
         <div id="settings-section-4" class="form-stack settings-section">
           <div class="settings-title">
             <Archive :size="20" />
-            <h2>归档课堂</h2>
+            <h2>{{ t('settings.archive.title') }}</h2>
           </div>
           <p class="body-copy">
-            归档会关闭新成员加入、编辑与新运行，并停止正在执行的任务。历史作品按只读访问策略保留；需要继续教学时可恢复课堂。
+            {{ t('settings.archive.body') }}
           </p>
-          <Alert type="warning">归档保留账号、作品和历史记录，不会永久删除数据。</Alert>
+          <Alert type="warning">{{ t('settings.archive.keepNote') }}</Alert>
           <div class="inline-items">
             <Button
-              v-if="activeClassroom.status === '已归档'"
+              v-if="activeClassroom.status === 'archived'"
               variant="success"
               class="self-start"
               @click="reopen = true">
-              恢复课堂教学
+              {{ t('settings.archive.reopen') }}
             </Button>
             <Button
               variant="destructive"
               class="self-start"
-              :disabled="busy || activeClassroom.status === '已归档'"
-              :data-disabled-reason="busy ? busyReason : '课堂已归档，请先恢复课堂教学'"
+              :disabled="busy || activeClassroom.status === 'archived'"
+              :data-disabled-reason="busy ? busyReason : t('settings.basic.archivedReason')"
               @click="archive = true">
-              {{ activeClassroom.status === '已归档' ? '课堂已归档' : '归档这间课堂' }}
+              {{
+                activeClassroom.status === 'archived'
+                  ? t('settings.archive.archived')
+                  : t('settings.archive.archiveButton')
+              }}
             </Button>
             <Button
               v-if="activeClassroom.canManageStaff"
@@ -501,7 +544,7 @@ const busyReason = ref('正在处理请求，请稍候')
               class="self-start"
               :disabled="busy"
               @click="deleteClass">
-              永久删除课堂
+              {{ t('settings.archive.delete') }}
             </Button>
           </div>
         </div>
@@ -510,10 +553,10 @@ const busyReason = ref('正在处理请求，请稍候')
   </div>
   <Modal
     v-model:open="archive"
-    title="结束并归档课堂？"
-    description="归档后关闭加入、编辑与运行，保留作品和历史记录；未保存的课堂设置也会一并保存。">
+    :title="t('settings.archiveModal.title')"
+    :description="t('settings.archiveModal.description')">
     <p class="body-copy">
-      归档后不再接受新成员、编辑与提交，正在运行的程序会停止。请先按需导出课堂作品。
+      {{ t('settings.archiveModal.body') }}
     </p>
     <div class="modal-actions">
       <Button
@@ -521,59 +564,63 @@ const busyReason = ref('正在处理请求，请稍候')
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="archive = false">
-        继续教学
+        {{ t('settings.archiveModal.continue') }}
       </Button>
       <Button
         variant="destructive"
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="archiveClass">
-        {{ busy ? '正在归档…' : '确认归档' }}
+        {{ busy ? t('settings.archiveModal.working') : t('settings.archiveModal.confirm') }}
       </Button>
     </div>
   </Modal>
   <Modal
     v-model:open="regenerate"
-    title="重新生成课堂码？"
-    description="旧课堂码与邀请链接会立即失效。已有成员不受影响，请将新邀请交付给尚未加入的学生。">
+    :title="t('settings.regenerateModal.title')"
+    :description="t('settings.regenerateModal.description')">
     <div class="modal-actions">
       <Button
         variant="outline"
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="regenerate = false">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button
         variant="warning"
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="regenerateInvite">
-        {{ busy ? '正在更新…' : '确认重新生成' }}
+        {{ busy ? t('settings.regenerateModal.working') : t('settings.regenerateModal.confirm') }}
       </Button>
     </div>
   </Modal>
   <Modal
     :open="leave"
-    title="放弃未保存的设置？"
-    description="已保存的课堂设置不受影响。"
+    :title="t('settings.leaveModal.title')"
+    :description="t('settings.leaveModal.description')"
     @update:open="!$event && settleLeave(false)">
     <div class="modal-actions">
-      <Button variant="outline" @click="settleLeave(false)">继续编辑</Button>
-      <Button variant="destructive" @click="settleLeave(true)">放弃修改</Button>
+      <Button variant="outline" @click="settleLeave(false)">
+        {{ t('settings.leaveModal.continue') }}
+      </Button>
+      <Button variant="destructive" @click="settleLeave(true)">
+        {{ t('settings.leaveModal.discard') }}
+      </Button>
     </div>
   </Modal>
   <Modal
     v-model:open="reopen"
-    title="恢复课堂教学？"
-    description="课堂将回到进行中，成员可按课堂策略继续编辑、运行与提交；未保存的课堂设置也会一并保存。">
+    :title="t('settings.reopenModal.title')"
+    :description="t('settings.reopenModal.description')">
     <div class="modal-actions">
       <Button
         variant="outline"
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="reopen = false">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button
         variant="success"
@@ -581,17 +628,19 @@ const busyReason = ref('正在处理请求，请稍候')
         :data-disabled-reason="busyReason"
         @click="
           async () => {
-            if (await save('进行中', true)) reopen = false
+            if (await save('ongoing', true)) reopen = false
           }
         ">
-        {{ busy ? '正在恢复…' : '确认恢复课堂' }}
+        {{ busy ? t('settings.reopenModal.working') : t('settings.reopenModal.confirm') }}
       </Button>
     </div>
   </Modal>
   <Modal
     :open="!!confirmState"
-    title="更改课堂状态？"
-    :description="`课堂将设为${confirmState}，学生只能查看作品，正在执行的程序会停止；未保存的课堂设置也会一并保存。`"
+    :title="t('settings.confirmStateModal.title')"
+    :description="
+      t('settings.confirmStateModal.description', { status: statusLabel(confirmState) })
+    "
     @update:open="!$event && (confirmState = '')">
     <div class="modal-actions">
       <Button
@@ -599,7 +648,7 @@ const busyReason = ref('正在处理请求，请稍候')
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="confirmState = ''">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button
         variant="warning"
@@ -610,7 +659,7 @@ const busyReason = ref('正在处理请求，请稍候')
             if (await save(confirmState, true)) confirmState = ''
           }
         ">
-        确认更改
+        {{ t('settings.confirmStateModal.confirm') }}
       </Button>
     </div>
   </Modal>

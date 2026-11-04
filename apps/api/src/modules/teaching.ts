@@ -34,7 +34,7 @@ export class TeachingController {
       await this.service.pool.query(
         `select u.id,u.name,u.number,m.exercise_id as "exerciseId",m.language,
           coalesce(m.last_seen>now()-interval '15 seconds',false) as online,m.last_seen as activity,
-          coalesce(r.status,'尚未运行') as status,coalesce(r.exit,'尚未运行') as summary,
+          coalesce(r.status,'not_run') as status,coalesce(r.exit,'not_run') as summary,
           (h.id is not null) as help,h.id as "helpRequestId",h.message as "helpMessage",
           h.created_at as "helpCreatedAt",h.exercise_id as "helpExerciseId",h.language as "helpLanguage",
           exists(select 1 from submissions s where s.classroom_id=m.classroom_id and s.user_id=u.id and s.exercise_id=m.exercise_id and s.language=m.language) as submitted,
@@ -170,7 +170,7 @@ export class TeachingController {
           [id, data.exerciseId],
         )
       ).rows[0]
-      if (classroom?.status !== '进行中' || exercise?.status !== '已发布')
+      if (classroom?.status !== 'ongoing' || exercise?.status !== 'published')
         throw new ForbiddenException('课堂或练习当前只读')
       const previous = (
         await client.query(

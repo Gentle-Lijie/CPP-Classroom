@@ -74,7 +74,7 @@ export const classrooms = pgTable('classrooms', {
     .references(() => users.id),
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
-  status: text('status').notNull().default('未开始'),
+  status: text('status').notNull().default('not_started'),
   inviteCode: text('invite_code').notNull().unique(),
   inviteExpiresAt: timestamp('invite_expires_at', { withTimezone: true }).notNull(),
   settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
@@ -121,7 +121,7 @@ export const exercises = pgTable(
       .$type<Partial<Record<'cpp' | 'python', string>>>()
       .notNull()
       .default({}),
-    status: text('status').notNull().default('草稿'),
+    status: text('status').notNull().default('draft'),
     position: integer('position').notNull().default(0),
     version: integer('version').notNull().default(1),
     content: jsonb('content').$type<Record<string, string>>().notNull(),
@@ -189,7 +189,7 @@ export const runs = pgTable(
     runnerId: uuid('runner_id').references(() => runnerNodes.id),
     revision: integer('revision').notNull(),
     input: text('input').notNull(),
-    status: text('status').notNull().default('排队'),
+    status: text('status').notNull().default('queued'),
     output: text('output').notNull().default(''),
     stderr: text('stderr').notNull().default(''),
     log: text('log').notNull().default(''),

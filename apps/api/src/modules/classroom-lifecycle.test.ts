@@ -31,10 +31,10 @@ function setup(
 
 describe('classroom lifecycle transitions', () => {
   it.each([
-    { status: '已归档', settings: {}, member: undefined },
-    { status: '已关闭', settings: {}, member: undefined },
-    { status: '进行中', settings: {}, member: { status: 'removed', role: 'student' } },
-    { status: '进行中', settings: { access: 'roster' }, member: undefined },
+    { status: 'archived', settings: {}, member: undefined },
+    { status: 'closed', settings: {}, member: undefined },
+    { status: 'ongoing', settings: {}, member: { status: 'removed', role: 'student' } },
+    { status: 'ongoing', settings: { access: 'roster' }, member: undefined },
   ])('enforces join authorization: %j', async ({ status, settings, member }) => {
     const mock = setup(async (sql) => {
       if (sql.startsWith('select * from classrooms'))
@@ -62,7 +62,7 @@ describe('classroom lifecycle transitions', () => {
               {
                 id: classId,
                 invite_expires_at: new Date(Date.now() + 60000),
-                status: '进行中',
+                status: 'ongoing',
                 settings: {},
               },
             ],
@@ -138,7 +138,7 @@ describe('classroom lifecycle transitions', () => {
   it('rejects expired invites and classrooms at capacity', async () => {
     const expired = setup(async (sql) =>
       sql.startsWith('select * from classrooms')
-        ? { rows: [{ invite_expires_at: new Date(0), settings: {}, status: '进行中' }] }
+        ? { rows: [{ invite_expires_at: new Date(0), settings: {}, status: 'ongoing' }] }
         : { rows: [] },
     )
     await expect(expired.controller.join({ code: 'ABC' }, req('student'))).rejects.toBeInstanceOf(
@@ -152,7 +152,7 @@ describe('classroom lifecycle transitions', () => {
               id: classId,
               invite_expires_at: new Date(Date.now() + 60000),
               settings: { capacity: 1 },
-              status: '进行中',
+              status: 'ongoing',
             },
           ],
         }
@@ -174,7 +174,7 @@ describe('classroom lifecycle transitions', () => {
                 id: classId,
                 invite_expires_at: new Date(Date.now() + 60000),
                 settings: { allowJoin: false },
-                status: '进行中',
+                status: 'ongoing',
               },
             ],
           }
@@ -194,7 +194,7 @@ describe('classroom lifecycle transitions', () => {
               id: classId,
               name: 'class',
               description: '',
-              status: '进行中',
+              status: 'ongoing',
               settings: {},
               recommended: exerciseId,
             },
@@ -205,7 +205,7 @@ describe('classroom lifecycle transitions', () => {
       return { rows: [] }
     })
     await expect(
-      mock.controller.update(classId, { status: '已归档' }, req('teacher')),
+      mock.controller.update(classId, { status: 'archived' }, req('teacher')),
     ).resolves.toEqual({ ok: true })
     await expect(
       mock.controller.closeExercise(classId, exerciseId, req('teacher')),

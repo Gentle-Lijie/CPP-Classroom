@@ -8,6 +8,7 @@ import { Form } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -68,8 +69,9 @@ interface Credential {
   password?: string
   generatedAt?: string
 }
+const { t } = useI18n()
 const search = ref(''),
-  tab = ref('全部成员'),
+  tab = ref('all'),
   add = ref(false),
   name = ref(''),
   number = ref(''),
@@ -118,10 +120,10 @@ async function assignmentsChanged(assignment?: { role: string; status: 'active' 
     await loadMembers(true)
     if (assignment && activeClassroom.value.canManageStaff) {
       switchSection(assignment.role === 'student' ? 'students' : 'staff')
-      if (assignment.role === 'student' && assignment.status === 'removed') tab.value = '已移除'
+      if (assignment.role === 'student' && assignment.status === 'removed') tab.value = 'removed'
     }
   } catch {
-    notify('人员已更新，课堂数据刷新失败，请手动刷新', 'error')
+    notify(t('roster.notify.membersUpdatedRefreshFailed'), 'error')
   }
 }
 watch(
@@ -168,15 +170,25 @@ watch(
 const pending = computed(() => members.value.filter((m) => m.membership === 'pending'))
 const removed = computed(() => members.value.filter((m) => m.membership === 'removed'))
 const active = computed(() => members.value.filter((m) => m.membership === 'active'))
+const tabs = computed(() => [
+  { id: 'all', label: t('roster.tabs.all'), count: active.value.length },
+  {
+    id: 'online',
+    label: t('roster.tabs.online'),
+    count: students.filter((s) => s.online).length,
+  },
+  { id: 'pending', label: t('roster.tabs.pending'), count: pending.value.length },
+  { id: 'removed', label: t('roster.tabs.removed'), count: removed.value.length },
+])
 const visible = computed(() => {
   const query = search.value.trim().toLowerCase()
   return (
-    tab.value === '待审批'
+    tab.value === 'pending'
       ? pending.value
-      : tab.value === '已移除'
+      : tab.value === 'removed'
         ? removed.value
         : active.value.filter(
-            (m) => tab.value !== '在线成员' || students.find((s) => s.id === m.id)?.online,
+            (m) => tab.value !== 'online' || students.find((s) => s.id === m.id)?.online,
           )
   ).filter((m) => `${m.name} ${m.number} ${m.username}`.toLowerCase().includes(query))
 })
@@ -253,7 +265,7 @@ async function loadMembers(silent = false) {
     selected.value = selected.value.filter((id) => result.some((m) => m.id === id))
   } catch (e) {
     if (id === demo.classroomId && token === generation)
-      loadError.value = e instanceof Error ? e.message : '名册加载失败'
+      loadError.value = e instanceof Error ? e.message : t('roster.loadFailed')
   } finally {
     if (token === generation) {
       loading.value = false
@@ -279,7 +291,7 @@ watch(
 )
 onBeforeRouteLeave(() => {
   if (!busy.value) return true
-  notify('正在处理名册，请等待完成后离开', 'error')
+  notify(t('roster.notify.leaveBlocked'), 'error')
   return false
 })
 function keepCredentials(items: Credential[], classId = demo.classroomId) {
@@ -303,7 +315,7 @@ function keepCredentials(items: Credential[], classId = demo.classroomId) {
     try {
       sessionStorage.setItem(key, JSON.stringify(saved))
     } catch {
-      notify('凭据暂存失败，请返回原课堂核对交付', 'error')
+      notify(t('roster.notify.credentialCacheFailed'), 'error')
     }
   }
 }
@@ -326,7 +338,7 @@ async function reloadAfterWrite(classId: string) {
   try {
     await refresh()
   } catch {
-    notify('操作已成功，课堂统计刷新失败，可手动刷新名册', 'error')
+    notify(t('roster.notify.statsRefreshFailed'), 'error')
   }
   await loadMembers(true)
 }
@@ -338,13 +350,13 @@ async function save() {
     customUsername = username.value.trim()
   if (customUsername) {
     if (!/^[a-zA-Z0-9._@-]+$/.test(customUsername)) {
-      error.value = '登录账号仅限字母、数字和 . _ @ -'
+      error.value = t('roster.addDialog.usernameInvalid')
       return
     }
     account.username = customUsername
   }
   if (password.value) account.password = password.value
-  busyReason.value = '正在添加学生，请稍候'
+  busyReason.value = t('roster.addDialog.busy')
   busy.value = true
   try {
     const result = await addMember(name.value.trim(), number.value.trim(), classId, account)
@@ -355,11 +367,13 @@ async function save() {
     password.value = ''
     if (result.password && demo.classroomId === classId) credentialsOpen.value = true
     notify(
-      result.password ? '学生已添加，可复制或导出登录凭据' : '该学生已加入课堂，原账号密码保持不变',
+      result.password
+        ? t('roster.addDialog.addedWithCredential')
+        : t('roster.addDialog.addedExisting'),
     )
     await reloadAfterWrite(classId)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '添加失败'
+    error.value = e instanceof Error ? e.message : t('roster.addDialog.failed')
   } finally {
     busy.value = false
   }
@@ -369,16 +383,16 @@ async function decide(id: string, status: string) {
   const classId = demo.classroomId,
     member = members.value.find((m) => m.id === id),
     wasRemoved = member?.membership === 'removed'
-  const action =
-    status === 'removed' ? '拒绝加入申请' : wasRemoved ? '恢复课堂访问' : '批准加入课堂'
-  if (
-    !(await confirmAction(
-      `确认${action}：${member?.name ?? '该学生'}？${status === 'removed' ? '学生之后可重新申请。' : '该学生将获得课堂访问权限。'}`,
-    ))
-  )
+  const confirmKey =
+    status === 'removed'
+      ? 'roster.decide.confirmReject'
+      : wasRemoved
+        ? 'roster.decide.confirmRestore'
+        : 'roster.decide.confirmApprove'
+  if (!(await confirmAction(t(confirmKey, { name: member?.name ?? t('roster.studentFallback') }))))
     return
   if (classId !== demo.classroomId) return
-  busyReason.value = '正在更新课堂成员状态，请稍候'
+  busyReason.value = t('roster.decide.busy')
   busy.value = true
   error.value = ''
   try {
@@ -389,13 +403,13 @@ async function decide(id: string, status: string) {
     notify(
       status === 'active'
         ? wasRemoved
-          ? '已恢复成员课堂访问'
-          : '已批准加入'
-        : '已拒绝申请，学生可重新申请',
+          ? t('roster.notify.decideRestored')
+          : t('roster.notify.decideApproved')
+        : t('roster.notify.decideRejected'),
     )
     await reloadAfterWrite(classId)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '审批失败'
+    error.value = e instanceof Error ? e.message : t('roster.decide.failed')
   } finally {
     busy.value = false
   }
@@ -411,7 +425,7 @@ async function importRows() {
     return
   }
   const classId = demo.classroomId
-  busyReason.value = '正在导入学生名单，请稍候'
+  busyReason.value = t('roster.importDialog.busy')
   busy.value = true
   importResults.value = []
   const failedRows: RosterRow[] = []
@@ -435,9 +449,12 @@ async function importRows() {
     const failed = importResults.value.filter((r) => r.error)
     csv.value = rosterContent(failedRows)
     if (failed.length)
-      error.value = `成功 ${rows.length - failed.length} 位，失败 ${failed.length} 位。已保留失败行，可导出成功账号后重试。`
+      error.value = t('roster.importDialog.partialFailed', {
+        succeeded: rows.length - failed.length,
+        failed: failed.length,
+      })
     else {
-      notify(`已处理 ${rows.length} 位学生，请导出新建账号凭据交付`)
+      notify(t('roster.notify.processedAll', { count: rows.length }))
     }
     await reloadAfterWrite(classId)
   } finally {
@@ -448,7 +465,7 @@ async function readFile(event: Event) {
   const input = event.target as HTMLInputElement,
     file = input.files?.[0]
   if (!file || busy.value) return
-  busyReason.value = '正在读取名单文件，请稍候'
+  busyReason.value = t('roster.importDialog.readBusy')
   busy.value = true
   readingFile.value = true
   csv.value = ''
@@ -457,7 +474,7 @@ async function readFile(event: Event) {
   try {
     csv.value = await readRosterFile(file)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '无法读取文件，请重选或粘贴名单'
+    error.value = e instanceof Error ? e.message : t('roster.importDialog.readFailed')
   } finally {
     input.value = ''
     readingFile.value = false
@@ -468,24 +485,26 @@ async function downloadExcelTemplate() {
   if (downloadingTemplate.value) return
   downloadingTemplate.value = true
   try {
-    downloadBlob('学生名单模板.xlsx', await rosterExcelTemplate())
+    downloadBlob(t('roster.importDialog.excelFileName'), await rosterExcelTemplate())
   } catch {
-    error.value = 'Excel 模板下载失败，请重试或下载 CSV 模板'
+    error.value = t('roster.importDialog.excelFailed')
   } finally {
     downloadingTemplate.value = false
   }
 }
 function exportRoster() {
   download(
-    `${activeClassroom.value.name}-名册.csv`,
+    t('roster.csv.rosterFileName', { name: activeClassroom.value.name }),
     csvDocument([
-      ['姓名', '学号', '登录账号', '账号状态', '在线状态'],
+      t('roster.csv.rosterHeaders') as unknown as string[],
       ...active.value.map((m) => [
         m.name,
         m.number,
         m.username,
-        m.disabled ? '已停用' : '正常',
-        students.find((s) => s.id === m.id)?.online ? '在线' : '离线',
+        m.disabled ? t('roster.status.accountDisabled') : t('roster.status.active'),
+        students.find((s) => s.id === m.id)?.online
+          ? t('roster.status.online')
+          : t('roster.status.offline'),
       ]),
     ]),
     'text/csv;charset=utf-8',
@@ -493,21 +512,21 @@ function exportRoster() {
 }
 function exportCredentials() {
   download(
-    `${activeClassroom.value.name}-登录凭据.csv`,
+    t('roster.csv.credentialsFileName', { name: activeClassroom.value.name }),
     csvDocument([
-      ['姓名', '学号', '登录账号', '密码', '生成时间', '登录地址'],
+      t('roster.csv.credentialHeaders') as unknown as string[],
       ...credentials.value.map((c) => [
         c.name,
         c.number,
         c.username,
         c.password ?? '',
-        c.generatedAt ?? '时间未知',
+        c.generatedAt ?? t('roster.csv.timeUnknown'),
         location.origin + '/login',
       ]),
     ]),
     'text/csv;charset=utf-8',
   )
-  notify('已发起账号密码表下载，请确认文件已保存')
+  notify(t('roster.notify.credentialsDownloaded'))
 }
 
 function openReset(ids: string[]) {
@@ -530,31 +549,24 @@ async function batchStudents(action: 'remove' | 'delete' | 'approve' | 'reject' 
   if (busy.value || !allowed[action]) return
   const classId = demo.classroomId
   const targets = [...selectedMembers.value]
-  const label = {
-    remove: '移除课堂成员',
-    delete: '永久删除账号',
-    approve: '批准加入课堂',
-    reject: '拒绝加入申请',
-    restore: '恢复课堂访问',
-  }[action]
-  const detail =
-    action === 'delete'
-      ? '这些账号及其在你所有课堂中的作品和记录将永久删除，无法恢复。请确认作品已导出。'
-      : action === 'remove'
-        ? '撤销当前课堂访问，账号和历史作品会保留。'
-        : action === 'reject'
-          ? '申请将被移除，学生之后可重新申请。'
-          : '学生将获得课堂访问权限。'
+  const label = t(`roster.batch.actions.${action}.label`)
   if (
-    !(await confirmAction(`对已选 ${targets.length} 位学生执行「${label}」？${detail}`, {
-      destructive: action === 'delete' || action === 'remove',
-    }))
+    !(await confirmAction(
+      t('roster.batch.confirm', {
+        count: targets.length,
+        label,
+        detail: t(`roster.batch.actions.${action}.detail`),
+      }),
+      {
+        destructive: action === 'delete' || action === 'remove',
+      },
+    ))
   )
     return
   const current = () => mounted && classId === demo.classroomId
   if (!current()) return
   busy.value = true
-  busyReason.value = `正在${label}，请稍候`
+  busyReason.value = t(`roster.batch.actions.${action}.busy`)
   error.value = ''
   batchProgress.value = { completed: 0, total: targets.length }
   try {
@@ -585,7 +597,7 @@ async function batchStudents(action: 'remove' | 'delete' | 'approve' | 'reject' 
       credentials.value = credentials.value.filter((c) => !succeeded.includes(c.id))
     await reloadAfterWrite(classId)
     if (result.failed.length || result.pending.length) error.value = memberBatchMessage(result)
-    else notify(`已为 ${succeeded.length} 位学生完成${label}`)
+    else notify(t(`roster.batch.actions.${action}.done`, { count: succeeded.length }))
   } finally {
     busy.value = false
     batchProgress.value = { completed: 0, total: 0 }
@@ -595,7 +607,7 @@ async function resetPasswords() {
   if (busy.value) return
   const classId = demo.classroomId,
     ids = [...resetTargets.value]
-  busyReason.value = '正在重置学生密码，请稍候'
+  busyReason.value = t('roster.resetDialog.busy')
   busy.value = true
   error.value = ''
   try {
@@ -607,7 +619,7 @@ async function resetPasswords() {
     )
     resetting.value = false
     credentialsOpen.value = demo.classroomId === classId
-    notify(`已重置 ${ids.length} 位学生的密码，请导出并交付`)
+    notify(t('roster.notify.resetDone', { count: ids.length }))
     selected.value = []
     await reloadAfterWrite(classId)
   } catch (e) {
@@ -620,7 +632,7 @@ async function deleteStudentAccount() {
   const target = deleteTarget.value
   if (!target || busy.value) return
   const classId = demo.classroomId
-  busyReason.value = '正在永久删除学生账号，请稍候'
+  busyReason.value = t('roster.deleteDialog.busy')
   busy.value = true
   error.value = ''
   try {
@@ -628,10 +640,10 @@ async function deleteStudentAccount() {
     deleteTarget.value = undefined
     credentials.value = credentials.value.filter((credential) => credential.id !== target.id)
     selected.value = selected.value.filter((id) => id !== target.id)
-    notify(`学生账号 ${target.username} 已永久删除`)
+    notify(t('roster.notify.deleteDone', { username: target.username }))
     await reloadAfterWrite(classId)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '删除账号失败'
+    error.value = e instanceof Error ? e.message : t('roster.deleteDialog.failed')
   } finally {
     busy.value = false
   }
@@ -640,7 +652,7 @@ async function removeStudent() {
   if (busy.value || !remove.value) return
   const classId = demo.classroomId,
     target = remove.value
-  busyReason.value = '正在移除课堂成员，请稍候'
+  busyReason.value = t('roster.removeDialog.busy')
   busy.value = true
   error.value = ''
   try {
@@ -651,10 +663,10 @@ async function removeStudent() {
     if (classId === demo.classroomId)
       credentials.value = credentials.value.filter((c) => c.id !== target.id)
     remove.value = undefined
-    notify(`${target.name} 已移除，历史作品保留`)
+    notify(t('roster.notify.removeDone', { name: target.name }))
     await reloadAfterWrite(classId)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '移除失败'
+    error.value = e instanceof Error ? e.message : t('roster.removeDialog.failed')
   } finally {
     busy.value = false
   }
@@ -673,15 +685,15 @@ function openImport() {
   importing.value = true
 }
 useActionFeedback(error)
-const busyReason = ref('正在处理请求，请稍候')
+const busyReason = ref(t('roster.defaultBusy'))
 </script>
 <template>
   <div class="page-heading">
     <div>
-      <div class="heading-meta">课堂管理</div>
+      <div class="heading-meta">{{ t('roster.headingMeta') }}</div>
       <h1>
-        课堂人员
-        <span class="heading-count">{{ active.length }} 位学生</span>
+        {{ t('roster.title') }}
+        <span class="heading-count">{{ t('roster.count', { count: active.length }) }}</span>
       </h1>
     </div>
     <div class="heading-actions">
@@ -690,26 +702,30 @@ const busyReason = ref('正在处理请求，请稍候')
         variant="outline"
         @click="assignments?.openAdd()">
         <Users />
-        添加已有账号
+        {{ t('roster.addExisting') }}
       </Button>
       <Button variant="outline" @click="openImport">
         <Upload />
-        导入名单
+        {{ t('roster.importRoster') }}
       </Button>
       <Button @click="openAdd">
         <UserPlus />
-        添加学生
+        {{ t('roster.addStudent') }}
       </Button>
     </div>
   </div>
-  <div v-if="activeClassroom.canManageStaff" class="filter-tabs" role="group" aria-label="人员类别">
+  <div
+    v-if="activeClassroom.canManageStaff"
+    class="filter-tabs"
+    role="group"
+    :aria-label="t('roster.sectionAria')">
     <Button
       variant="plain"
       :class="{ selected: section === 'students' }"
       :aria-pressed="section === 'students'"
       :disabled="busy"
       @click="switchSection('students')">
-      学生
+      {{ t('roster.sectionTabs.students') }}
     </Button>
     <Button
       variant="plain"
@@ -717,7 +733,7 @@ const busyReason = ref('正在处理请求，请稍候')
       :aria-pressed="section === 'staff'"
       :disabled="busy"
       @click="switchSection('staff')">
-      教师与助教
+      {{ t('roster.sectionTabs.staff') }}
     </Button>
   </div>
   <!-- <Alert type="info" :icon="KeyRound">
@@ -742,7 +758,9 @@ const busyReason = ref('正在处理请求，请稍候')
     {{ loadError }}
 
     <template #actions>
-      <Button variant="plain" class="text-button" @click="loadMembers()">重试</Button>
+      <Button variant="plain" class="text-button" @click="loadMembers()">
+        {{ t('common.retry') }}
+      </Button>
     </template>
   </Alert>
 
@@ -750,49 +768,43 @@ const busyReason = ref('正在处理请求，请稍候')
     <div class="panel-heading">
       <div class="filter-tabs borderless">
         <Button
-          v-for="t in ['全部成员', '在线成员', '待审批', '已移除']"
-          :key="t"
+          v-for="item in tabs"
+          :key="item.id"
           variant="plain"
-          :class="{ selected: tab === t }"
+          :class="{ selected: tab === item.id }"
           :disabled="busy"
-          @click="tab = t">
-          {{ t }}
-          <span>
-            {{
-              t === '已移除'
-                ? removed.length
-                : t === '待审批'
-                  ? pending.length
-                  : t === '在线成员'
-                    ? students.filter((s) => s.online).length
-                    : active.length
-            }}
-          </span>
+          @click="tab = item.id">
+          {{ item.label }}
+          <span>{{ item.count }}</span>
         </Button>
       </div>
       <div class="inline-items">
         <span class="muted text-xs">
-          {{ loading ? '加载中…' : updatedAt ? '更新于 ' + updatedAt : '尚未加载' }}
+          {{
+            loading
+              ? t('common.loading')
+              : updatedAt
+                ? t('roster.updatedAt', { time: updatedAt })
+                : t('roster.notLoaded')
+          }}
         </span>
         <Button
           variant="outline"
           size="sm"
           :disabled="loading || busy"
-          :data-disabled-reason="loading ? '正在加载学生名册，请稍候' : busyReason"
+          :data-disabled-reason="loading ? t('roster.loadingRoster') : busyReason"
           @click="loadMembers()">
           <RefreshCw />
-          刷新
+          {{ t('common.refresh') }}
         </Button>
         <Button
           variant="outline"
           size="sm"
           :disabled="loading || !!loadError"
-          :data-disabled-reason="
-            loading ? '正在加载学生名册，请稍候' : '名册加载失败，请先刷新后再导出'
-          "
+          :data-disabled-reason="loading ? t('roster.loadingRoster') : t('roster.exportBlocked')"
           @click="exportRoster">
           <Download />
-          导出名册
+          {{ t('roster.exportRoster') }}
         </Button>
       </div>
     </div>
@@ -802,46 +814,49 @@ const busyReason = ref('正在处理请求，请稍候')
         <Input
           v-model="search"
           :disabled="busy"
-          placeholder="搜索姓名、学号或账号…"
-          aria-label="搜索名册" />
+          :placeholder="t('roster.searchPlaceholder')"
+          :aria-label="t('roster.searchAria')" />
       </label>
-      <div v-if="selected.length" class="inline-items" aria-label="学生批量操作">
+      <div v-if="selected.length" class="inline-items" :aria-label="t('roster.batchAria')">
         <span class="muted">
           {{
             busy && batchProgress.total
-              ? `正在处理 ${batchProgress.completed}/${batchProgress.total}`
-              : `已选 ${selected.length} 位`
+              ? t('roster.batchProgress', {
+                  completed: batchProgress.completed,
+                  total: batchProgress.total,
+                })
+              : t('roster.selectedCount', { count: selected.length })
           }}
         </span>
         <Button variant="plain" class="text-button" :disabled="busy" @click="selected = []">
-          取消选择
+          {{ t('roster.clearSelection') }}
         </Button>
-        <template v-if="tab === '待审批'">
+        <template v-if="tab === 'pending'">
           <Button
             size="sm"
             variant="success"
             :disabled="busy || !canBatchApprove"
-            data-disabled-reason="所选学生必须全部是未停用的待审批账号"
+            :data-disabled-reason="t('roster.reasons.approve')"
             @click="batchStudents('approve')">
-            批准加入
+            {{ t('roster.approveJoin') }}
           </Button>
           <Button
             size="sm"
             variant="outline"
             :disabled="busy || !canBatchReject"
-            data-disabled-reason="所选成员必须全部处于待审批状态"
+            :data-disabled-reason="t('roster.reasons.reject')"
             @click="batchStudents('reject')">
-            拒绝申请
+            {{ t('roster.rejectApplication') }}
           </Button>
         </template>
         <Button
-          v-else-if="tab === '已移除'"
+          v-else-if="tab === 'removed'"
           size="sm"
           variant="outline"
           :disabled="busy || !canBatchRestore"
-          data-disabled-reason="所选学生必须全部已移除且账号未停用"
+          :data-disabled-reason="t('roster.reasons.restore')"
           @click="batchStudents('restore')">
-          恢复课堂访问
+          {{ t('roster.restoreAccess') }}
         </Button>
         <template v-else>
           <Button
@@ -849,34 +864,34 @@ const busyReason = ref('正在处理请求，请稍候')
             size="sm"
             variant="outline"
             :disabled="busy || !canBatchEdit"
-            data-disabled-reason="所选学生必须全部是未停用的有效成员"
+            :data-disabled-reason="t('roster.reasons.edit')"
             @click="assignments?.editMembers(selected)">
-            调整身份
+            {{ t('roster.adjustRole') }}
           </Button>
           <Button
             size="sm"
             variant="warning"
             :disabled="busy || !canBatchReset"
-            data-disabled-reason="仅可重置全部由你创建、未停用且可重置密码的学生"
+            :data-disabled-reason="t('roster.reasons.reset')"
             @click="openReset(selected)">
             <KeyRound />
-            重置密码
+            {{ t('roster.resetPassword') }}
           </Button>
           <Button
             size="sm"
             variant="outline"
             :disabled="busy || !canBatchRemove"
-            data-disabled-reason="所选学生必须全部是有效课堂成员"
+            :data-disabled-reason="t('roster.reasons.remove')"
             @click="batchStudents('remove')">
-            移除课堂成员
+            {{ t('roster.removeMember') }}
           </Button>
           <Button
             size="sm"
             variant="destructive"
             :disabled="busy || !canBatchDelete"
-            data-disabled-reason="所选账号必须全部允许由你永久删除；有关联课堂或教学身份的账号请联系管理员"
+            :data-disabled-reason="t('roster.reasons.delete')"
             @click="batchStudents('delete')">
-            永久删除账号
+            {{ t('roster.deleteAccount') }}
           </Button>
         </template>
       </div>
@@ -894,18 +909,24 @@ const busyReason = ref('正在处理请求，请稍候')
           <tr>
             <th>
               <Checkbox
-                aria-label="选择本页学生"
+                :aria-label="t('roster.selectPageAria')"
                 :disabled="busy || loading || !selectablePage.length"
-                :data-disabled-reason="busy ? busyReason : '本页没有可选择的学生'"
+                :data-disabled-reason="busy ? busyReason : t('roster.reasons.emptyPage')"
                 :checked="allPageSelected"
                 :indeterminate="somePageSelected && !allPageSelected"
                 @change="selectPage" />
             </th>
-            <th>学生</th>
-            <th>学号</th>
-            <th>登录账号</th>
-            <th>{{ tab === '待审批' || tab === '已移除' ? '成员状态' : '在线状态' }}</th>
-            <th>操作</th>
+            <th>{{ t('roster.columns.student') }}</th>
+            <th>{{ t('roster.columns.number') }}</th>
+            <th>{{ t('roster.columns.account') }}</th>
+            <th>
+              {{
+                tab === 'pending' || tab === 'removed'
+                  ? t('roster.columns.membership')
+                  : t('roster.columns.presence')
+              }}
+            </th>
+            <th>{{ t('roster.columns.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -916,7 +937,7 @@ const busyReason = ref('正在处理请求，请稍候')
                 :disabled="busy || loading"
                 :data-disabled-reason="busyReason"
                 :value="m.id"
-                :aria-label="'选择' + m.name" />
+                :aria-label="t('roster.selectStudentAria', { name: m.name })" />
             </td>
             <td>
               <div class="person-cell">
@@ -927,23 +948,27 @@ const busyReason = ref('正在处理请求，请稍候')
             <td>{{ m.number }}</td>
             <td class="roster-account">{{ m.username }}</td>
             <td>
-              <span v-if="tab === '已移除'" class="status neutral">已移除</span>
-              <span v-else-if="tab === '待审批'" class="status amber">待审批</span>
+              <span v-if="tab === 'removed'" class="status neutral">
+                {{ t('roster.status.removed') }}
+              </span>
+              <span v-else-if="tab === 'pending'" class="status amber">
+                {{ t('roster.status.pending') }}
+              </span>
               <span v-else class="inline-items">
                 <i
                   class="presence"
                   :class="{ online: students.find((s) => s.id === m.id)?.online }" />
                 {{
                   m.disabled
-                    ? '账号已停用'
+                    ? t('roster.status.accountDisabled')
                     : students.find((s) => s.id === m.id)?.online
-                      ? '在线'
-                      : '离线'
+                      ? t('roster.status.online')
+                      : t('roster.status.offline')
                 }}
               </span>
             </td>
             <td>
-              <div v-if="tab === '待审批'" class="inline-items">
+              <div v-if="tab === 'pending'" class="inline-items">
                 <Button
                   size="sm"
                   variant="success"
@@ -951,7 +976,7 @@ const busyReason = ref('正在处理请求，请稍候')
                   :data-disabled-reason="busyReason"
                   @click="decide(m.id, 'active')">
                   <Check />
-                  批准
+                  {{ t('roster.approve') }}
                 </Button>
                 <Button
                   size="sm"
@@ -959,21 +984,21 @@ const busyReason = ref('正在处理请求，请稍候')
                   :disabled="busy"
                   :data-disabled-reason="busyReason"
                   @click="decide(m.id, 'removed')">
-                  拒绝
+                  {{ t('roster.reject') }}
                 </Button>
               </div>
-              <div v-else-if="tab === '已移除'" class="inline-items">
+              <div v-else-if="tab === 'removed'" class="inline-items">
                 <Button
                   size="sm"
                   variant="outline"
                   :disabled="busy || m.disabled"
-                  :data-disabled-reason="
-                    busy ? busyReason : '账号已停用，请联系管理员启用后再恢复课堂访问'
-                  "
+                  :data-disabled-reason="busy ? busyReason : t('roster.reasons.disabledRestore')"
                   @click="decide(m.id, 'active')">
-                  恢复课堂访问
+                  {{ t('roster.restoreAccess') }}
                 </Button>
-                <span v-if="m.disabled" class="muted text-xs">账号已停用，请联系管理员</span>
+                <span v-if="m.disabled" class="muted text-xs">
+                  {{ t('roster.accountDisabledAdmin') }}
+                </span>
               </div>
               <DropdownMenuRoot v-else>
                 <DropdownMenuTrigger as-child>
@@ -981,7 +1006,7 @@ const busyReason = ref('正在处理请求，请稍候')
                     variant="ghost"
                     size="icon-sm"
                     :disabled="busy"
-                    :aria-label="'管理学生 ' + m.name">
+                    :aria-label="t('roster.manageAria', { name: m.name })">
                     <Ellipsis />
                   </Button>
                 </DropdownMenuTrigger>
@@ -991,23 +1016,23 @@ const busyReason = ref('正在处理请求，请稍候')
                       v-if="activeClassroom.canManageStaff && !m.disabled"
                       class="ui-menu-item"
                       @select="assignments?.editMember(m.id)">
-                      调整身份
+                      {{ t('roster.adjustRole') }}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       class="ui-menu-item"
                       :disabled="!m.canResetPassword"
                       @select="openReset([m.id])">
-                      重置密码
+                      {{ t('roster.resetPassword') }}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator class="member-menu-separator" />
                     <DropdownMenuItem class="ui-menu-item danger-text" @select="openRemove(m)">
-                      移除课堂成员
+                      {{ t('roster.removeMember') }}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       v-if="m.canDeleteAccount"
                       class="ui-menu-item danger-text"
                       @select="deleteTarget = m">
-                      永久删除账号
+                      {{ t('roster.deleteAccount') }}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
@@ -1019,13 +1044,19 @@ const busyReason = ref('正在处理请求，请稍候')
       <div v-if="!visible.length && !loading && !loadError" class="empty-state">
         <Users :size="30" />
         <h3>
-          {{ search ? '没有匹配的成员' : tab === '待审批' ? '没有待处理的申请' : '还没有学生' }}
+          {{
+            search
+              ? t('roster.empty.noMatchTitle')
+              : tab === 'pending'
+                ? t('roster.empty.noPendingTitle')
+                : t('roster.empty.noStudentsTitle')
+          }}
         </h3>
         <p>
-          {{ search ? '尝试其他姓名、学号或账号。' : '可以添加学生、导入名单，或分享课堂邀请。' }}
+          {{ search ? t('roster.empty.noMatchDesc') : t('roster.empty.noStudentsDesc') }}
         </p>
-        <Button v-if="!search && tab !== '待审批' && tab !== '已移除'" @click="openAdd">
-          添加第一位学生
+        <Button v-if="!search && tab !== 'pending' && tab !== 'removed'" @click="openAdd">
+          {{ t('roster.empty.addFirst') }}
         </Button>
       </div>
     </div>
@@ -1034,7 +1065,7 @@ const busyReason = ref('正在处理请求，请稍候')
       v-model:page-size="pageSize"
       :total="visible.length"
       :busy="loading || busy"
-      unit="位学生" />
+      :unit="t('roster.unit')" />
   </ContentPanel>
   <ClassroomAssignments
     v-if="activeClassroom.canManageStaff"
@@ -1047,33 +1078,41 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     v-model:open="add"
     :dismissible="!busy"
-    title="添加学生"
-    description="学号对应唯一学生账号。已有账号加入课堂时保留原密码。登录账号与初始密码留空时自动生成。">
+    :title="t('roster.addDialog.title')"
+    :description="t('roster.addDialog.description')">
     <Form class="form-stack" @submit.prevent="save">
       <label>
-        学生姓名
-        <Input v-model="name" required maxlength="50" placeholder="真实姓名" />
+        {{ t('roster.addDialog.nameLabel') }}
+        <Input
+          v-model="name"
+          required
+          maxlength="50"
+          :placeholder="t('roster.addDialog.namePlaceholder')" />
       </label>
       <label>
-        学号
-        <Input v-model="number" required maxlength="50" placeholder="例如：2026001（保留前导零）" />
+        {{ t('roster.addDialog.numberLabel') }}
+        <Input
+          v-model="number"
+          required
+          maxlength="50"
+          :placeholder="t('roster.addDialog.numberPlaceholder')" />
       </label>
       <label>
-        登录账号（可选）
+        {{ t('roster.addDialog.usernameLabel') }}
         <Input
           v-model="username"
           maxlength="80"
           autocomplete="off"
-          placeholder="留空自动生成；仅限字母、数字和 . _ @ -" />
+          :placeholder="t('roster.addDialog.usernamePlaceholder')" />
       </label>
       <label>
-        初始密码（可选）
+        {{ t('roster.addDialog.passwordLabel') }}
         <Input
           v-model="password"
           type="password"
           maxlength="200"
           autocomplete="new-password"
-          placeholder="留空自动生成" />
+          :placeholder="t('roster.addDialog.passwordPlaceholder')" />
       </label>
 
       <div class="modal-actions">
@@ -1083,10 +1122,10 @@ const busyReason = ref('正在处理请求，请稍候')
           :disabled="busy"
           :data-disabled-reason="busyReason"
           @click="add = false">
-          取消
+          {{ t('common.cancel') }}
         </Button>
         <Button type="submit" :disabled="busy" :data-disabled-reason="busyReason">
-          {{ busy ? '正在添加…' : '添加学生' }}
+          {{ busy ? t('roster.addDialog.submitting') : t('roster.addDialog.submit') }}
         </Button>
       </div>
     </Form>
@@ -1094,47 +1133,50 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     v-model:open="importing"
     :dismissible="!busy"
-    title="导入学生名单"
-    description="支持 Excel（.xlsx，读取首个工作表）、UTF-8 / GB2312 CSV，或直接填写、从 Excel 粘贴名单。列顺序为姓名、学号、用户名、密码；后两列可选。可包含表头，每批最多 50 人。">
+    :title="t('roster.importDialog.title')"
+    :description="t('roster.importDialog.description')">
     <Form class="form-stack" @submit.prevent="importRows">
       <div class="inline-items roster-import-files">
         <Button
           variant="outline"
           type="button"
           :disabled="downloadingTemplate"
-          :data-disabled-reason="'正在生成 Excel 模板，请稍候'"
+          :data-disabled-reason="t('roster.importDialog.generatingBusy')"
           @click="downloadExcelTemplate">
           <FileDown />
-          {{ downloadingTemplate ? '正在生成…' : '下载 Excel 模板' }}
+          {{
+            downloadingTemplate
+              ? t('roster.importDialog.generating')
+              : t('roster.importDialog.downloadExcel')
+          }}
         </Button>
         <Button
           variant="outline"
           type="button"
-          @click="downloadBlob('学生名单模板.csv', rosterCsvTemplate())">
+          @click="downloadBlob(t('roster.importDialog.csvFileName'), rosterCsvTemplate())">
           <FileDown />
-          CSV 模板（GB2312）
+          {{ t('roster.importDialog.csvTemplate') }}
         </Button>
         <FileUpload
           accept=".xlsx,.csv,.tsv,.txt"
           :disabled="busy"
           :data-disabled-reason="busyReason"
           @change="readFile">
-          选择名单文件
+          {{ t('roster.importDialog.chooseFile') }}
         </FileUpload>
       </div>
       <p class="form-hint">
-        请替换模板中的示例学生。学号、用户名和密码列请保持文本格式以保留前导零。用户名仅限 80
-        字以内的字母、数字和 . _ @ -，密码最多 200 字；留空的用户名或密码会自动生成。
+        {{ t('roster.importDialog.hintTop') }}
       </p>
       <label>
-        名单内容
+        {{ t('roster.importDialog.contentLabel') }}
         <Textarea
           v-model="csv"
           :disabled="busy"
           :data-disabled-reason="busyReason"
           rows="7"
           required
-          placeholder="姓名,学号,用户名,密码&#10;刘亦安,2026013,liuyian,Class2026!&#10;方可欣,2026014,," />
+          :placeholder="t('roster.importDialog.placeholder')" />
       </label>
 
       <div v-if="importResults.length" class="import-results">
@@ -1143,16 +1185,19 @@ const busyReason = ref('正在处理请求，请稍候')
           :key="i"
           :class="r.error ? 'danger-text' : 'positive-text'">
           {{ r.name }} · {{ r.number }}：{{
-            r.error ?? (r.created ? '已新建，可导出凭据' : '已有账号已加入，原密码不变')
+            r.error ??
+            (r.created
+              ? t('roster.importDialog.resultCreated')
+              : t('roster.importDialog.resultExisting'))
           }}
         </p>
       </div>
       <Button v-if="credentials.length" type="button" variant="outline" @click="exportCredentials">
         <Download />
-        导出已成功账号凭据
+        {{ t('roster.importDialog.exportCredentials') }}
       </Button>
       <p class="form-hint">
-        仍支持仅填写姓名、学号两列。已有账号保留原用户名和密码；部分失败时保留成功凭据及失败行的用户名、密码，重试只处理失败行。
+        {{ t('roster.importDialog.hintBottom') }}
       </p>
       <div class="modal-actions">
         <Button
@@ -1161,19 +1206,19 @@ const busyReason = ref('正在处理请求，请稍候')
           :disabled="busy"
           :data-disabled-reason="busyReason"
           @click="importing = false">
-          关闭
+          {{ t('common.close') }}
         </Button>
         <Button
           type="submit"
           :disabled="busy || !csv.trim()"
-          :data-disabled-reason="busy ? busyReason : '请先选择名单文件或填写名单内容'">
+          :data-disabled-reason="busy ? busyReason : t('roster.reasons.needRosterContent')">
           <Upload />
           {{
             readingFile
-              ? '正在读取文件…'
+              ? t('roster.importDialog.reading')
               : busy
-                ? `导入中，已处理 ${importResults.length} 位…`
-                : '导入名单'
+                ? t('roster.importDialog.importingProgress', { count: importResults.length })
+                : t('roster.importRoster')
           }}
         </Button>
       </div>
@@ -1187,9 +1232,9 @@ const busyReason = ref('正在处理请求，请稍候')
   <Modal
     v-model:open="resetting"
     :dismissible="!busy"
-    title="重置所选学生的密码？"
-    :description="`将为 ${resetTargets.length} 位学生生成新密码。该账号在所有课堂使用的新密码都会改变，旧登录会话失效，正在执行的程序会停止。`">
-    <Alert type="warning">请确认学生已保存学习进度。重置成功后可复制、下载新凭据。</Alert>
+    :title="t('roster.resetDialog.title')"
+    :description="t('roster.resetDialog.description', { count: resetTargets.length })">
+    <Alert type="warning">{{ t('roster.resetDialog.warning') }}</Alert>
 
     <div class="modal-actions">
       <Button
@@ -1197,39 +1242,45 @@ const busyReason = ref('正在处理请求，请稍候')
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="resetting = false">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button
         variant="warning"
         :disabled="busy || !resetTargets.length"
-        :data-disabled-reason="busy ? busyReason : '请先选择需要重置密码的学生'"
+        :data-disabled-reason="busy ? busyReason : t('roster.reasons.needSelection')"
         @click="resetPasswords">
         <KeyRound />
-        {{ busy ? '正在重置…' : '确认重置并生成凭据' }}
+        {{ busy ? t('roster.resetDialog.resetting') : t('roster.resetDialog.confirm') }}
       </Button>
     </div>
   </Modal>
   <Modal
     :open="!!deleteTarget"
     :dismissible="!busy"
-    :title="`永久删除 ${deleteTarget?.name ?? '学生'} 的账号？`"
-    :description="`账号 ${deleteTarget?.username ?? ''} 及其在你所有课堂中的成员关系、草稿、提交、求助、运行记录和投屏将永久删除，无法恢复。登录会话也会失效。`"
+    :title="
+      t('roster.deleteDialog.title', { name: deleteTarget?.name ?? t('roster.studentFallback') })
+    "
+    :description="t('roster.deleteDialog.description', { username: deleteTarget?.username ?? '' })"
     @update:open="!$event && (deleteTarget = undefined)">
     <Alert type="warning">
-      只能删除由你创建且未关联其他教师课堂或作品的学生账号。请先确认需要保留的作品已导出。
+      {{ t('roster.deleteDialog.warning') }}
     </Alert>
     <div class="modal-actions">
-      <Button variant="outline" :disabled="busy" @click="deleteTarget = undefined">取消</Button>
+      <Button variant="outline" :disabled="busy" @click="deleteTarget = undefined">
+        {{ t('common.cancel') }}
+      </Button>
       <Button variant="destructive" :disabled="busy" @click="deleteStudentAccount">
-        {{ busy ? '正在删除…' : '确认永久删除账号' }}
+        {{ busy ? t('roster.deleteDialog.deleting') : t('roster.deleteDialog.confirm') }}
       </Button>
     </div>
   </Modal>
   <Modal
     :open="!!remove"
     :dismissible="!busy"
-    :title="`移除 ${remove?.name ?? '这位学生'}？`"
-    description="撤销该学生的课堂访问权限，保留历史作品。不删除账号或其他课堂成员关系。"
+    :title="
+      t('roster.removeDialog.title', { name: remove?.name ?? t('roster.removeDialog.fallback') })
+    "
+    :description="t('roster.removeDialog.description')"
     @update:open="!$event && (remove = undefined)">
     <div class="modal-actions">
       <Button
@@ -1237,14 +1288,14 @@ const busyReason = ref('正在处理请求，请稍候')
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="remove = undefined">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button
         variant="destructive"
         :disabled="busy"
         :data-disabled-reason="busyReason"
         @click="removeStudent">
-        {{ busy ? '正在移除…' : '确认移除' }}
+        {{ busy ? t('roster.removeDialog.removing') : t('roster.removeDialog.confirm') }}
       </Button>
     </div>
   </Modal>

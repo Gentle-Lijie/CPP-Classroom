@@ -15,7 +15,7 @@ import { z } from 'zod'
 import { exerciseSourceFilename, executionSnapshot, sourceLanguages } from '@classroom/contracts'
 import { ClassroomService } from './classroom.js'
 import { actor, parse, type AuthRequest } from './common.js'
-export const activeStatuses = ['排队', '编译中', '运行中／可输入']
+export const activeStatuses = ['queued', 'compiling', 'running']
 export function runDto(r: Record<string, unknown>) {
   return {
     ...r,
@@ -103,9 +103,9 @@ export class RunsController {
       )
         throw new ForbiddenException('账号或课堂访问权限已变更，请刷新')
       if (
-        classroom?.status !== '进行中' ||
+        classroom?.status !== 'ongoing' ||
         classroom.settings?.allowRun === false ||
-        exercise?.status !== '已发布'
+        exercise?.status !== 'published'
       )
         throw new ForbiddenException('课堂或练习已停止接受运行，请刷新')
       const existing = await client.query(
@@ -189,7 +189,7 @@ export class RunsController {
       language ? parse(z.enum(sourceLanguages), language) : null,
     ]
     const where =
-      "($6::boolean or classroom_id=$1) and user_id=$2 and ($3::uuid is null or exercise_id=$3) and (not $4::boolean or status in ('排队','编译中','运行中／可输入')) and ($5::text is null or status=$5) and ($7::text is null or language=$7)"
+      "($6::boolean or classroom_id=$1) and user_id=$2 and ($3::uuid is null or exercise_id=$3) and (not $4::boolean or status in ('queued','compiling','running')) and ($5::text is null or status=$5) and ($7::text is null or language=$7)"
     const result = await this.service.pool.query(
       `select * from runs where ${where} order by created_at desc,id desc limit $8 offset $9`,
       [...params, paging ? size : 100, paging ? (currentPage - 1) * size : 0],
@@ -214,7 +214,7 @@ export class RunsController {
   ) {
     await this.access(req, id, runId, true)
     await this.service.pool.query(
-      "update runs set stop_requested=true,status=case when status='排队' then '已停止' else status end,updated_at=now() where id=$1 and status=any($2)",
+      "update runs set stop_requested=true,status=case when status='queued' then 'stopped' else status end,updated_at=now() where id=$1 and status=any($2)",
       [runId, activeStatuses],
     )
     return { ok: true }
@@ -235,7 +235,7 @@ export class RunsController {
       await client.query('begin')
       await this.service.access(actor(req), id, false, true, client)
       const r = (await client.query('select * from runs where id=$1 for update', [runId])).rows[0]
-      if (r.status !== '运行中／可输入' || !r.interactive || r.eof)
+      if (r.status !== 'running' || !r.interactive || r.eof)
         throw new ConflictException('当前无法输入或已发送 EOF')
       const length = (
         await client.query(

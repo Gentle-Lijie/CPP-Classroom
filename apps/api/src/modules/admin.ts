@@ -204,7 +204,7 @@ export class AdminController {
       if (data.password || data.disabled === true || data.username || data.role) {
         await client.query('delete from sessions where user_id=$1', [id])
         await client.query(
-          "update runs set stop_requested=true where user_id=$1 and status in ('排队','编译中','运行中／可输入')",
+          "update runs set stop_requested=true where user_id=$1 and status in ('queued','compiling','running')",
           [id],
         )
       }
@@ -266,7 +266,7 @@ export class AdminController {
     this.admin(req)
     return (
       await this.service.pool.query(
-        `select (select count(*)::int from classrooms where status='进行中') as classrooms,(select count(*)::int from memberships where role='student' and status='active' and last_seen>now()-interval '15 seconds') as online,(select count(*)::int from runs where status='排队') as queued,(select count(*)::int from runs where status='平台执行失败') as failed`,
+        `select (select count(*)::int from classrooms where status='ongoing') as classrooms,(select count(*)::int from memberships where role='student' and status='active' and last_seen>now()-interval '15 seconds') as online,(select count(*)::int from runs where status='queued') as queued,(select count(*)::int from runs where status='platform_error') as failed`,
       )
     ).rows[0]
   }
@@ -274,7 +274,7 @@ export class AdminController {
     this.admin(req)
     const q = this.pagination(query)
     if (!query.page && !query.pageSize) q.pageSize = 200
-    const where = `from runs r join classrooms c on c.id=r.classroom_id where r.status='平台执行失败' and (c.name ilike $1 or r.exit ilike $1 or r.id::text ilike $1)`
+    const where = `from runs r join classrooms c on c.id=r.classroom_id where r.status='platform_error' and (c.name ilike $1 or r.exit ilike $1 or r.id::text ilike $1)`
     const args = ['%' + q.search + '%']
     const items = (
       await this.service.pool.query(
@@ -380,7 +380,7 @@ export class AdminController {
     return (
       await this.service.pool.query(
         `select n.id,n.name,n.url,n.capacity,n.enabled,(n.auth_token <> '') as "hasToken",
-         (select count(*)::int from runs r where r.runner_id=n.id and r.status in ('编译中','运行中／可输入')) as "activeCount"
+         (select count(*)::int from runs r where r.runner_id=n.id and r.status in ('compiling','running')) as "activeCount"
          from runner_nodes n order by n.created_at,n.id`,
       )
     ).rows
@@ -389,7 +389,7 @@ export class AdminController {
     this.admin(req)
     const result = await this.service.pool.query(`
       select n.id,n.name,n.capacity,n.enabled,
-        (select count(*)::int from runs r where r.runner_id=n.id and r.status in ('编译中','运行中／可输入')) as "activeCount",
+        (select count(*)::int from runs r where r.runner_id=n.id and r.status in ('compiling','running')) as "activeCount",
         coalesce(history.total,0)::int as "totalCalls",
         coalesce(history.points,'[]'::jsonb) as points
       from runner_nodes n
@@ -508,7 +508,7 @@ export class AdminController {
       ])
       if (!node.rows.length) throw new NotFoundException('执行节点不存在')
       const active = await client.query(
-        "select 1 from runs where runner_id=$1 and status in ('排队','编译中','运行中／可输入') limit 1",
+        "select 1 from runs where runner_id=$1 and status in ('queued','compiling','running') limit 1",
         [id],
       )
       if (active.rowCount) throw new ConflictException('节点仍有执行中的任务，请等待任务结束')

@@ -2,10 +2,16 @@
 import { Select, SelectOption } from '@/components/ui/select'
 import type { SourceLanguage } from '@classroom/contracts'
 import PythonBeta from './PythonBeta.vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-withDefaults(defineProps<{ modelValue: SourceLanguage; disabled?: boolean; label?: string }>(), {
-  label: '编程语言',
-})
+const props = defineProps<{
+  modelValue: SourceLanguage
+  disabled?: boolean
+  label?: string
+}>()
+const { t } = useI18n()
+const ariaLabel = computed(() => props.label ?? t('exercises.language.defaultLabel'))
 const emit = defineEmits<{ 'update:modelValue': [value: SourceLanguage] }>()
 </script>
 
@@ -13,7 +19,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: SourceLanguage] }>()
   <Select
     :model-value="modelValue"
     :disabled="disabled"
-    :aria-label="label"
+    :aria-label="ariaLabel"
     class="language-select"
     @update:model-value="emit('update:modelValue', $event === 'python' ? 'python' : 'cpp')">
     <SelectOption value="cpp">C++</SelectOption>

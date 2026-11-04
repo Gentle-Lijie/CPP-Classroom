@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { activeClassroom, refresh, reportError } from '@/data/demo'
 import { Button } from '@/components/ui/button'
 import { Users } from '@lucide/vue'
 import ClassroomAssignments from '@/components/classroom/ClassroomAssignments.vue'
 const router = useRouter()
+const { t } = useI18n()
 async function changed() {
   try {
     await refresh()
@@ -18,11 +20,11 @@ async function changed() {
   <div class="page-heading">
     <div>
       <div class="heading-meta">{{ activeClassroom.name }}</div>
-      <h1>课堂人员</h1>
+      <h1>{{ t('roster.team.title') }}</h1>
     </div>
     <Button variant="outline" @click="router.push('/teacher/roster')">
       <Users />
-      学生名册
+      {{ t('roster.team.roster') }}
     </Button>
   </div>
   <ClassroomAssignments

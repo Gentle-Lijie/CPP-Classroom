@@ -13,6 +13,7 @@ import {
   homePath,
 } from './data/demo'
 import { initializeTheme } from '@/lib/theme'
+import { i18n, t } from './i18n'
 import './styles.css'
 import './interface.css'
 import './platform.css'
@@ -137,10 +138,28 @@ router.beforeEach(async (to) => {
     return '/student/classes'
   return true
 })
+function documentTitle(path: string) {
+  const key = path.startsWith('/teacher/inspect/')
+    ? 'app.title.inspectWindow'
+    : path === '/teacher/teach'
+      ? 'app.title.teach'
+      : path === '/teacher/monitor'
+        ? 'app.title.monitor'
+        : path.startsWith('/student/workspace')
+          ? 'app.title.workspace'
+          : path.startsWith('/projection')
+            ? 'app.title.projection'
+            : 'app.title.console'
+  return `${t(key)} · Codemia`
+}
 router.afterEach((to) => {
-  document.title = `${to.path.startsWith('/teacher/inspect/') ? '学生详情独立窗口' : to.path === '/teacher/teach' ? '教师授课' : to.path === '/teacher/monitor' ? '在线课堂巡视' : to.path.startsWith('/student/workspace') ? '练习工作区' : to.path.startsWith('/projection') ? '课堂投屏' : '教学工作台'} · Codemia`
+  document.title = documentTitle(to.path)
+})
+window.addEventListener('classroom:locale-changed', () => {
+  document.title = documentTitle(router.currentRoute.value.path)
 })
 createApp(App)
   .use(createNotivue({ position: 'top-right', limit: 3, avoidDuplicates: true }))
+  .use(i18n)
   .use(router)
   .mount('#app')

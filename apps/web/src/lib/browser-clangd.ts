@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type * as Monaco from 'monaco-editor'
 import {
   BrowserMessageReader,
@@ -41,7 +42,7 @@ export async function attachBrowserClangd(
       state: 'unsupported',
       errors: 0,
       warnings: 0,
-      message: '此浏览器缺少 SharedWorker / WebAssembly JSPI，请使用新版 Chrome 或 Edge。',
+      message: t('lib.clangd.unsupported'),
     })
     return { dispose() {} }
   }
@@ -49,7 +50,7 @@ export async function attachBrowserClangd(
     state: 'loading',
     errors: 0,
     warnings: 0,
-    message: '正在加载浏览器 clangd 与 C++ 标准库…',
+    message: t('lib.clangd.loading'),
   })
   const { openClangdSession } = await import('@algoproclub/clangd-wasm')
   signal.throwIfAborted()
@@ -156,14 +157,14 @@ export async function attachBrowserClangd(
           ...range,
           message: diagnostic.message,
           severity: severity[diagnostic.severity ?? 1] ?? api.MarkerSeverity.Error,
-          source: 'clangd · 浏览器',
+          source: t('lib.clangd.markerSource'),
           ...(diagnostic.code !== undefined ? { code: String(diagnostic.code) } : {}),
         })
       }
       api.editor.setModelMarkers(model, markerOwner, markers)
       status(
         'ready',
-        'C++17 · 浏览器内分析',
+        t('lib.clangd.readyLabel'),
         markers.filter((m) => m.severity === api.MarkerSeverity.Error).length,
         markers.filter((m) => m.severity === api.MarkerSeverity.Warning).length,
       )
@@ -191,12 +192,12 @@ export async function attachBrowserClangd(
         },
       },
     )
-    if (!initialized || signal.aborted || disposed) throw new Error('clangd 初始化未完成')
+    if (!initialized || signal.aborted || disposed) throw new Error(t('lib.clangd.notInitialized'))
     if (
       initialized.capabilities?.positionEncoding &&
       initialized.capabilities.positionEncoding !== 'utf-16'
     )
-      throw new Error('clangd 字符位置编码不兼容')
+      throw new Error(t('lib.clangd.encodingMismatch'))
     await connection.sendNotification('initialized', {})
     sentVersion = model.getVersionId()
     await connection.sendNotification('textDocument/didOpen', {
@@ -211,7 +212,7 @@ export async function attachBrowserClangd(
       model.onDidChangeContent(() => {
         if (disposed || model.isDisposed()) return
         api.editor.setModelMarkers(model, markerOwner, [])
-        status('analyzing', '正在分析当前代码…')
+        status('analyzing', t('lib.clangd.analyzing'))
         clearTimeout(changeTimer)
         changeTimer = setTimeout(syncModel, 250)
       }),
@@ -352,10 +353,10 @@ export async function attachBrowserClangd(
         },
       }),
     )
-    status('analyzing', '正在分析当前代码…')
+    status('analyzing', t('lib.clangd.analyzing'))
     void session.closed.then((error) => {
       if (!disposed) {
-        status('error', 'clangd 已停止：' + error.message)
+        status('error', t('lib.clangd.stopped', { message: error.message }))
         dispose()
       }
     })

@@ -2,13 +2,15 @@
 import { useActionFeedback } from '@/composables/useActionFeedback'
 import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Eye, EyeOff, KeyRound } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Modal from './Modal.vue'
 import { currentUser, clearSession, notify } from '@/data/demo'
 import { api } from '@/lib/api'
+const { t } = useI18n()
 const open = defineModel<boolean>('open', { default: false })
 const router = useRouter()
 const current = ref(''),
@@ -17,11 +19,11 @@ const current = ref(''),
   visible = ref(false),
   busy = ref(false),
   error = ref('')
-const roleLabels: Record<string, string> = {
-  teacher: '可创建课堂',
-  student: '普通账号',
-  admin: '平台管理员',
-}
+const roleLabels = computed<Record<string, string>>(() => ({
+  teacher: t('shell.account.roleTeacher'),
+  student: t('shell.account.roleStudent'),
+  admin: t('shell.account.roleAdmin'),
+}))
 watch(open, (value) => {
   if (!value) {
     current.value = ''
@@ -35,7 +37,7 @@ async function save() {
   if (busy.value) return
   error.value = ''
   if (password.value !== confirm.value) {
-    error.value = '两次输入的新密码不一致'
+    error.value = t('shell.account.mismatch')
     return
   }
   busy.value = true
@@ -47,9 +49,9 @@ async function save() {
     confirm.value = ''
     clearSession()
     await router.replace('/login')
-    notify('密码已更新，所有旧登录已失效，请使用新密码登录')
+    notify(t('shell.account.updated'))
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '密码更新失败，请重试'
+    error.value = e instanceof Error ? e.message : t('shell.account.failed')
   } finally {
     busy.value = false
   }
@@ -59,8 +61,8 @@ useActionFeedback(error)
 <template>
   <Modal
     v-model:open="open"
-    title="账号与密码"
-    description="更新密码后，所有设备的旧登录都会失效，请重新登录。"
+    :title="t('shell.account.title')"
+    :description="t('shell.account.description')"
     :busy="busy">
     <div class="account-summary">
       <strong>{{ currentUser?.name }}</strong>
@@ -68,7 +70,7 @@ useActionFeedback(error)
     </div>
     <Form class="form-stack account-form" @submit.prevent="save">
       <label>
-        当前密码
+        {{ t('shell.account.currentPassword') }}
         <Input
           v-model="current"
           :type="visible ? 'text' : 'password'"
@@ -76,10 +78,10 @@ useActionFeedback(error)
           maxlength="200"
           autocomplete="current-password"
           :disabled="busy"
-          data-disabled-reason="正在更新密码，请稍候" />
+          :data-disabled-reason="t('shell.account.busyReason')" />
       </label>
       <label>
-        新密码
+        {{ t('shell.account.newPassword') }}
         <Input
           v-model="password"
           :type="visible ? 'text' : 'password'"
@@ -87,10 +89,10 @@ useActionFeedback(error)
           maxlength="200"
           autocomplete="new-password"
           :disabled="busy"
-          data-disabled-reason="正在更新密码，请稍候" />
+          :data-disabled-reason="t('shell.account.busyReason')" />
       </label>
       <label>
-        确认新密码
+        {{ t('shell.account.confirmNewPassword') }}
         <Input
           v-model="confirm"
           :type="visible ? 'text' : 'password'"
@@ -98,7 +100,7 @@ useActionFeedback(error)
           maxlength="200"
           autocomplete="new-password"
           :disabled="busy"
-          data-disabled-reason="正在更新密码，请稍候" />
+          :data-disabled-reason="t('shell.account.busyReason')" />
       </label>
       <Button
         variant="plain"
@@ -108,7 +110,7 @@ useActionFeedback(error)
         :aria-pressed="visible"
         @click="visible = !visible">
         <component :is="visible ? EyeOff : Eye" :size="15" />
-        {{ visible ? '隐藏密码' : '显示密码' }}
+        {{ visible ? t('shell.account.hidePassword') : t('shell.account.showPassword') }}
       </Button>
 
       <div class="modal-actions">
@@ -116,18 +118,18 @@ useActionFeedback(error)
           type="button"
           variant="outline"
           :disabled="busy"
-          data-disabled-reason="正在更新密码，请稍候"
+          :data-disabled-reason="t('shell.account.busyReason')"
           data-guide="password-cancel"
           @click="open = false">
-          取消
+          {{ t('common.cancel') }}
         </Button>
         <Button
           data-guide="password-save"
           type="submit"
           :disabled="busy"
-          data-disabled-reason="正在更新密码，请稍候">
+          :data-disabled-reason="t('shell.account.busyReason')">
           <KeyRound />
-          {{ busy ? '正在更新…' : '更新密码' }}
+          {{ busy ? t('shell.account.updating') : t('shell.account.update') }}
         </Button>
       </div>
     </Form>

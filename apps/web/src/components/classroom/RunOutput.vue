@@ -6,10 +6,15 @@ import type { SourceLanguage } from '@classroom/contracts'
 import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Copy, Trash2, CircleAlert, Terminal, FileText, RotateCcw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { notify, type RunRecord, tone } from '@/data/demo'
 import { formatTime } from '@/lib/display'
+
+const { t } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
+
 const props = defineProps<{
   language?: SourceLanguage
   run?: RunRecord
@@ -22,12 +27,12 @@ const python = computed(() =>
   props.run ? sourceLanguage(props.run) === 'python' : props.language === 'python',
 )
 const initialTab = () =>
-  props.run?.status === '编译失败'
-    ? '编译诊断'
-    : python.value && props.run?.stderr && !['排队', '运行中／可输入'].includes(props.run.status)
-      ? '标准错误'
-      : '运行输出'
-const tab = ref(initialTab()),
+  props.run?.status === 'compile_error'
+    ? 'diagnostic'
+    : python.value && props.run?.stderr && !['queued', 'running'].includes(props.run.status)
+      ? 'stderr'
+      : 'output'
+const tab = ref<'output' | 'diagnostic' | 'stderr'>(initialTab()),
   line = ref(''),
   cleared = ref(false),
   busy = ref(false)
@@ -35,9 +40,9 @@ const busyReason = ref('')
 const value = computed(() =>
   !props.run
     ? ''
-    : tab.value === '编译诊断'
+    : tab.value === 'diagnostic'
       ? props.run.log
-      : tab.value === '标准错误'
+      : tab.value === 'stderr'
         ? (props.run.stderr ?? '')
         : props.run.output,
 )
@@ -53,15 +58,15 @@ watch(
   () => props.run?.status,
   (status) => {
     if (
-      status === '编译失败' ||
-      (python.value && props.run?.stderr && !['排队', '运行中／可输入'].includes(status ?? ''))
+      status === 'compile_error' ||
+      (python.value && props.run?.stderr && !['queued', 'running'].includes(status ?? ''))
     ) {
       tab.value = initialTab()
       cleared.value = false
     }
   },
 )
-function select(value: string) {
+function select(value: 'output' | 'diagnostic' | 'stderr') {
   tab.value = value
   cleared.value = false
 }
@@ -69,14 +74,14 @@ function select(value: string) {
 async function copy() {
   try {
     await navigator.clipboard.writeText(cleared.value ? '' : (value.value ?? ''))
-    notify('已复制可见内容')
+    notify(t('runner.output.copied'))
   } catch {
-    notify('无法访问剪贴板，请选中文本复制', 'error')
+    notify(t('runner.output.copyFailed'), 'error')
   }
 }
 async function send() {
   if (busy.value || !props.sendInput) return
-  busyReason.value = '正在发送输入，请稍候'
+  busyReason.value = t('runner.output.sendingInput')
   busy.value = true
   try {
     if (await props.sendInput(line.value)) line.value = ''
@@ -86,7 +91,7 @@ async function send() {
 }
 async function eof() {
   if (busy.value || !props.closeInput) return
-  busyReason.value = '正在关闭标准输入，请稍候'
+  busyReason.value = t('runner.output.closingInput')
   busy.value = true
   try {
     await props.closeInput()
@@ -98,56 +103,60 @@ async function eof() {
 <template>
   <section class="run-output">
     <div class="code-toolbar output-toolbar">
-      <div class="output-tabs" role="tablist" aria-label="运行结果">
+      <div class="output-tabs" role="tablist" :aria-label="t('runner.output.tabsAria')">
         <Button
           variant="plain"
           role="tab"
-          :aria-selected="tab === '运行输出'"
-          :class="{ selected: tab === '运行输出' }"
+          :aria-selected="tab === 'output'"
+          :class="{ selected: tab === 'output' }"
           data-guide="output-tab"
-          @click="select('运行输出')">
+          @click="select('output')">
           <Terminal :size="14" />
-          运行输出
+          {{ t('runner.output.tab.output') }}
         </Button>
         <Button
           v-if="!python"
           variant="plain"
           role="tab"
-          :aria-selected="tab === '编译诊断'"
-          :class="{ selected: tab === '编译诊断' }"
+          :aria-selected="tab === 'diagnostic'"
+          :class="{ selected: tab === 'diagnostic' }"
           data-guide="diagnostic-tab"
-          @click="select('编译诊断')">
+          @click="select('diagnostic')">
           <CircleAlert :size="14" />
-          编译诊断
-          <span v-if="run?.status === '编译失败'" class="error-count">失败</span>
+          {{ t('runner.output.tab.diagnostic') }}
+          <span v-if="run?.status === 'compile_error'" class="error-count">
+            {{ t('runner.output.failedBadge') }}
+          </span>
         </Button>
         <Button
           v-if="run?.stderr"
           variant="plain"
           role="tab"
-          :aria-selected="tab === '标准错误'"
-          :class="{ selected: tab === '标准错误' }"
+          :aria-selected="tab === 'stderr'"
+          :class="{ selected: tab === 'stderr' }"
           data-guide="stderr-tab"
-          @click="select('标准错误')">
-          标准错误
+          @click="select('stderr')">
+          {{ t('runner.output.tab.stderr') }}
         </Button>
       </div>
       <div class="inline-items output-actions">
         <Button
           variant="plain"
           class="icon-button"
-          aria-label="复制可见输出"
+          :aria-label="t('runner.output.copyAria')"
           :disabled="!run || cleared"
-          :data-disabled-reason="!run ? '尚无运行记录' : '输出已清空，请先恢复显示输出'"
+          :data-disabled-reason="
+            !run ? t('runner.output.noRunReason') : t('runner.output.clearedReason')
+          "
           @click="copy">
           <Copy :size="14" />
         </Button>
         <Button
           variant="plain"
           class="icon-button"
-          :aria-label="cleared ? '恢复显示输出' : '清空可见输出（保留记录）'"
+          :aria-label="cleared ? t('runner.output.restoreAria') : t('runner.output.clearAria')"
           :disabled="!run"
-          data-disabled-reason="尚无运行记录"
+          :data-disabled-reason="t('runner.output.noRunReason')"
           data-guide="clear-output"
           @click="cleared = !cleared">
           <RotateCcw v-if="cleared" :size="14" />
@@ -157,53 +166,51 @@ async function eof() {
     </div>
     <div v-if="run" class="output-body">
       <div class="output-meta">
-        <span class="status" :class="tone(run.status)">{{ run.status }}</span>
+        <span class="status" :class="tone(run.status)">{{ statusLabel(run.status) }}</span>
         <span v-if="python" class="inline-items">
           Python
           <PythonBeta />
         </span>
-        <span v-if="run.id" :title="run.id">{{ run.id.slice(0, 8) }} · 快照</span>
+        <span v-if="run.id" :title="run.id">
+          {{ run.id.slice(0, 8) }} · {{ t('runner.output.snapshot') }}
+        </span>
         <span>{{ formatTime(run.time) }}</span>
       </div>
       <CodeBlock
         v-if="!cleared"
         :source="value ?? ''"
         :toolbar="false"
-        :class="{ 'diagnostic-text': tab === '编译诊断' && run.status === '编译失败' }"
+        :class="{ 'diagnostic-text': tab === 'diagnostic' && run.status === 'compile_error' }"
         :empty-text="
-          tab === '编译诊断'
-            ? '没有编译诊断。'
-            : run.status === '编译失败'
-              ? '编译失败，程序未执行。请查看编译诊断。'
-              : '暂无标准输出。'
+          tab === 'diagnostic'
+            ? t('runner.output.emptyDiagnostic')
+            : run.status === 'compile_error'
+              ? t('runner.output.compileFailedNoRun')
+              : t('runner.output.noOutput')
         " />
-      <p v-else class="muted">已隐藏输出，点击恢复按钮可重新显示，原始记录保留。</p>
+      <p v-else class="muted">{{ t('runner.output.hidden') }}</p>
       <div class="output-exit">
         <span>
-          {{ tab === '编译诊断' ? 'compiler' : tab === '标准错误' ? 'stderr' : 'stdout' }}
+          {{ tab === 'diagnostic' ? 'compiler' : tab === 'stderr' ? 'stderr' : 'stdout' }}
         </span>
-        <span v-if="run.exit">退出码 / 原因：{{ run.exit }}</span>
+        <span v-if="run.exit">{{ t('runner.output.exitLabel') }}{{ run.exit }}</span>
       </div>
     </div>
     <div v-else class="output-placeholder">
       <FileText :size="24" />
-      <p>暂无运行结果</p>
+      <p>{{ t('runner.output.noResults') }}</p>
       <small>
-        {{
-          readonlyContext
-            ? '该学生尚未留下运行记录。当前代码仅供只读查看。'
-            : '点击“运行”，结果将与当次代码一同保存。'
-        }}
+        {{ readonlyContext ? t('runner.output.readonlyHint') : t('runner.output.runHint') }}
       </small>
     </div>
-    <p v-if="run?.eof && run.status === '运行中／可输入'" class="stdin-closed">
-      stdin 已关闭 · 等待程序结束，可随时停止运行。
+    <p v-if="run?.eof && run.status === 'running'" class="stdin-closed">
+      {{ t('runner.output.stdinClosed') }}
     </p>
     <Form v-if="interactive && !run?.eof" class="runtime-input" @submit.prevent="send">
       <Input
         v-model="line"
-        aria-label="运行时输入"
-        placeholder="输入一行文本…"
+        :aria-label="t('runner.output.inputAria')"
+        :placeholder="t('runner.output.inputPlaceholder')"
         :disabled="busy"
         :data-disabled-reason="busyReason"
         maxlength="4095" />
@@ -213,7 +220,7 @@ async function eof() {
         size="sm"
         :disabled="busy"
         :data-disabled-reason="busyReason">
-        {{ busy ? '发送中…' : '发送' }}
+        {{ busy ? t('runner.output.sending') : t('runner.output.send') }}
       </Button>
       <Button
         type="button"
@@ -221,7 +228,7 @@ async function eof() {
         size="sm"
         :disabled="busy"
         :data-disabled-reason="busyReason"
-        title="关闭标准输入，之后不能继续发送文本"
+        :title="t('runner.output.eofTitle')"
         data-guide="send-eof"
         @click="eof">
         EOF

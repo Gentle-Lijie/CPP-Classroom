@@ -177,7 +177,7 @@ describe('native go-judge language execution', () => {
     ).toBe('你好\n')
     expect(judge.frames.some((frame) => frame.equals(Buffer.from([5, 0])))).toBe(true)
     expect(db.result()).toMatchObject({
-      status: '运行完成',
+      status: 'finished',
       output: '你好\n',
       input: '你好\n',
       metrics: {
@@ -248,7 +248,7 @@ describe('native go-judge language execution', () => {
       })
       const db = fakePool()
       await execute(db.pool, judge.environment, pythonRun)
-      expect(db.result()).toMatchObject({ status: '运行失败', stderr: error })
+      expect(db.result()).toMatchObject({ status: 'runtime_error', stderr: error })
     },
   )
 
@@ -257,7 +257,7 @@ describe('native go-judge language execution', () => {
     const db = fakePool()
     await execute(db.pool, judge.environment, pythonRun)
     expect(judge.frames).toHaveLength(0)
-    expect(db.result()).toMatchObject({ status: '平台执行失败' })
+    expect(db.result()).toMatchObject({ status: 'platform_error' })
     expect(db.result()?.exit).toContain('/usr/bin/python3')
   })
 
@@ -274,7 +274,7 @@ describe('native go-judge language execution', () => {
       judge.frames.filter((frame) => frame[0] === 3).map((frame) => frame.subarray(2).toString()),
     ).toEqual(['你好\n', 'second\n'])
     expect(judge.frames.some((frame) => frame[0] === 4)).toBe(false)
-    expect(db.result()).toMatchObject({ status: '运行完成', input: '你好\nsecond\n' })
+    expect(db.result()).toMatchObject({ status: 'finished', input: '你好\nsecond\n' })
   })
 
   it('cancels interactive Python through the existing stop frame', async () => {
@@ -282,7 +282,7 @@ describe('native go-judge language execution', () => {
     const db = fakePool({ stop: () => Boolean(judge.command()) })
     await execute(db.pool, judge.environment, { ...pythonRun, interactive: true })
     expect(judge.frames.some((frame) => frame.equals(Buffer.from([4])))).toBe(true)
-    expect(db.result()).toMatchObject({ status: '已停止', exit: '用户停止' })
+    expect(db.result()).toMatchObject({ status: 'stopped', exit: '用户停止' })
   })
 
   it('caps combined Python output and terminates the process', async () => {
@@ -295,7 +295,7 @@ describe('native go-judge language execution', () => {
       ...pythonRun,
       execution_config: { ...executionDefaults, outputLimitKb: 1 },
     })
-    expect(db.result()?.status).toBe('资源超限')
+    expect(db.result()?.status).toBe('resource_limited')
     expect(Buffer.byteLength(db.result()?.output as string)).toBeLessThanOrEqual(1024)
     expect(db.result()?.output).not.toContain('�')
     expect(judge.frames.some((frame) => frame[0] === 4)).toBe(true)
@@ -306,14 +306,14 @@ describe('native go-judge language execution', () => {
     const db = fakePool()
     await execute(db.pool, judge.environment, { ...pythonRun, runtime_profile: '/bin/sh' })
     expect(judge.requests).toHaveLength(0)
-    expect(db.result()?.status).toBe('平台执行失败')
+    expect(db.result()?.status).toBe('platform_error')
   })
 
   it.each([
-    ['Time Limit Exceeded', '超时'],
-    ['Memory Limit Exceeded', '资源超限'],
-    ['Output Limit Exceeded', '资源超限'],
-    ['Internal Error', '平台执行失败'],
+    ['Time Limit Exceeded', 'timeout'],
+    ['Memory Limit Exceeded', 'resource_limited'],
+    ['Output Limit Exceeded', 'resource_limited'],
+    ['Internal Error', 'platform_error'],
   ])('preserves resource and platform outcomes: %s', (status, expected) => {
     expect(resultStatus({ ...accepted, status })).toBe(expected)
   })

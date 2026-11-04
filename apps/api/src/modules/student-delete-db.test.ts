@@ -59,7 +59,7 @@ describe.skipIf(!connectionString)('student deletion with PostgreSQL', () => {
         [first, exercise, student],
       )
       await db.query(
-        "insert into runs(id,classroom_id,exercise_id,user_id,code,filename,revision,input,status) values($1,$2,$3,$4,'code','test.cpp',1,'','已完成')",
+        "insert into runs(id,classroom_id,exercise_id,user_id,code,filename,revision,input,status) values($1,$2,$3,$4,'code','test.cpp',1,'','finished')",
         [run, first, exercise, student],
       )
       await db.query("insert into run_inputs(run_id,content) values($1,'input')", [run])
@@ -120,11 +120,11 @@ describe.skipIf(!connectionString)('student deletion with PostgreSQL', () => {
         otherClass,
         student,
       ])
-      await db.query("update runs set status='排队' where id=$1", [run])
+      await db.query("update runs set status='queued' where id=$1", [run])
       await expect(controller.deleteStudentAccount(first, student, teacherRequest)).rejects.toThrow(
         '执行中',
       )
-      await db.query("update runs set status='已完成' where id=$1", [run])
+      await db.query("update runs set status='finished' where id=$1", [run])
       await controller.deleteStudentAccount(first, student, teacherRequest)
       for (const table of [
         'users',

@@ -1,4 +1,5 @@
 import { executionDefaults, executionLimits } from '@classroom/contracts'
+import { t } from '../i18n'
 export interface PlatformDraft {
   goJudgeUrl: string
   goJudgeTimeoutMs: number
@@ -58,17 +59,17 @@ export function validatePlatformDraft(value: PlatformDraft): string | null {
         url.search ||
         url.hash
       )
-        return '节点地址仅支持 HTTP(S)，认证信息请在服务端配置，地址中不能包含凭据、查询参数或片段。'
+        return t('lib.platform.urlInvalid')
     } catch {
-      return '请输入有效的 go-judge 地址，例如 http://10.10.0.20:5050。'
+      return t('lib.platform.urlExample')
     }
   }
   if (!['gcc13-cpp17', 'gcc13-cpp20'].includes(value.compilerProfile))
-    return '请选择受控的编译环境。'
+    return t('lib.platform.profileRequired')
   for (const [key, [min, max]] of Object.entries(limits)) {
     const number = value[key as keyof typeof limits]
     if (!Number.isInteger(number) || number < min || number > max)
-      return `请检查数值范围：${key} 应为 ${min}–${max} 之间的整数。`
+      return t('lib.platform.range', { key, min, max })
   }
   return null
 }

@@ -9,12 +9,14 @@ import { Select, SelectOption } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Search, Download, FileCode2, ArrowRight, PackageOpen, RefreshCw, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import Pagination from '@/components/classroom/Pagination.vue'
 import ContentPanel from '@/components/classroom/ContentPanel.vue'
 import { download, notify, classPath, activeClassroom, exercises, students } from '@/data/demo'
 import { api } from '@/lib/api'
+const { t } = useI18n()
 import { csvDocument } from '@/lib/csv'
 import { downloadBlob, safeArchivePart, sourceArchive } from '@/lib/source-archive'
 interface Submission {
@@ -105,7 +107,8 @@ async function load() {
     }
     updatedAt.value = new Date().toLocaleTimeString('zh-CN')
   } catch (e) {
-    if (request === generation) error.value = e instanceof Error ? e.message : '提交加载失败'
+    if (request === generation)
+      error.value = e instanceof Error ? e.message : t('overview.submissions.loadFailed')
   } finally {
     if (request === generation) loading.value = false
   }
@@ -165,15 +168,25 @@ async function exportWorks() {
       data.submissions = [...newest.values()]
     }
     const records = [
-      ...data.drafts.map((s) => ({ ...s, kind: '草稿' })),
-      ...data.submissions.map((s) => ({ ...s, kind: '提交' })),
+      ...data.drafts.map((s) => ({ ...s, kind: t('overview.submissions.csv.draft') })),
+      ...data.submissions.map((s) => ({ ...s, kind: t('overview.submissions.csv.submission') })),
     ]
     if (!records.length) {
-      exportError.value = '当前导出范围没有作品。可切换为“当前草稿”或选择其他学生、练习。'
+      exportError.value = t('overview.submissions.emptyRange')
       return
     }
     const rows: (string | number)[][] = [
-      ['类型', '姓名', '学号', '练习', '语言', '文件名', '版本', '时间', '记录ID'],
+      [
+        t('overview.submissions.csv.type'),
+        t('overview.submissions.csv.name'),
+        t('overview.submissions.csv.number'),
+        t('overview.submissions.csv.exercise'),
+        t('overview.submissions.csv.language'),
+        t('overview.submissions.csv.filename'),
+        t('overview.submissions.csv.revision'),
+        t('overview.submissions.csv.time'),
+        t('overview.submissions.csv.recordId'),
+      ],
     ]
     const files = records.map((s) => {
       const person = data.roster.find((p) => p.id === s.user_id),
@@ -200,19 +213,34 @@ async function exportWorks() {
         content: s.code,
       }
     })
-    const name = `${safeArchivePart(activeClassroom.value.name)}-${kind.value === 'drafts' ? '当前草稿' : kind.value === 'submissions' ? '主动提交' : '课堂作品'}`
+    const name = `${safeArchivePart(activeClassroom.value.name)}-${kind.value === 'drafts' ? t('overview.submissions.fileNames.drafts') : kind.value === 'submissions' ? t('overview.submissions.fileNames.submissions') : t('overview.submissions.fileNames.all')}`
     if (format.value === 'json')
       download(name + '.json', JSON.stringify(data, null, 2), 'application/json')
     else if (format.value === 'csv')
-      download(name + '-清单.csv', csvDocument(rows), 'text/csv;charset=utf-8')
+      download(
+        name + t('overview.submissions.fileNames.manifestSuffix'),
+        csvDocument(rows),
+        'text/csv;charset=utf-8',
+      )
     else
       downloadBlob(
         name + '.zip',
-        sourceArchive([...files, { name: '作品清单.csv', content: csvDocument(rows) }]),
+        sourceArchive([
+          ...files,
+          { name: t('overview.submissions.fileNames.manifest'), content: csvDocument(rows) },
+        ]),
       )
-    notify(`已导出 ${records.length} 份${format.value === 'csv' ? '作品清单' : '作品'}`)
+    notify(
+      t('overview.submissions.exported', {
+        count: records.length,
+        type:
+          format.value === 'csv'
+            ? t('overview.submissions.exportedList')
+            : t('overview.submissions.exportedWorks'),
+      }),
+    )
   } catch (e) {
-    exportError.value = e instanceof Error ? e.message : '导出失败，请重试'
+    exportError.value = e instanceof Error ? e.message : t('overview.submissions.exportFailed')
   } finally {
     exporting.value = false
   }
@@ -223,67 +251,75 @@ useActionFeedback(exportError)
 <template>
   <div class="page-heading">
     <div>
-      <div class="heading-meta">课堂作品</div>
-      <h1>{{ isTeacher ? '提交与导出' : '学生提交' }}</h1>
+      <div class="heading-meta">{{ t('overview.submissions.metaTitle') }}</div>
+      <h1>
+        {{
+          isTeacher
+            ? t('overview.submissions.titleTeacher')
+            : t('overview.submissions.titleStudent')
+        }}
+      </h1>
     </div>
     <Button
       variant="outline"
       :disabled="loading"
-      :data-disabled-reason="'正在加载提交记录，请稍候'"
+      :data-disabled-reason="t('overview.submissions.loadingReason')"
       @click="load">
       <RefreshCw :class="{ 'animate-spin': loading }" />
-      {{ loading ? '正在刷新…' : '刷新提交' }}
+      {{ loading ? t('overview.submissions.refreshing') : t('overview.submissions.refresh') }}
     </Button>
   </div>
   <section v-if="isTeacher" class="panel export-panel">
     <div class="export-heading">
       <FileCode2 :size="22" />
       <div>
-        <h2>导出课堂作品</h2>
+        <h2>{{ t('overview.submissions.exportTitle') }}</h2>
         <!-- <p>适用于当前学生、练习筛选；搜索关键词仅筛选下方提交列表。ZIP 内含源文件与 CSV 清单。</p> -->
       </div>
     </div>
     <div class="export-controls">
       <label>
-        作品范围
+        {{ t('overview.submissions.scopeLabel') }}
         <Select
           v-model="kind"
           :disabled="exporting"
-          :data-disabled-reason="'正在准备作品导出，请稍候'">
-          <SelectOption value="all">当前草稿 + 主动提交</SelectOption>
-          <SelectOption value="drafts">仅当前草稿</SelectOption>
-          <SelectOption value="submissions">仅主动提交</SelectOption>
+          :data-disabled-reason="t('overview.submissions.preparingReason')">
+          <SelectOption value="all">{{ t('overview.submissions.kindAll') }}</SelectOption>
+          <SelectOption value="drafts">{{ t('overview.submissions.kindDrafts') }}</SelectOption>
+          <SelectOption value="submissions">
+            {{ t('overview.submissions.kindSubmissions') }}
+          </SelectOption>
         </Select>
       </label>
       <label>
-        文件格式
+        {{ t('overview.submissions.formatLabel') }}
         <Select
           v-model="format"
           :disabled="exporting"
-          :data-disabled-reason="'正在准备作品导出，请稍候'">
-          <SelectOption value="zip">ZIP 源文件包</SelectOption>
-          <SelectOption value="csv">CSV 作品清单</SelectOption>
-          <SelectOption value="json">JSON 完整备份</SelectOption>
+          :data-disabled-reason="t('overview.submissions.preparingReason')">
+          <SelectOption value="zip">{{ t('overview.submissions.formatZip') }}</SelectOption>
+          <SelectOption value="csv">{{ t('overview.submissions.formatCsv') }}</SelectOption>
+          <SelectOption value="json">{{ t('overview.submissions.formatJson') }}</SelectOption>
         </Select>
       </label>
       <label v-if="format === 'json'" class="inline-items">
         <Checkbox
           v-model="includeRuns"
           :disabled="exporting"
-          :data-disabled-reason="'正在准备作品导出，请稍候'" />
-        包含运行上下文
+          :data-disabled-reason="t('overview.submissions.preparingReason')" />
+        {{ t('overview.submissions.includeRuns') }}
       </label>
       <Button
         :disabled="exporting"
-        :data-disabled-reason="'正在准备作品导出，请稍候'"
+        :data-disabled-reason="t('overview.submissions.preparingReason')"
         @click="exportWorks">
         <Download />
         {{
           exporting
-            ? '正在准备导出…'
+            ? t('overview.submissions.preparing')
             : selected.length && kind !== 'drafts'
-              ? `导出已选 ${selected.length} 份及关联草稿`
-              : '导出作品'
+              ? t('overview.submissions.exportSelected', { count: selected.length })
+              : t('overview.submissions.export')
         }}
       </Button>
     </div>
@@ -291,47 +327,58 @@ useActionFeedback(exportError)
   <ContentPanel as="section" direct class="panel-fill">
     <div class="panel-heading">
       <h2>
-        主动提交
+        {{ t('overview.submissions.panelTitle') }}
         <span class="muted">{{ total }}</span>
       </h2>
-      <span class="muted text-xs">{{ updatedAt ? `更新于 ${updatedAt}` : '尚未加载' }}</span>
+      <span class="muted text-xs">
+        {{
+          updatedAt
+            ? t('overview.submissions.updatedAt', { time: updatedAt })
+            : t('overview.submissions.notLoaded')
+        }}
+      </span>
     </div>
     <div class="table-controls">
       <label class="search-field">
         <Search :size="16" />
-        <Input v-model="search" aria-label="搜索提交" placeholder="搜索姓名、学号或题目…" />
+        <Input
+          v-model="search"
+          :aria-label="t('overview.submissions.searchAria')"
+          :placeholder="t('overview.submissions.searchPlaceholder')" />
       </label>
       <div class="submission-filters">
-        <Select v-model="exercise" aria-label="按练习筛选">
-          <SelectOption value="">全部练习</SelectOption>
+        <Select v-model="exercise" :aria-label="t('overview.submissions.filterExerciseAria')">
+          <SelectOption value="">{{ t('overview.patrol.allExercises') }}</SelectOption>
           <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">
             {{ e.title }}
           </SelectOption>
         </Select>
-        <Select v-model="student" aria-label="按学生筛选">
-          <SelectOption value="">全部学生</SelectOption>
+        <Select v-model="student" :aria-label="t('overview.submissions.filterStudentAria')">
+          <SelectOption value="">{{ t('overview.submissions.allStudents') }}</SelectOption>
           <SelectOption v-for="s in students" :key="s.id" :value="s.id">
             {{ s.number }} · {{ s.name }}
           </SelectOption>
         </Select>
         <label class="inline-items">
           <Checkbox v-model="latest" />
-          每人每题最新提交
+          {{ t('overview.submissions.latestOnly') }}
         </label>
       </div>
     </div>
     <div v-if="selected.length" class="selection-bar">
-      <span>已选择 {{ selected.length }} 份提交（跨页保留）</span>
+      <span>{{ t('overview.submissions.selectedCount', { count: selected.length }) }}</span>
       <Button variant="plain" class="text-button" @click="selected = []">
         <X :size="14" />
-        清除选择
+        {{ t('overview.submissions.clearSelection') }}
       </Button>
     </div>
     <Alert v-if="error" role="alert" type="error" class="app-alert--inset">
       {{ error }}
 
       <template #actions>
-        <Button variant="outline" size="sm" @click="load">重新加载</Button>
+        <Button variant="outline" size="sm" @click="load">
+          {{ t('overview.submissions.reload') }}
+        </Button>
       </template>
     </Alert>
     <div class="table-scroll" :aria-busy="loading">
@@ -340,20 +387,22 @@ useActionFeedback(exportError)
           <tr>
             <th>
               <Checkbox
-                aria-label="选择本页提交"
+                :aria-label="t('overview.submissions.selectPage')"
                 :checked="pageSelected"
                 :indeterminate="somePageSelected && !pageSelected"
                 :disabled="loading || !submissions.length"
                 :data-disabled-reason="
-                  loading ? '正在加载提交记录，请稍候' : '本页没有可选择的提交记录'
+                  loading
+                    ? t('overview.submissions.loadingReason')
+                    : t('overview.submissions.noPageRecords')
                 "
                 @change="togglePage" />
             </th>
-            <th>学生</th>
-            <th>练习</th>
-            <th>提交版本</th>
-            <th>提交时间</th>
-            <th>作品</th>
+            <th>{{ t('overview.submissions.columns.student') }}</th>
+            <th>{{ t('overview.submissions.columns.exercise') }}</th>
+            <th>{{ t('overview.submissions.columns.revision') }}</th>
+            <th>{{ t('overview.submissions.columns.time') }}</th>
+            <th>{{ t('overview.submissions.columns.work') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -362,7 +411,13 @@ useActionFeedback(exportError)
               <Checkbox
                 v-model="selected"
                 :value="s.id"
-                :aria-label="`选择${s.name}的${s.title}提交v${s.revision}`" />
+                :aria-label="
+                  t('overview.submissions.selectOne', {
+                    name: s.name,
+                    title: s.title,
+                    revision: s.revision,
+                  })
+                " />
             </td>
             <td>
               <div class="person-cell">
@@ -381,7 +436,9 @@ useActionFeedback(exportError)
               </small>
             </td>
             <td>
-              <span class="status positive">已提交 v{{ s.revision }}</span>
+              <span class="status positive">
+                {{ t('overview.submissions.submittedV', { revision: s.revision }) }}
+              </span>
             </td>
             <td class="muted">{{ new Date(s.created_at).toLocaleString('zh-CN') }}</td>
             <td>
@@ -391,7 +448,7 @@ useActionFeedback(exportError)
                   class="text-button"
                   @click="download(`${s.number}-${s.name}-${s.filename}`, s.code)">
                   <Download :size="14" />
-                  源文件
+                  {{ t('overview.submissions.sourceFile') }}
                 </Button>
                 <RouterLink
                   :to="{
@@ -403,7 +460,7 @@ useActionFeedback(exportError)
                     },
                   }"
                   class="icon-button"
-                  aria-label="查看这次提交">
+                  :aria-label="t('overview.submissions.viewSubmission')">
                   <ArrowRight :size="15" />
                 </RouterLink>
               </div>
@@ -413,7 +470,9 @@ useActionFeedback(exportError)
       </table>
       <div v-if="!submissions.length && !error" class="empty-state">
         <PackageOpen :size="30" />
-        <h3>{{ loading ? '正在加载提交…' : '没有符合条件的主动提交' }}</h3>
+        <h3>
+          {{ loading ? t('overview.submissions.loadingMore') : t('overview.submissions.empty') }}
+        </h3>
       </div>
     </div>
     <Pagination
@@ -421,7 +480,7 @@ useActionFeedback(exportError)
       v-model:page-size="pageSize"
       :total="total"
       :busy="loading"
-      unit="份提交" />
+      :unit="t('overview.submissions.unit')" />
   </ContentPanel>
 </template>
 <style scoped>

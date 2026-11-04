@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Alert } from '@/components/ui/alert'
 import ThemeToggle from '@/components/classroom/ThemeToggle.vue'
+import LanguageToggle from '@/components/classroom/LanguageToggle.vue'
 import { Button } from '@/components/ui/button'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -51,6 +53,8 @@ import { connectionState } from '@/lib/api'
 import { useGuideSurfaces } from '@/lib/spotlight'
 import { startUserGuide } from '@/lib/user-guide'
 import AccountDialog from './AccountDialog.vue'
+const { t } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
 const route = useRoute()
 const router = useRouter()
 const mobileOpen = ref(false)
@@ -112,60 +116,64 @@ function openAccount() {
   roleMenu.value = false
 }
 const teachingLinks = computed(() => [
-  { to: '/teacher/overview', title: '课堂总览', icon: LayoutDashboard },
+  { to: '/teacher/overview', key: 'overview', icon: LayoutDashboard },
   ...(classroomRole.value === 'teacher'
-    ? [{ to: '/teacher/teach', title: '教师授课', icon: Monitor }]
-    : [{ to: '/teacher/monitor', title: '课堂巡视', icon: Monitor }]),
+    ? [{ to: '/teacher/teach', key: 'teach', icon: Monitor }]
+    : [{ to: '/teacher/monitor', key: 'monitor', icon: Monitor }]),
   ...(classroomRole.value === 'teacher'
     ? [
-        { to: '/teacher/exercises', title: '练习管理', icon: BookOpen },
-        { to: '/teacher/roster', title: '课堂人员', icon: Users },
+        { to: '/teacher/exercises', key: 'exercises', icon: BookOpen },
+        { to: '/teacher/roster', key: 'roster', icon: Users },
       ]
     : []),
   {
     to: '/teacher/submissions',
-    title: classroomRole.value === 'ta' ? '学生提交' : '提交与导出',
+    key: classroomRole.value === 'ta' ? 'submissionsTa' : 'submissionsTeacher',
     icon: GraduationCap,
   },
   ...(classroomRole.value === 'teacher'
-    ? [{ to: '/teacher/settings', title: '课堂设置', icon: Settings2 }]
+    ? [{ to: '/teacher/settings', key: 'settings', icon: Settings2 }]
     : []),
 ])
-const learningLinks = [
-  { to: '/student/classes', title: '我的课堂', icon: LayoutDashboard },
-  { to: '/student/workspace', title: '练习工作区', icon: CodeXml },
-  { to: '/student/history', title: '运行历史', icon: Monitor },
-]
-const adminLinks = [
-  { to: '/admin/health', title: '平台概况', icon: LayoutDashboard },
-  { to: '/admin/teachers', title: '账号管理', icon: Users },
-  { to: '/admin/classrooms', title: '课堂管理', icon: BookOpen },
-  { to: '/admin/classes', title: '课堂人员分配', icon: GraduationCap },
-  { to: '/admin/settings', title: '平台配置', icon: Settings2 },
-  { to: '/admin/tasks', title: '失败任务', icon: Monitor },
-  { to: '/admin/backups', title: '备份与记录', icon: ShieldCheck },
-]
+const learningLinks = computed(() => [
+  { to: '/student/classes', key: 'myClasses', icon: LayoutDashboard },
+  { to: '/student/workspace', key: 'workspace', icon: CodeXml },
+  { to: '/student/history', key: 'history', icon: Monitor },
+])
+const adminLinks = computed(() => [
+  { to: '/admin/health', key: 'adminOverview', icon: LayoutDashboard },
+  { to: '/admin/teachers', key: 'adminAccounts', icon: Users },
+  { to: '/admin/classrooms', key: 'adminClassrooms', icon: BookOpen },
+  { to: '/admin/classes', key: 'adminAssign', icon: GraduationCap },
+  { to: '/admin/settings', key: 'adminConfig', icon: Settings2 },
+  { to: '/admin/tasks', key: 'adminTasks', icon: Monitor },
+  { to: '/admin/backups', key: 'adminBackups', icon: ShieldCheck },
+])
+interface NavLink {
+  to: string
+  key: string
+  icon: unknown
+}
 const navGroups = computed(() => {
-  const groups = []
-  if (currentUser.value?.role === 'admin') groups.push({ title: '平台管理', links: adminLinks })
+  const groups: { title: string; links: NavLink[] }[] = []
+  if (currentUser.value?.role === 'admin')
+    groups.push({ title: t('shell.groups.admin'), links: adminLinks.value })
   if (role.value !== 'admin' || activeClassroom.value.id) {
     if (workspaceRole.value === 'teacher')
-      groups.push({ title: '教学工作台', links: teachingLinks.value })
+      groups.push({ title: t('shell.groups.teaching'), links: teachingLinks.value })
     if (workspaceRole.value === 'student' || classroomRole.value === 'ta')
-      groups.push({ title: '学习工作台', links: learningLinks })
+      groups.push({ title: t('shell.groups.learning'), links: learningLinks.value })
   }
   return groups
 })
 const links = computed(() => navGroups.value.flatMap((group) => group.links))
-const sectionTitle = computed(
-  () =>
-    links.value.find((x) => route.path.startsWith(x.to))?.title ??
-    (route.path === '/guide'
-      ? '使用导览'
-      : route.path.includes('/students/')
-        ? '学生详情'
-        : '我的课堂'),
-)
+const sectionTitle = computed(() => {
+  const current = links.value.find((x) => route.path.startsWith(x.to))
+  if (current) return t(`shell.nav.${current.key}`)
+  if (route.path === '/guide') return t('shell.section.guide')
+  if (route.path.includes('/students/')) return t('shell.section.studentDetail')
+  return t('shell.nav.myClasses')
+})
 async function signOut() {
   if (signingOut.value) return
   signingOut.value = true
@@ -186,28 +194,28 @@ async function signOut() {
       v-if="mobileOpen"
       variant="plain"
       class="sidebar-scrim"
-      aria-label="关闭导航"
+      :aria-label="t('shell.aria.closeNav')"
       @click="mobileOpen = false" />
     <aside class="sidebar" :class="{ 'mobile-open': mobileOpen }">
       <RouterLink to="/" class="brand">
         <img class="brand-symbol" src="/brand/icon.png" alt="" />
         <span>
           Codemia
-          <span class="brand-sub">编程课堂</span>
+          <span class="brand-sub">{{ t('shell.brand.sub') }}</span>
         </span>
       </RouterLink>
       <Button
         variant="plain"
         class="icon-button mobile-close"
-        aria-label="关闭菜单"
+        :aria-label="t('shell.aria.closeMenu')"
         @click="mobileOpen = false">
         <X :size="18" />
       </Button>
       <div v-if="role === 'admin'" class="class-switch class-switch-static">
         <span class="class-icon"><ShieldCheck :size="19" /></span>
         <span>
-          平台管理工作台
-          <small>管理员</small>
+          {{ t('shell.adminWorkbench.title') }}
+          <small>{{ t('shell.adminWorkbench.sub') }}</small>
         </span>
       </div>
       <DropdownMenuRoot v-else>
@@ -216,9 +224,9 @@ async function signOut() {
             variant="plain"
             type="button"
             class="class-switch"
-            aria-label="切换课堂"
+            :aria-label="t('shell.classSwitch.label')"
             :disabled="switchingClass"
-            data-disabled-reason="正在切换课堂，请稍候"
+            :data-disabled-reason="t('shell.classSwitch.switchingReason')"
             :aria-busy="switchingClass">
             <span class="class-icon"><GraduationCap :size="19" /></span>
             <span>
@@ -226,10 +234,10 @@ async function signOut() {
               <small>
                 {{
                   switchingClass
-                    ? '正在切换…'
+                    ? t('shell.classSwitch.switching')
                     : activeClassroom.id
                       ? activeClassroom.status
-                      : '创建或加入课堂'
+                      : t('shell.classSwitch.createOrJoin')
                 }}
               </small>
             </span>
@@ -242,7 +250,9 @@ async function signOut() {
             align="start"
             :side-offset="6"
             :collision-padding="12">
-            <DropdownMenuLabel class="class-switch-caption">切换课堂</DropdownMenuLabel>
+            <DropdownMenuLabel class="class-switch-caption">
+              {{ t('shell.classSwitch.label') }}
+            </DropdownMenuLabel>
             <DropdownMenuItem
               v-for="classroom in availableClassrooms"
               :key="classroom.id"
@@ -251,15 +261,20 @@ async function signOut() {
               @select="switchClass(classroom.id)">
               <span>
                 {{ classroom.name }}
-                <small>{{ classroom.status }}</small>
+                <small>{{ statusLabel(classroom.status) }}</small>
               </span>
-              <Check v-if="classroom.id === activeClassroom.id" :size="16" aria-label="当前课堂" />
+              <Check
+                v-if="classroom.id === activeClassroom.id"
+                :size="16"
+                :aria-label="t('shell.classSwitch.current')" />
             </DropdownMenuItem>
-            <p v-if="!availableClassrooms.length" class="class-switch-caption">暂无可切换的课堂</p>
+            <p v-if="!availableClassrooms.length" class="class-switch-caption">
+              {{ t('shell.classSwitch.none') }}
+            </p>
             <DropdownMenuSeparator class="class-switch-separator" />
             <DropdownMenuItem class="ui-menu-item" @select="router.push(classesPath)">
               <LayoutDashboard :size="16" />
-              查看全部课堂
+              {{ t('shell.classSwitch.viewAll') }}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenuPortal>
@@ -279,13 +294,13 @@ async function signOut() {
             }"
             @click="mobileOpen = false">
             <component :is="link.icon" :size="18" />
-            <span>{{ link.title }}</span>
+            <span>{{ t(`shell.nav.${link.key}`) }}</span>
             <div
-              v-if="link.title === '教师授课'"
+              v-if="link.key === 'teach'"
               style="margin-left: auto; display: inline-flex; align-items: center">
               <ArrowUpRight :size="18" />
             </div>
-            <span v-if="link.title === '课堂总览' && counts.help" class="nav-count">
+            <span v-if="link.key === 'overview' && counts.help" class="nav-count">
               {{ counts.help }}
             </span>
           </RouterLink>
@@ -294,24 +309,24 @@ async function signOut() {
       <div class="sidebar-bottom">
         <Button variant="plain" class="nav-item w-full" @click="startUserGuide">
           <HelpCircle :size="18" />
-          使用导览
+          {{ t('shell.menu.guide') }}
         </Button>
         <DropdownMenuRoot v-model:open="roleMenu" :modal="false">
           <div class="profile-wrap">
             <DropdownMenuTrigger as-child>
-              <Button variant="plain" class="profile" aria-label="账号菜单">
+              <Button variant="plain" class="profile" :aria-label="t('shell.menu.account')">
                 <span class="avatar">{{ currentUser?.name.slice(-1) ?? '' }}</span>
                 <span>
                   {{ currentUser?.name ?? '' }}
                   <small>
                     {{
                       role === 'admin'
-                        ? '平台管理员'
+                        ? t('shell.roles.platformAdmin')
                         : classroomRole === 'ta'
-                          ? '当前课堂助教'
+                          ? t('shell.roles.ta')
                           : role === 'teacher'
-                            ? '当前课堂教师'
-                            : '当前课堂学生'
+                            ? t('shell.roles.teacher')
+                            : t('shell.roles.student')
                     }}
                   </small>
                 </span>
@@ -332,13 +347,13 @@ async function signOut() {
               <DropdownMenuItem as-child>
                 <RouterLink to="/teacher/classes" class="ui-menu-item">
                   <LayoutDashboard :size="14" />
-                  我的课堂
+                  {{ t('shell.menu.myClasses') }}
                 </RouterLink>
               </DropdownMenuItem>
               <DropdownMenuItem v-if="currentUser?.role === 'admin'" as-child>
                 <RouterLink to="/admin/health" class="ui-menu-item">
                   <ShieldCheck :size="14" />
-                  平台管理
+                  {{ t('shell.menu.platformAdmin') }}
                 </RouterLink>
               </DropdownMenuItem>
               <DropdownMenuSeparator class="class-switch-separator" />
@@ -347,7 +362,7 @@ async function signOut() {
                 data-guide="account-open"
                 @select="openAccount">
                 <KeyRound :size="14" />
-                账号与密码
+                {{ t('shell.menu.accountPassword') }}
               </DropdownMenuItem>
               <DropdownMenuItem
                 class="ui-menu-item"
@@ -355,7 +370,7 @@ async function signOut() {
                 :disabled="signingOut"
                 @select.prevent="signOut">
                 <LogOut :size="14" />
-                {{ signingOut ? '退出中…' : '退出登录' }}
+                {{ signingOut ? t('shell.menu.signingOut') : t('shell.menu.signOut') }}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -370,29 +385,38 @@ async function signOut() {
           <Button
             variant="plain"
             class="icon-button menu-button"
-            aria-label="打开导航"
+            :aria-label="t('shell.aria.openNav')"
             @click="mobileOpen = true">
             <Menu :size="19" />
           </Button>
           <PanelLeftClose :size="17" class="desktop-only muted" />
           <span>
-            {{ role === 'admin' ? '平台管理' : role === 'student' ? '学习空间' : '我的课堂' }}
+            {{
+              role === 'admin'
+                ? t('shell.breadcrumb.admin')
+                : role === 'student'
+                  ? t('shell.breadcrumb.student')
+                  : t('shell.breadcrumb.myClasses')
+            }}
           </span>
           <ChevronRight :size="13" />
           <strong>{{ sectionTitle }}</strong>
         </div>
         <div class="topbar-right">
           <ThemeToggle />
+          <LanguageToggle />
           <span class="demo-tag" :class="{ disconnected: connectionState !== 'connected' }">
             {{
               connectionState === 'connected'
-                ? '服务器已连接'
+                ? t('shell.connection.connected')
                 : connectionState === 'expired'
-                  ? '登录已失效'
-                  : '连接中断'
+                  ? t('shell.connection.expired')
+                  : t('shell.connection.disconnected')
             }}
           </span>
-          <span class="desktop-only muted">{{ role === 'admin' ? '平台管理' : '课堂数据' }}</span>
+          <span class="desktop-only muted">
+            {{ role === 'admin' ? t('shell.topbar.adminTag') : t('shell.topbar.dataTag') }}
+          </span>
         </div>
       </header>
       <Alert
@@ -400,7 +424,7 @@ async function signOut() {
         class="app-alert--banner"
         role="alert"
         type="warning">
-        <span>连接中断，当前数据可能不是最新。请保留未保存内容。</span>
+        <span>{{ t('shell.connection.banner') }}</span>
       </Alert>
       <main class="page-content"><slot /></main>
     </div>

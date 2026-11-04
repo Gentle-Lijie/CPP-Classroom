@@ -20,6 +20,9 @@ import {
   type ExerciseImportEntry,
 } from '@/lib/exercise-import'
 import { Upload } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{ imported: [ids: string[]] }>()
 const open = ref(false)
@@ -48,13 +51,13 @@ const canImport = computed(
 )
 
 const importDisabledReason = computed(() => {
-  if (reading.value) return '正在解析导入文件，请稍候'
-  if (saving.value) return '正在导入练习，请稍候'
-  if (!drafts.value.length) return '请先选择要导入的练习'
-  if (conflicts.value.size) return '所选练习存在命名冲突，请取消冲突项或修改文件后重新选择'
-  if (oversized.value) return '所选练习总大小超过导入限制，请减少本次选择'
+  if (reading.value) return t('exercises.import.parsingReason')
+  if (saving.value) return t('exercises.import.importingReason')
+  if (!drafts.value.length) return t('exercises.import.pickFirst')
+  if (conflicts.value.size) return t('exercises.import.conflictReason')
+  if (oversized.value) return t('exercises.import.oversizedReason')
   if (indices.value.some((index) => entries.value[index]!.errors.length))
-    return '所选文件存在解析错误，请修正后重新选择'
+    return t('exercises.import.parseErrorReason')
   return ''
 })
 
@@ -75,7 +78,7 @@ async function read(event: Event) {
   selected.value = []
   active.value = 0
   if (files.length > exerciseImportLimits.files) {
-    error.value = `每批最多 ${exerciseImportLimits.files} 个文件，请重新选择`
+    error.value = t('exercises.import.tooManyFiles', { count: exerciseImportLimits.files })
     return
   }
   reading.value = true
@@ -101,10 +104,10 @@ async function save() {
     open.value = false
     entries.value = []
     selected.value = []
-    notify(`已导入 ${result.ids.length} 道练习，均保存为草稿`)
+    notify(t('exercises.import.importedNotify', { count: result.ids.length }))
     emit('imported', result.ids)
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '导入失败，请稍后重试'
+    error.value = cause instanceof Error ? cause.message : t('exercises.import.importFailed')
   } finally {
     saving.value = false
   }
@@ -115,14 +118,14 @@ onBeforeRouteLeave(() => !busy.value)
 <template>
   <Button variant="outline" @click="show">
     <Upload />
-    批量导入
+    {{ t('exercises.import.button') }}
   </Button>
   <Modal
     v-model:open="open"
-    title="批量导入练习"
+    :title="t('exercises.import.modalTitle')"
     wide
     :busy="busy"
-    description="每个文件创建一道练习，按选择顺序追加到课堂末尾，统一保存为草稿。">
+    :description="t('exercises.import.description')">
     <div class="import-toolbar">
       <span v-if="current?.exercise?.language === 'python'" class="inline-items">
         Python
@@ -132,16 +135,24 @@ onBeforeRouteLeave(() => !busy.value)
         accept=".md,.markdown,.json"
         multiple
         :disabled="busy"
-        :disabled-reason="reading ? '正在解析导入文件，请稍候' : '正在导入练习，请稍候'"
+        :disabled-reason="
+          reading ? t('exercises.import.parsingReason') : t('exercises.import.importingReason')
+        "
         @change="read">
-        {{ reading ? '正在解析…' : entries.length ? '重新选择文件' : '选择多个文件' }}
+        {{
+          reading
+            ? t('exercises.import.parsing')
+            : entries.length
+              ? t('exercises.import.reselect')
+              : t('exercises.import.chooseFiles')
+        }}
       </FileUpload>
-      <span class="form-hint">Markdown 或题目 JSON 备份；每批最多 50 个，每个不超过 1 MiB。</span>
+      <span class="form-hint">{{ t('exercises.import.hint') }}</span>
     </div>
     <Alert v-if="error" type="error">{{ error }}</Alert>
-    <Alert v-if="oversized" type="error">所选题目内容超过 500 KiB，请减少勾选后分批导入。</Alert>
+    <Alert v-if="oversized" type="error">{{ t('exercises.import.oversizedAlert') }}</Alert>
     <div v-if="entries.length" class="import-layout">
-      <div class="import-list" aria-label="待导入文件">
+      <div class="import-list" :aria-label="t('exercises.import.listAria')">
         <div
           v-for="(entry, index) in entries"
           :key="index"
@@ -152,39 +163,46 @@ onBeforeRouteLeave(() => !busy.value)
             :value="String(index)"
             :disabled="busy || !!entry.errors.length"
             :data-disabled-reason="
-              busy ? '正在处理导入文件，请稍候' : '此文件存在解析错误，请修正后重新选择'
+              busy ? t('exercises.import.processing') : t('exercises.import.entryError')
             "
-            :aria-label="'导入 ' + entry.name" />
+            :aria-label="t('exercises.import.importAria', { name: entry.name })" />
           <Button
             variant="plain"
             class="import-file"
             :disabled="busy"
-            :data-disabled-reason="reading ? '正在解析导入文件，请稍候' : '正在导入练习，请稍候'"
+            :data-disabled-reason="
+              reading ? t('exercises.import.parsingReason') : t('exercises.import.importingReason')
+            "
             @click="active = index">
-            <strong>{{ entry.exercise?.title || '未命名题目' }}</strong>
+            <strong>{{ entry.exercise?.title || t('exercises.unnamed') }}</strong>
             <span>{{ entry.name }}</span>
             <small>
               {{
                 entry.errors.length
-                  ? '无法导入'
+                  ? t('exercises.import.cannotImport')
                   : conflicts.has(index)
-                    ? '文件名冲突'
+                    ? t('exercises.import.filenameConflict')
                     : entry.warnings.length
-                      ? '请核对警告'
-                      : '可导入'
+                      ? t('exercises.import.checkWarnings')
+                      : t('exercises.import.importable')
               }}
             </small>
           </Button>
         </div>
       </div>
-      <section v-if="current" class="import-preview" aria-label="练习导入预览">
+      <section
+        v-if="current"
+        class="import-preview"
+        :aria-label="t('exercises.import.previewAria')">
         <h3>{{ current.name }}</h3>
         <Alert v-for="message in current.errors" :key="message" type="error">{{ message }}</Alert>
         <Alert v-if="conflicts.has(active)" type="error">{{ conflicts.get(active) }}</Alert>
         <Alert v-for="message in current.warnings" :key="message" type="warning">
           {{ message }}
         </Alert>
-        <p v-if="current.exercise && !fields.length" class="form-hint">备份中的题目字段均为空。</p>
+        <p v-if="current.exercise && !fields.length" class="form-hint">
+          {{ t('exercises.import.emptyFields') }}
+        </p>
         <section v-for="{ key, label } in fields" :key="key" class="import-field">
           <h4>{{ label }}</h4>
           <CodeBlock
@@ -197,19 +215,29 @@ onBeforeRouteLeave(() => !busy.value)
       </section>
     </div>
     <p v-if="conflicts.size" class="form-error" role="alert">
-      所选题目有源文件名冲突，请取消勾选冲突项或修改文件后重新选择。
+      {{ t('exercises.import.conflictAlert') }}
     </p>
     <div class="modal-actions">
-      <span class="form-hint">已选 {{ selected.length }} / {{ entries.length }} 道练习</span>
+      <span class="form-hint">
+        {{
+          t('exercises.import.selectedCount', { selected: selected.length, total: entries.length })
+        }}
+      </span>
       <Button
         variant="outline"
         :disabled="busy"
-        :data-disabled-reason="reading ? '正在解析导入文件，请稍候' : '正在导入练习，请稍候'"
+        :data-disabled-reason="
+          reading ? t('exercises.import.parsingReason') : t('exercises.import.importingReason')
+        "
         @click="open = false">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button :disabled="!canImport" :data-disabled-reason="importDisabledReason" @click="save">
-        {{ saving ? '正在导入…' : `导入为草稿（${selected.length}）` }}
+        {{
+          saving
+            ? t('exercises.import.importing')
+            : t('exercises.import.importAs', { count: selected.length })
+        }}
       </Button>
     </div>
   </Modal>

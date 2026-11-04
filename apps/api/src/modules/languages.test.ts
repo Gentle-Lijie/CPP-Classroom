@@ -11,7 +11,7 @@ const userId = '33333333-3333-4333-8333-333333333333'
 const req = { actor: { id: userId, role: 'student' } } as AuthRequest
 const exercise = {
   id: exerciseId,
-  status: '已发布',
+  status: 'published',
   filename: 'example.cpp',
   language: 'cpp',
   starters: { cpp: 'int main() {}', python: 'print("你好")' },
@@ -35,7 +35,7 @@ function setup(handler: (sql: string, params: unknown[]) => unknown = () => unde
     exercise: vi.fn(async () => ({ e: exercise })),
     lockWritable: vi.fn(async () => ({
       classroomRole: 'student',
-      status: '进行中',
+      status: 'ongoing',
       settings: { allowResubmit: false },
     })),
     pool: { query, connect: vi.fn(async () => client) },

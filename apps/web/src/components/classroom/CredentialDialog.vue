@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Copy, Download, Trash2 } from '@lucide/vue'
 import Modal from './Modal.vue'
 import { Button } from '@/components/ui/button'
 import { notify } from '@/data/demo'
+const { t } = useI18n()
 export interface LoginCredential {
   id?: string
   name: string
@@ -18,11 +20,17 @@ const confirmClear = ref(false)
 async function copy(c: LoginCredential) {
   try {
     await navigator.clipboard.writeText(
-      `姓名：${c.name}\n账号：${c.username}\n密码：${c.password ?? ''}\n生成时间：${c.generatedAt ?? '未知'}\n登录地址：${location.origin}/login`,
+      t('shell.credentials.copyText', {
+        name: c.name,
+        username: c.username,
+        password: c.password ?? '',
+        generatedAt: c.generatedAt ?? t('shell.credentials.unknown'),
+        url: `${location.origin}/login`,
+      }),
     )
-    notify('登录信息已复制')
+    notify(t('shell.credentials.copied'))
   } catch {
-    notify('复制失败，请导出账号密码表', 'error')
+    notify(t('shell.credentials.copyFailed'), 'error')
   }
 }
 function clear() {
@@ -34,19 +42,21 @@ function clear() {
 <template>
   <Modal
     :open="open"
-    :title="title ?? '账号登录凭据'"
-    description="本标签页临时保留，刷新后可重新导出，退出登录后清除。服务器不保存可查看的明文密码。"
+    :title="title ?? t('shell.credentials.title')"
+    :description="t('shell.credentials.description')"
     wide
     @update:open="emit('update:open', $event)">
     <div class="credential-actions">
       <Button
         :disabled="!credentials.length"
-        data-disabled-reason="当前没有可操作的账号凭据"
+        :data-disabled-reason="t('shell.credentials.noneReason')"
         @click="emit('export')">
         <Download />
-        导出账号密码 CSV
+        {{ t('shell.credentials.export') }}
       </Button>
-      <Button variant="outline" @click="emit('update:open', false)">稍后继续</Button>
+      <Button variant="outline" @click="emit('update:open', false)">
+        {{ t('shell.credentials.later') }}
+      </Button>
     </div>
     <!-- <Alert type="warning">
       这是生成时的密码副本，并非当前密码验证。学生改密或其他恢复操作后可能失效，请核对生成时间。
@@ -55,10 +65,10 @@ function clear() {
       <table>
         <thead>
           <tr>
-            <th>姓名 / 学号</th>
-            <th>登录账号</th>
-            <th>密码 / 生成时间</th>
-            <th>交付</th>
+            <th>{{ t('shell.credentials.colName') }}</th>
+            <th>{{ t('shell.credentials.colAccount') }}</th>
+            <th>{{ t('shell.credentials.colSecret') }}</th>
+            <th>{{ t('shell.credentials.colDelivery') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -73,19 +83,23 @@ function clear() {
             <td class="credential-secret">
               <code>{{ c.password }}</code>
               <small class="cell-secondary">
-                {{ c.generatedAt ? new Date(c.generatedAt).toLocaleString() : '生成时间未知' }}
+                {{
+                  c.generatedAt
+                    ? new Date(c.generatedAt).toLocaleString()
+                    : t('shell.credentials.generatedUnknown')
+                }}
               </small>
             </td>
             <td>
               <Button size="sm" variant="ghost" @click="copy(c)">
                 <Copy />
-                复制
+                {{ t('common.copy') }}
               </Button>
             </td>
           </tr>
         </tbody>
       </table>
-      <p v-if="!credentials.length" class="empty-state">没有保留的登录凭据</p>
+      <p v-if="!credentials.length" class="empty-state">{{ t('shell.credentials.empty') }}</p>
     </div>
     <!-- <p class="form-hint">
       账号可能用于多个课堂。已有账号的原密码不在此表；需要重新交付时请按名册权限重置，历史或其他教师创建的账号由管理员协助恢复。
@@ -94,21 +108,23 @@ function clear() {
       <Button
         variant="outline"
         :disabled="!credentials.length"
-        data-disabled-reason="当前没有可操作的账号凭据"
+        :data-disabled-reason="t('shell.credentials.noneReason')"
         @click="confirmClear = true">
         <Trash2 />
-        清除本页凭据
+        {{ t('shell.credentials.clear') }}
       </Button>
-      <Button @click="emit('update:open', false)">完成</Button>
+      <Button @click="emit('update:open', false)">{{ t('shell.credentials.done') }}</Button>
     </div>
   </Modal>
   <Modal
     v-model:open="confirmClear"
-    title="清除本标签页的凭据？"
-    description="此操作不会修改账号密码。请先确认已下载并保存交付文件；清除后无法找回原副本。">
+    :title="t('shell.credentials.clearTitle')"
+    :description="t('shell.credentials.clearDescription')">
     <div class="modal-actions">
-      <Button variant="outline" @click="confirmClear = false">取消</Button>
-      <Button variant="destructive" @click="clear">确认已保存，清除凭据</Button>
+      <Button variant="outline" @click="confirmClear = false">{{ t('common.cancel') }}</Button>
+      <Button variant="destructive" @click="clear">
+        {{ t('shell.credentials.confirmClear') }}
+      </Button>
     </div>
   </Modal>
 </template>

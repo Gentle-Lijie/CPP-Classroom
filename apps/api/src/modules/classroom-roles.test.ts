@@ -14,7 +14,7 @@ function setup(
   const user = { id: userId, role: accountRole } as Actor
   const query = vi.fn(async (sql: string) => ({
     rows: sql.includes('from classrooms')
-      ? [{ id: classId, owner_id: ownerId, status: '进行中', settings: {} }]
+      ? [{ id: classId, owner_id: ownerId, status: 'ongoing', settings: {} }]
       : sql.includes('from memberships')
         ? membership
           ? [membership]

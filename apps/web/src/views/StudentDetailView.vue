@@ -42,13 +42,16 @@ import {
 import { api } from '@/lib/api'
 import { confirmAction } from '@/lib/confirm'
 import { compilerLabel, formatTime } from '@/lib/display'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
 const route = useRoute()
 const router = useRouter()
 type Snapshot = RunRecord & { kind?: 'run' | 'submission' }
 const pendingSubmission = ref(String(route.query.submission ?? '')),
   snapshotError = ref('')
 const viewing = ref<Snapshot>(),
-  sidebarTab = ref(pendingSubmission.value ? '提交记录' : '运行记录')
+  sidebarTab = ref(pendingSubmission.value ? 'submissions' : 'runs')
 const student = computed(
   () =>
     students.find((s) => s.id === route.params.id) as
@@ -63,6 +66,13 @@ const displayLanguage = computed(() =>
   viewing.value ? sourceLanguage(viewing.value) : language.value,
 )
 const popup = computed(() => route.path.startsWith('/teacher/inspect/'))
+const sidebarTabs = computed(
+  () =>
+    [
+      { key: 'runs', label: t('student.detail.tabRuns') },
+      { key: 'submissions', label: t('student.detail.tabSubmissions') },
+    ] as const,
+)
 const exercise = computed(() => {
   const found =
     exercises.find(
@@ -72,7 +82,7 @@ const exercise = computed(() => {
     ? {
         ...found,
         filename: exerciseSourceFilename(found, language.value),
-        title: found.title || '未命名题目',
+        title: found.title || t('student.detail.unnamedExercise'),
       }
     : undefined
 })
@@ -103,7 +113,7 @@ function submissionSnapshot(record: Submitted): Snapshot {
     ...record,
     runtimeProfile: record.runtime_profile,
     kind: 'submission',
-    status: '已提交',
+    status: 'submitted',
     time: record.created_at,
     input: '',
     output: '',
@@ -151,7 +161,7 @@ async function reload(initial = false) {
     if (!matches(c)) return
     currentCode.value = draft.code
     currentHelp.value = draft.help?.exercise_id === c.exercise ? draft.help : undefined
-    if (sidebarTab.value !== '运行记录' || recordPage.value !== 1) {
+    if (sidebarTab.value !== 'runs' || recordPage.value !== 1) {
       const latest = await api<{ items: RunRecord[] }>(
         path(
           c,
@@ -161,7 +171,7 @@ async function reload(initial = false) {
       if (!matches(c)) return
       latestRun.value = latest.items[0]
     }
-    if (sidebarTab.value === '运行记录') {
+    if (sidebarTab.value === 'runs') {
       const result = await api<{ items: RunRecord[]; total: number }>(
         path(
           c,
@@ -200,11 +210,11 @@ async function reload(initial = false) {
       if (selected) {
         viewing.value = submissionSnapshot(selected)
         snapshotError.value = ''
-      } else snapshotError.value = '未找到链接对应的提交快照，请核对课堂、学生与练习。'
+      } else snapshotError.value = t('student.detail.snapshotNotFound')
     }
     error.value = snapshotError.value
   } catch (e) {
-    if (matches(c)) error.value = e instanceof Error ? e.message : '读取学生作品失败'
+    if (matches(c)) error.value = e instanceof Error ? e.message : t('student.detail.loadFailed')
   } finally {
     inFlight = false
     if (matches(c)) loading.value = false
@@ -241,7 +251,7 @@ watch(
       route.query.language === 'python' || route.query.language === 'cpp'
         ? route.query.language
         : sourceLanguage(student.value)
-    sidebarTab.value = pendingSubmission.value ? '提交记录' : '运行记录'
+    sidebarTab.value = pendingSubmission.value ? 'submissions' : 'runs'
     generation++
     viewing.value = undefined
     void reload(true)
@@ -281,11 +291,7 @@ async function project() {
   if (projecting.value || loading.value || !student.value || !exercise.value) return
   const c = context(),
     snapshot = viewing.value
-  if (
-    !(await confirmAction(
-      `投屏展示 ${student.value.name} 的代码？屏幕前的人员将能够看到所选内容。`,
-    ))
-  )
+  if (!(await confirmAction(t('student.detail.projectConfirm', { name: student.value.name }))))
     return
   if (!matches(c) || viewing.value !== snapshot) return
   projecting.value = true
@@ -320,7 +326,7 @@ async function resolveHelp() {
       exerciseId,
     })
     if (matches(c) && currentHelp.value?.id === requestId) currentHelp.value = undefined
-    notify('此求助已解决')
+    notify(t('student.detail.helpResolved'))
     await reload()
   } catch (e) {
     reportError(e)
@@ -338,18 +344,23 @@ function closeWindow() {
   <div v-if="popup" class="inspect-banner">
     <span>
       <Monitor :size="15" />
-      学生详情 · 独立窗口
-      <span class="demo-tag">实时数据</span>
+      {{ t('student.detail.banner') }}
+      <span class="demo-tag">{{ t('student.detail.liveTag') }}</span>
     </span>
     <div class="inline-items">
       <ThemeToggle />
-      <Button variant="outline" size="sm" @click="closeWindow">关闭此窗口</Button>
+      <Button variant="outline" size="sm" @click="closeWindow">
+        {{ t('student.detail.closeWindow') }}
+      </Button>
     </div>
   </div>
   <div v-if="student && exercise" class="detail-page" :class="{ 'inspect-detail': popup }">
     <div class="detail-heading">
       <div class="inline-items">
-        <RouterLink to="/teacher/overview" class="icon-button" aria-label="返回课堂总览">
+        <RouterLink
+          to="/teacher/overview"
+          class="icon-button"
+          :aria-label="t('student.detail.backAria')">
           <ArrowLeft :size="20" />
         </RouterLink>
         <span class="student-avatar large">{{ student.name.slice(-2) }}</span>
@@ -360,11 +371,11 @@ function closeWindow() {
           </h1>
           <p>
             <i class="presence" :class="{ online: student.online }" />
-            {{ student.online ? '在线' : '离线' }}
+            {{ student.online ? t('student.detail.online') : t('student.detail.offline') }}
             <span class="footer-dot">·</span>
             {{ exercise.title }}
             <span class="footer-dot">·</span>
-            最近活动
+            {{ t('student.detail.lastActivity') }}
             {{ student.activity }}
           </p>
         </div>
@@ -374,22 +385,22 @@ function closeWindow() {
           :disabled="projecting || loading || !!error"
           :data-disabled-reason="
             projecting
-              ? '正在准备投屏，请稍候'
+              ? t('student.detail.projectingReason')
               : loading
-                ? '正在读取学生作品，请稍候'
-                : '学生作品读取失败，请重试后再投屏'
+                ? t('student.detail.loadingReason')
+                : t('student.detail.loadFailedReason')
           "
           @click="project">
           <Monitor />
-          {{ projecting ? '准备投屏…' : '投屏讲解' }}
+          {{ projecting ? t('student.detail.projectPreparing') : t('student.detail.project') }}
         </Button>
         <div class="student-pager">
           <Button
             variant="plain"
             class="icon-button"
             :disabled="index === 0"
-            data-disabled-reason="已经是第一位学生"
-            aria-label="上一位学生"
+            :data-disabled-reason="t('student.detail.firstStudent')"
+            :aria-label="t('student.detail.prevStudentAria')"
             @click="navigate(-1)">
             <ChevronLeft :size="18" />
           </Button>
@@ -398,8 +409,8 @@ function closeWindow() {
             variant="plain"
             class="icon-button"
             :disabled="index === students.length - 1"
-            data-disabled-reason="已经是最后一位学生"
-            aria-label="下一位学生"
+            :data-disabled-reason="t('student.detail.lastStudent')"
+            :aria-label="t('student.detail.nextStudentAria')"
             @click="navigate(1)">
             <ChevronRight :size="18" />
           </Button>
@@ -410,14 +421,16 @@ function closeWindow() {
       {{ error }}
 
       <template #actions>
-        <Button variant="outline" size="sm" @click="reload(true)">重新读取</Button>
+        <Button variant="outline" size="sm" @click="reload(true)">
+          {{ t('student.detail.reload') }}
+        </Button>
       </template>
     </Alert>
-    <Alert v-if="loading" role="status" type="info">正在读取学生作品…</Alert>
+    <Alert v-if="loading" role="status" type="info">{{ t('student.detail.loadingWork') }}</Alert>
     <label class="detail-exercise-select">
-      查看练习
-      <Select v-model="chosenExercise" aria-label="选择查看学生的练习">
-        <SelectOption value="">跟随学生当前练习</SelectOption>
+      {{ t('student.detail.viewExercise') }}
+      <Select v-model="chosenExercise" :aria-label="t('student.detail.selectExerciseAria')">
+        <SelectOption value="">{{ t('student.detail.followExercise') }}</SelectOption>
         <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">{{ e.title }}</SelectOption>
       </Select>
     </label>
@@ -431,30 +444,30 @@ function closeWindow() {
               {{
                 viewing
                   ? viewing.kind === 'submission'
-                    ? '提交代码快照'
-                    : '运行代码快照'
-                  : '跟随当前代码'
+                    ? t('student.detail.submissionSnapshot')
+                    : t('student.detail.runSnapshot')
+                  : t('student.detail.followCurrent')
               }}
             </strong>
             <span class="muted text-xs">
               {{
                 viewing
                   ? viewing.id.slice(0, 8) + ' · ' + formatTime(viewing.time)
-                  : '当前草稿 · 服务器同步'
+                  : t('student.detail.currentDraft')
               }}
             </span>
           </div>
           <Button v-if="viewing" variant="outline" size="sm" @click="viewing = undefined">
-            返回当前代码
+            {{ t('student.detail.backToCurrent') }}
             <ArrowRight />
           </Button>
           <span v-else class="readonly-label">
             <LockKeyhole :size="12" />
-            教师只读
+            {{ t('student.detail.teacherReadonly') }}
           </span>
         </div>
         <Alert v-if="viewing" type="info" class="app-alert--banner">
-          所选快照固定保留。学生后续修改不会改变此处代码；提交快照不代表已通过运行。
+          {{ t('student.detail.snapshotNotice') }}
         </Alert>
         <div class="code-toolbar">
           <LanguageSelect
@@ -468,7 +481,7 @@ function closeWindow() {
           <Button
             variant="plain"
             class="icon-button ml-auto"
-            aria-label="下载当前查看的代码"
+            :aria-label="t('student.detail.downloadAria')"
             @click="
               download(
                 student.number + '-' + (viewing?.filename ?? exercise.filename),
@@ -501,52 +514,57 @@ function closeWindow() {
           <section class="detail-input">
             <CodeBlock
               :source="(viewing ?? latestRun)?.input ?? ''"
-              label="当次输入"
-              empty-text="无预填输入" />
+              :label="t('student.detail.inputLabel')"
+              :empty-text="t('student.detail.inputEmpty')" />
           </section>
           <RunOutput
             v-if="viewing?.kind !== 'submission'"
             :key="viewing?.id ?? 'current'"
             :run="viewing ?? latestRun"
             readonly-context />
-          <Alert v-else type="info">这是提交时的代码版本，不包含运行结果。</Alert>
+          <Alert v-else type="info">{{ t('student.detail.submissionOnly') }}</Alert>
         </div>
       </div>
       <aside class="detail-aside">
         <section v-if="currentHelp" class="help-detail-panel">
           <div class="inline-items amber-text">
             <Hand :size="17" />
-            <strong>学生请求帮助</strong>
-            <span class="ml-auto text-xs">待处理</span>
+            <strong>{{ t('student.detail.helpTitle') }}</strong>
+            <span class="ml-auto text-xs">{{ t('student.detail.helpPending') }}</span>
           </div>
           <p>
             {{ currentHelp.message }}
           </p>
           <span class="muted text-xs">
-            关联练习：{{ exercise.title }} · {{ formatTime(currentHelp.created_at) }}
+            {{
+              t('student.detail.helpExercise', {
+                title: exercise.title,
+                time: formatTime(currentHelp.created_at),
+              })
+            }}
           </span>
           <Button
             class="w-full"
             variant="success"
             :disabled="resolving"
-            data-disabled-reason="正在处理求助，请稍候"
+            :data-disabled-reason="t('student.detail.helpResolvingReason')"
             @click="resolveHelp">
             <CircleCheck />
-            {{ resolving ? '处理中…' : '解决此求助' }}
+            {{ resolving ? t('student.detail.helpResolving') : t('student.detail.resolveHelp') }}
           </Button>
         </section>
         <section class="panel">
           <div class="filter-tabs">
             <Button
-              v-for="t in ['运行记录', '提交记录']"
-              :key="t"
+              v-for="tab in sidebarTabs"
+              :key="tab.key"
               variant="plain"
-              :class="{ selected: sidebarTab === t }"
-              @click="sidebarTab = t">
-              {{ t }}
+              :class="{ selected: sidebarTab === tab.key }"
+              @click="sidebarTab = tab.key">
+              {{ tab.label }}
             </Button>
           </div>
-          <div v-if="sidebarTab === '运行记录'" class="history-list">
+          <div v-if="sidebarTab === 'runs'" class="history-list">
             <Button
               v-for="r in records"
               :key="r.id"
@@ -557,15 +575,21 @@ function closeWindow() {
               <span
                 class="history-state-dot"
                 :class="
-                  r.status === '编译失败' ? 'red' : r.status === '运行完成' ? 'positive' : 'amber'
+                  r.status === 'compile_error'
+                    ? 'red'
+                    : r.status === 'finished'
+                      ? 'positive'
+                      : 'amber'
                 " />
               <span>
-                <strong>{{ r.status }}</strong>
+                <strong>{{ statusLabel(r.status) }}</strong>
                 <small>{{ formatTime(r.time) }} · {{ r.id.slice(0, 8) }}</small>
               </span>
               <ArrowUpRight :size="14" />
             </Button>
-            <p v-if="!records.length && !loading" class="small-empty">这道练习还没有运行记录。</p>
+            <p v-if="!records.length && !loading" class="small-empty">
+              {{ t('student.detail.noRuns') }}
+            </p>
           </div>
           <div v-else class="history-list">
             <Button
@@ -576,40 +600,42 @@ function closeWindow() {
               @click="viewing = s">
               <CircleCheck :size="22" class="positive-text" />
               <span>
-                <strong>固定提交快照</strong>
+                <strong>{{ t('student.detail.submissionFixed') }}</strong>
                 <small>{{ new Date(s.time).toLocaleString() }}</small>
               </span>
             </Button>
             <div v-if="!submissions.length" class="small-empty">
               <History :size="25" />
-              <h3>尚未主动提交</h3>
+              <h3>{{ t('student.detail.notSubmitted') }}</h3>
             </div>
           </div>
           <Pagination
-            v-if="sidebarTab === '运行记录'"
+            v-if="sidebarTab === 'runs'"
             v-model:page="recordPage"
             v-model:page-size="pageSize"
             :total="recordTotal"
             :busy="loading"
-            unit="次运行" />
+            :unit="t('student.detail.runUnit')" />
           <Pagination
             v-else
             v-model:page="submissionPage"
             v-model:page-size="pageSize"
             :total="submissionTotal"
             :busy="loading"
-            unit="次提交" />
+            :unit="t('student.detail.submissionUnit')" />
         </section>
       </aside>
     </div>
   </div>
   <div v-else class="empty-state">
-    <h1>{{ student ? '课堂还没有练习' : '未找到这位学生' }}</h1>
+    <h1>
+      {{ student ? t('student.detail.noExerciseTitle') : t('student.detail.noStudentTitle') }}
+    </h1>
     <p>
-      {{ student ? '先创建练习，再查看学生代码。' : '学生可能已移出课堂，或链接对应其他课堂。' }}
+      {{ student ? t('student.detail.noExerciseBody') : t('student.detail.noStudentBody') }}
     </p>
     <RouterLink :to="student ? '/teacher/exercises/new' : '/teacher/roster'">
-      {{ student ? '创建练习' : '返回学生名册' }}
+      {{ student ? t('student.detail.createExercise') : t('student.detail.backRoster') }}
     </RouterLink>
   </div>
 </template>

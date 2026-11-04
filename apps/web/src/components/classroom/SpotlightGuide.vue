@@ -2,6 +2,7 @@
 import { Alert } from '@/components/ui/alert'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight, List, ScanLine, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { currentUser } from '@/data/demo'
@@ -9,6 +10,7 @@ import { spotlight, stopGuide } from '@/lib/spotlight'
 import StudentGuideWorkspace from './StudentGuideWorkspace.vue'
 import { roleLabels } from '@/lib/guide-catalog'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const steps = computed(() =>
@@ -126,7 +128,7 @@ async function locate() {
       const failure = await router.push(expectedPath)
       if (token !== generation) return
       if (failure || route.path !== expectedPath) {
-        message.value = '当前页面暂时无法进入。请先处理未保存内容，或退出导览后选择可用章节。'
+        message.value = t('guide.spotlight.navigateError')
         return
       }
     }
@@ -150,7 +152,7 @@ async function locate() {
     target?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
     await nextTick()
   } catch {
-    if (token === generation) message.value = '页面读取失败，请检查连接后重试此步骤。'
+    if (token === generation) message.value = t('guide.spotlight.loadError')
   } finally {
     if (token === generation && spotlight.active) {
       loading.value = false
@@ -358,9 +360,18 @@ onBeforeUnmount(() => {
         <div class="spotlight-topline">
           <span>
             <ScanLine :size="16" />
-            {{ roleLabels[spotlight.role] }}导览 · {{ current.chapter.title }}
+            {{
+              t('guide.spotlight.topline', {
+                role: t(roleLabels[spotlight.role]),
+                chapter: t(current.chapter.title),
+              })
+            }}
           </span>
-          <Button variant="plain" size="icon-sm" aria-label="退出导览" @click="finish">
+          <Button
+            variant="plain"
+            size="icon-sm"
+            :aria-label="t('guide.spotlight.exit')"
+            @click="finish">
             <X :size="17" />
           </Button>
         </div>
@@ -370,33 +381,36 @@ onBeforeUnmount(() => {
           :aria-valuenow="spotlight.index + 1"
           :aria-valuemin="1"
           :aria-valuemax="steps.length"
-          aria-label="导览进度">
+          :aria-label="t('guide.spotlight.progress')">
           <i :style="{ width: `${((spotlight.index + 1) / steps.length) * 100}%` }" />
         </div>
         <div class="spotlight-copy" aria-live="polite" aria-atomic="true">
           <span class="spotlight-counter">
             {{ String(spotlight.index + 1).padStart(2, '0') }} / {{ steps.length }}
           </span>
-          <h2 id="spotlight-title">{{ loading ? '正在定位…' : current.title }}</h2>
-          <p id="spotlight-description">{{ current.description }}</p>
+          <h2 id="spotlight-title">
+            {{ loading ? t('guide.spotlight.locating') : t(current.title) }}
+          </h2>
+          <p id="spotlight-description">{{ t(current.description) }}</p>
           <Alert v-if="message" role="alert" type="warning">{{ message }}</Alert>
           <Alert v-else-if="!loading && fallback" type="info">
-            {{
-              current.condition ?? '当前页面暂无此功能区域；数据加载完成或满足使用条件后可查看。'
-            }}
+            {{ current.condition ? t(current.condition) : t('guide.spotlight.fallback') }}
           </Alert>
         </div>
-        <div v-if="contents" class="spotlight-contents" aria-label="导览章节">
+        <div
+          v-if="contents"
+          class="spotlight-contents"
+          :aria-label="t('guide.spotlight.contentsLabel')">
           <Button
             v-for="chapter in spotlight.chapters"
             :key="chapter.id"
             variant="plain"
             :aria-current="chapter.id === current.chapter.id ? 'step' : undefined"
             :disabled="loading"
-            data-disabled-reason="正在定位导览内容，请稍候"
+            :data-disabled-reason="t('guide.spotlight.reasonLocating')"
             @click="jump(chapter.id)">
-            {{ chapter.title }}
-            <span>{{ chapter.steps.length }} 步</span>
+            {{ t(chapter.title) }}
+            <span>{{ t('guide.spotlight.stepsCount', { count: chapter.steps.length }) }}</span>
           </Button>
         </div>
         <div class="spotlight-controls">
@@ -405,36 +419,42 @@ onBeforeUnmount(() => {
             size="sm"
             :aria-expanded="contents"
             :disabled="loading"
-            data-disabled-reason="正在定位导览内容，请稍候"
+            :data-disabled-reason="t('guide.spotlight.reasonLocating')"
             @click="contents = !contents">
             <List :size="15" />
-            目录
+            {{ t('guide.spotlight.contents') }}
           </Button>
           <span class="ml-auto" />
           <Button
             variant="outline"
             size="sm"
             :disabled="loading || spotlight.index === 0"
-            :data-disabled-reason="loading ? '正在定位导览内容，请稍候' : '已经是导览的第一步'"
+            :data-disabled-reason="
+              loading ? t('guide.spotlight.reasonLocating') : t('guide.spotlight.firstStep')
+            "
             @click="move(-1)">
             <ArrowLeft :size="14" />
-            上一步
+            {{ t('guide.spotlight.previous') }}
           </Button>
           <Button
             v-if="message"
             size="sm"
             :disabled="loading"
-            data-disabled-reason="正在定位导览内容，请稍候"
+            :data-disabled-reason="t('guide.spotlight.reasonLocating')"
             @click="locate">
-            重试定位
+            {{ t('guide.spotlight.retry') }}
           </Button>
           <Button
             v-else
             size="sm"
             :disabled="loading"
-            data-disabled-reason="正在定位导览内容，请稍候"
+            :data-disabled-reason="t('guide.spotlight.reasonLocating')"
             @click="move(1)">
-            {{ spotlight.index === steps.length - 1 ? '完成导览' : '下一步' }}
+            {{
+              spotlight.index === steps.length - 1
+                ? t('guide.spotlight.finish')
+                : t('guide.spotlight.next')
+            }}
             <ArrowRight :size="14" />
           </Button>
         </div>
@@ -442,9 +462,9 @@ onBeforeUnmount(() => {
           {{
             mockStudent
               ? current.interactive
-                ? '可操作聚光区域 · 全部为模拟数据 · Esc 退出'
-                : '模拟数据演示 · ← → 切换 · Esc 退出'
-              : 'Esc 退出 · ← → 切换 · 导览不会自动执行功能操作'
+                ? t('guide.spotlight.keyboardInteractive')
+                : t('guide.spotlight.keyboardMock')
+              : t('guide.spotlight.keyboardDefault')
           }}
         </p>
       </section>

@@ -3,6 +3,7 @@ import PythonBeta from '@/components/classroom/PythonBeta.vue'
 import { Input } from '@/components/ui/input'
 import { Select, SelectOption } from '@/components/ui/select'
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   Users,
@@ -43,9 +44,11 @@ import {
 } from '@/data/demo'
 import { api } from '@/lib/api'
 const router = useRouter()
+const { t } = useI18n()
+import { statusLabel } from '@/lib/status-labels'
 const search = ref('')
-const filter = ref('全部学生')
-const exercise = ref('全部练习')
+const filter = ref('all')
+const exercise = ref('all')
 const invite = ref(false)
 const copied = ref(false)
 const busy = ref(false)
@@ -61,13 +64,13 @@ function focusSearch(event: KeyboardEvent) {
 onMounted(() => document.addEventListener('keydown', focusSearch))
 onBeforeUnmount(() => document.removeEventListener('keydown', focusSearch))
 const recommended = computed(() =>
-  exercises.find((e) => e.id === activeClassroom.value.recommended && e.status === '已发布'),
+  exercises.find((e) => e.id === activeClassroom.value.recommended && e.status === 'published'),
 )
 const recommendedSubmitted = computed(() => students.filter((s) => s.recommendedSubmitted).length)
 const inviteExpires = computed(() =>
   activeClassroom.value.inviteExpiresAt
     ? new Date(activeClassroom.value.inviteExpiresAt).toLocaleString('zh-CN')
-    : '请重新生成以获取有效邀请',
+    : t('overview.invite.regeneratePending'),
 )
 const inviteExpired = computed(
   () =>
@@ -77,7 +80,7 @@ const inviteExpired = computed(
 const inviteAvailable = computed(
   () =>
     activeClassroom.value.settings?.allowJoin !== false &&
-    !['已关闭', '已归档'].includes(activeClassroom.value.status),
+    !['closed', 'archived'].includes(activeClassroom.value.status),
 )
 const recommendedIndex = computed(
   () => exercises.findIndex((e) => e.id === recommended.value?.id) + 1,
@@ -86,32 +89,37 @@ function studentExercise(student: Student) {
   return exercises.find((e) => e.id === student.exerciseId)
 }
 const filters = computed(() => [
-  { label: '全部学生', count: counts.value.total },
-  { label: '在线', count: counts.value.online },
-  { label: '请求帮助', count: counts.value.help },
-  { label: '编译失败', count: counts.value.errors },
+  { key: 'all', label: t('overview.filters.all'), count: counts.value.total },
+  { key: 'online', label: t('overview.filters.online'), count: counts.value.online },
+  { key: 'help', label: t('overview.filters.help'), count: counts.value.help },
+  { key: 'errors', label: t('overview.filters.errors'), count: counts.value.errors },
   {
-    label: '运行异常',
+    key: 'abnormal',
+    label: t('overview.filters.abnormal'),
     count: students.filter((s) =>
-      ['超时', '运行失败', '平台执行失败', '资源超限'].includes(s.status),
+      ['timeout', 'runtime_error', 'platform_error', 'resource_limited'].includes(s.status),
     ).length,
   },
-  { label: '已提交', count: counts.value.submitted },
-  { label: '离线', count: students.filter((s) => !s.online).length },
+  { key: 'submitted', label: t('overview.filters.submitted'), count: counts.value.submitted },
+  {
+    key: 'offline',
+    label: t('overview.filters.offline'),
+    count: students.filter((s) => !s.online).length,
+  },
 ])
 const visible = computed(() =>
   students.filter(
     (s) =>
       `${s.name}${s.number}`.toLowerCase().includes(search.value.trim().toLowerCase()) &&
-      (filter.value === '全部学生' ||
-        (filter.value === '在线' && s.online) ||
-        (filter.value === '请求帮助' && s.help) ||
-        (filter.value === '编译失败' && s.status === '编译失败') ||
-        (filter.value === '运行异常' &&
-          ['超时', '运行失败', '平台执行失败', '资源超限'].includes(s.status)) ||
-        (filter.value === '已提交' && s.submitted) ||
-        (filter.value === '离线' && !s.online)) &&
-      (exercise.value === '全部练习' || studentExercise(s)?.id === exercise.value),
+      (filter.value === 'all' ||
+        (filter.value === 'online' && s.online) ||
+        (filter.value === 'help' && s.help) ||
+        (filter.value === 'errors' && s.status === 'compile_error') ||
+        (filter.value === 'abnormal' &&
+          ['timeout', 'runtime_error', 'platform_error', 'resource_limited'].includes(s.status)) ||
+        (filter.value === 'submitted' && s.submitted) ||
+        (filter.value === 'offline' && !s.online)) &&
+      (exercise.value === 'all' || studentExercise(s)?.id === exercise.value),
   ),
 )
 const { page, pageSize, paged } = usePagination(visible, [search, filter, exercise])
@@ -120,7 +128,7 @@ async function copyInvite() {
     await navigator.clipboard.writeText(`${location.origin}/join?code=${demo.inviteCode}`)
     copied.value = true
   } catch {
-    notify('请手动复制邀请链接')
+    notify(t('overview.invite.manualCopy'))
   }
 }
 async function exportClass() {
@@ -129,7 +137,7 @@ async function exportClass() {
   try {
     const data = await api(classPath('/export'))
     download(
-      activeClassroom.value.name + '-作品.json',
+      activeClassroom.value.name + t('overview.exportFileNameSuffix'),
       JSON.stringify(data, null, 2),
       'application/json',
     )
@@ -153,7 +161,7 @@ async function regenerateInvite() {
     if (result.inviteExpiresAt) activeClassroom.value.inviteExpiresAt = result.inviteExpiresAt
     copied.value = false
     regenerate.value = false
-    notify('课堂码已更新，旧邀请已失效')
+    notify(t('overview.invite.updated'))
   } catch (e) {
     reportError(e)
   } finally {
@@ -167,9 +175,9 @@ async function regenerateInvite() {
       <div class="heading-meta">
         <span class="status" :class="tone(activeClassroom.status)">
           <span class="status-dot" />
-          {{ activeClassroom.status }}
+          {{ statusLabel(activeClassroom.status) }}
         </span>
-        <span>课堂概览</span>
+        <span>{{ t('overview.overview') }}</span>
       </div>
       <h1>{{ activeClassroom.name }}</h1>
     </div>
@@ -177,40 +185,40 @@ async function regenerateInvite() {
       <Button
         variant="outline"
         :disabled="!exercises.length"
-        :data-disabled-reason="'请先添加练习，再开始授课'"
+        :data-disabled-reason="t('overview.reasons.addExerciseFirst')"
         @click="router.push('/teacher/teach')">
         <Monitor />
-        开始授课
+        {{ t('overview.startTeach') }}
       </Button>
       <Button
         variant="outline"
         :disabled="busy"
         :data-disabled-reason="
-          regenerate ? '正在重新生成课堂码，请稍候' : '正在导出课堂作品，请稍候'
+          regenerate ? t('overview.reasons.regenerating') : t('overview.reasons.exporting')
         "
         @click="exportClass">
         <Download />
-        导出作品
+        {{ t('overview.exportWorks') }}
       </Button>
       <Button
         :disabled="!inviteAvailable"
         :data-disabled-reason="
-          activeClassroom.status === '已归档'
-            ? '课堂已归档，无法邀请新成员'
-            : activeClassroom.status === '已关闭'
-              ? '课堂已关闭，无法邀请新成员'
-              : '课堂已关闭新成员加入，请先在课堂设置中开启'
+          activeClassroom.status === 'archived'
+            ? t('overview.reasons.archived')
+            : activeClassroom.status === 'closed'
+              ? t('overview.reasons.closed')
+              : t('overview.reasons.joinDisabled')
         "
         @click="invite = true">
         <UserPlus />
-        邀请学生
+        {{ t('overview.inviteStudents') }}
       </Button>
     </div>
   </div>
   <div class="stat-grid">
-    <Button variant="plain" class="stat-card" @click="filter = '在线'">
+    <Button variant="plain" class="stat-card" @click="filter = 'online'">
       <div class="stat-top">
-        在线学生
+        {{ t('overview.stats.onlineStudents') }}
         <span class="stat-icon green"><Users :size="18" /></span>
       </div>
       <div class="stat-number">
@@ -221,36 +229,36 @@ async function regenerateInvite() {
         <span class="live-dot" />{{ counts.total - counts.online }} 位同学暂时离线
       </div> -->
     </Button>
-    <Button variant="plain" class="stat-card" @click="filter = '已提交'">
+    <Button variant="plain" class="stat-card" @click="filter = 'submitted'">
       <div class="stat-top">
-        当前练习已提交
+        {{ t('overview.stats.submittedCurrent') }}
         <span class="stat-icon blue"><CircleCheck :size="18" /></span>
       </div>
       <div class="stat-number">
         {{ counts.submitted }}
-        <span>位同学</span>
+        <span>{{ t('overview.stats.studentsUnit') }}</span>
       </div>
       <!-- <div class="stat-foot">按每位学生当前练习统计，不代表通过</div> -->
     </Button>
-    <Button variant="plain" class="stat-card" @click="filter = '编译失败'">
+    <Button variant="plain" class="stat-card" @click="filter = 'errors'">
       <div class="stat-top">
-        最近编译失败
+        {{ t('overview.stats.compileErrors') }}
         <span class="stat-icon red"><CircleAlert :size="18" /></span>
       </div>
       <div class="stat-number">
         {{ counts.errors }}
-        <span>位同学</span>
+        <span>{{ t('overview.stats.studentsUnit') }}</span>
       </div>
       <!-- <div class="stat-foot">查看原始诊断，找到问题所在 <ArrowUpRight :size="13" /></div> -->
     </Button>
-    <Button variant="plain" class="stat-card" @click="filter = '请求帮助'">
+    <Button variant="plain" class="stat-card" @click="filter = 'help'">
       <div class="stat-top">
-        待处理求助
+        {{ t('overview.stats.helpPending') }}
         <span class="stat-icon amber"><Hand :size="18" /></span>
       </div>
       <div class="stat-number">
         {{ counts.help }}
-        <span>条请求</span>
+        <span>{{ t('overview.stats.requestsUnit') }}</span>
       </div>
       <!-- <div class="stat-foot amber-text"> -->
       <!-- {{ counts.help ? '有同学正在等你' : '暂时没有待处理的求助' }} <ArrowRight :size="13" /> -->
@@ -262,24 +270,24 @@ async function regenerateInvite() {
       class="student-panel panel-fill"
       content-class="student-panel-body"
       role="region"
-      aria-label="课堂巡视">
+      :aria-label="t('overview.patrol.title')">
       <template #header>
         <div class="section-heading">
-          <h2>课堂巡视</h2>
+          <h2>{{ t('overview.patrol.title') }}</h2>
           <span class="subtle-count">{{ counts.total }}</span>
           <span class="sync-label">
             <Radio :size="13" />
-            服务器状态同步
+            {{ t('overview.patrol.sync') }}
           </span>
         </div>
       </template>
       <div class="filter-tabs">
         <Button
           v-for="f in filters"
-          :key="f.label"
+          :key="f.key"
           variant="plain"
-          :class="{ selected: filter === f.label }"
-          @click="filter = f.label">
+          :class="{ selected: filter === f.key }"
+          @click="filter = f.key">
           {{ f.label }}
           <span>{{ f.count }}</span>
         </Button>
@@ -290,14 +298,14 @@ async function regenerateInvite() {
           <Input
             ref="searchInput"
             v-model="search"
-            aria-label="搜索学生"
-            placeholder="搜索姓名或学号…" />
+            :aria-label="t('overview.patrol.searchStudent')"
+            :placeholder="t('overview.patrol.searchPlaceholder')" />
           <kbd>⌘ K</kbd>
         </label>
         <label class="select-wrap">
           <SlidersHorizontal :size="14" />
-          <Select v-model="exercise" aria-label="按练习筛选">
-            <SelectOption>全部练习</SelectOption>
+          <Select v-model="exercise" :aria-label="t('overview.patrol.filterByExercise')">
+            <SelectOption value="all">{{ t('overview.patrol.allExercises') }}</SelectOption>
             <SelectOption v-for="e in exercises" :key="e.id" :value="e.id">
               {{ e.title }}
             </SelectOption>
@@ -308,11 +316,11 @@ async function regenerateInvite() {
         <table class="student-table">
           <thead>
             <tr>
-              <th>学生</th>
-              <th>当前练习</th>
-              <th>最近运行</th>
-              <th>提交 / 求助</th>
-              <th>最近活动</th>
+              <th>{{ t('overview.patrol.columns.student') }}</th>
+              <th>{{ t('overview.patrol.columns.exercise') }}</th>
+              <th>{{ t('overview.patrol.columns.run') }}</th>
+              <th>{{ t('overview.patrol.columns.submitHelp') }}</th>
+              <th>{{ t('overview.patrol.columns.activity') }}</th>
               <th />
             </tr>
           </thead>
@@ -339,17 +347,21 @@ async function regenerateInvite() {
               </td>
               <td>
                 <div class="student-row-content">
-                  <span class="table-exercise" :title="studentExercise(s)?.title ?? '尚未选择练习'">
-                    {{ studentExercise(s)?.title ?? '尚未选择练习' }}
+                  <span
+                    class="table-exercise"
+                    :title="studentExercise(s)?.title ?? t('overview.patrol.noExercise')">
+                    {{ studentExercise(s)?.title ?? t('overview.patrol.noExercise') }}
                   </span>
-                  <small class="cell-secondary">{{ s.online ? '在线' : '离线' }}</small>
+                  <small class="cell-secondary">
+                    {{ s.online ? t('overview.patrol.online') : t('overview.patrol.offline') }}
+                  </small>
                 </div>
               </td>
               <td>
                 <div class="student-row-content">
                   <span class="status" :class="tone(s.status)">
                     <span class="status-dot" />
-                    {{ s.status }}
+                    {{ statusLabel(s.status) }}
                   </span>
                   <small
                     v-if="s.summary && s.summary !== s.status"
@@ -362,11 +374,11 @@ async function regenerateInvite() {
               <td>
                 <span v-if="s.help" class="help-label">
                   <Hand :size="13" />
-                  请求帮助
+                  {{ t('overview.patrol.helpRequest') }}
                 </span>
                 <span v-else-if="s.submitted" class="submitted-label">
                   <Check :size="13" />
-                  已提交
+                  {{ t('overview.patrol.submitted') }}
                 </span>
                 <span v-else class="muted">—</span>
               </td>
@@ -377,18 +389,18 @@ async function regenerateInvite() {
         </table>
         <div v-if="!visible.length" class="empty-state">
           <Search :size="26" />
-          <h3>没有找到符合条件的学生</h3>
-          <p>试试其他姓名、学号或筛选条件。</p>
+          <h3>{{ t('overview.patrol.emptyTitle') }}</h3>
+          <p>{{ t('overview.patrol.emptyBody') }}</p>
           <Button
             variant="outline"
             @click="
               () => {
                 search = ''
-                filter = '全部学生'
-                exercise = '全部练习'
+                filter = 'all'
+                exercise = 'all'
               }
             ">
-            清除筛选
+            {{ t('overview.patrol.clearFilters') }}
           </Button>
         </div>
       </div>
@@ -397,21 +409,28 @@ async function regenerateInvite() {
           v-model:page="page"
           v-model:page-size="pageSize"
           :total="visible.length"
-          unit="位学生" />
+          :unit="t('overview.patrol.unit')" />
       </template>
     </ContentPanel>
     <aside class="overview-aside">
       <section class="panel current-exercise">
         <div class="panel-heading">
-          <h2>当前推荐练习</h2>
+          <h2>{{ t('overview.recommended.title') }}</h2>
           <BookOpen :size="17" class="muted" />
         </div>
         <div v-if="recommended" class="exercise-feature">
-          <span class="topic-label">练习 {{ recommendedIndex }} · {{ recommended.topic }}</span>
+          <span class="topic-label">
+            {{
+              t('overview.recommended.exerciseLabel', {
+                index: recommendedIndex,
+                topic: recommended.topic,
+              })
+            }}
+          </span>
           <h3>{{ recommended.title }}</h3>
           <p>{{ recommended.description.split('\n')[0] }}</p>
           <div class="exercise-progress">
-            <span>本题主动提交进度</span>
+            <span>{{ t('overview.recommended.progress') }}</span>
             <strong>{{ recommendedSubmitted }} / {{ counts.total }}</strong>
           </div>
           <div class="progress-track">
@@ -425,26 +444,28 @@ async function regenerateInvite() {
             variant="outline"
             class="w-full"
             @click="router.push('/teacher/exercises')">
-            管理练习
+            {{ t('overview.recommended.manage') }}
             <ArrowRight />
           </Button>
         </div>
         <div v-else class="small-empty">
           <BookOpen :size="28" />
-          <p>还没有已发布的推荐练习</p>
+          <p>{{ t('overview.recommended.empty') }}</p>
           <Button
             v-if="isTeacher"
             variant="outline"
             @click="
               router.push(exercises.length ? '/teacher/exercises' : '/teacher/exercises/new')
             ">
-            {{ exercises.length ? '选择推荐练习' : '创建练习' }}
+            {{
+              exercises.length ? t('overview.recommended.choose') : t('overview.recommended.create')
+            }}
           </Button>
         </div>
       </section>
       <section class="panel help-panel">
         <div class="panel-heading">
-          <h2>需要你的关注</h2>
+          <h2>{{ t('overview.attention.title') }}</h2>
           <span v-if="counts.help" class="notification-dot" />
         </div>
         <div v-for="s in students.filter((s) => s.help)" :key="s.id" class="help-item">
@@ -453,10 +474,13 @@ async function regenerateInvite() {
             <small>{{ s.activity }}</small>
           </div>
           <p>
-            {{ s.helpMessage || '学生请求帮助，请打开详情查看。' }}
+            {{ s.helpMessage || t('overview.attention.fallback') }}
           </p>
           <small class="help-context">
-            {{ exercises.find((e) => e.id === s.helpExerciseId)?.title ?? '课堂练习' }}
+            {{
+              exercises.find((e) => e.id === s.helpExerciseId)?.title ??
+              t('overview.attention.exerciseFallback')
+            }}
             <span v-if="s.helpLanguage === 'python'">
               · Python
               <PythonBeta />
@@ -474,67 +498,76 @@ async function regenerateInvite() {
                 query: { exercise: s.helpExerciseId, language: s.helpLanguage ?? s.language },
               })
             ">
-            查看并辅导
+            {{ t('overview.attention.view') }}
             <ArrowUpRight :size="13" />
           </Button>
         </div>
         <div v-if="!counts.help" class="small-empty">
           <CircleCheck :size="24" />
-          <p>所有求助都已处理</p>
+          <p>{{ t('overview.attention.empty') }}</p>
         </div>
       </section>
     </aside>
   </div>
   <Modal
     v-model:open="invite"
-    title="邀请学生加入课堂"
-    description="学生登录后登记入班。课堂码不替代个人身份。">
+    :title="t('overview.invite.modalTitle')"
+    :description="t('overview.invite.modalDescription')">
     <div class="invitation-class">
       <GraduationCap :size="22" />
       {{ activeClassroom.name }}
     </div>
-    <label class="field-label">课堂码</label>
+    <label class="field-label">{{ t('overview.invite.codeLabel') }}</label>
     <div class="invite-code">{{ demo.inviteCode }}</div>
     <div class="copy-row">
-      <Input :value="`${origin}/join?code=${demo.inviteCode}`" readonly aria-label="邀请链接" />
+      <Input
+        :value="`${origin}/join?code=${demo.inviteCode}`"
+        readonly
+        :aria-label="t('overview.invite.linkLabel')" />
       <Button
         variant="outline"
         :disabled="inviteExpired"
-        :data-disabled-reason="'邀请链接已过期，请重新生成课堂码'"
+        :data-disabled-reason="t('overview.invite.expiredReason')"
         @click="copyInvite">
         <Check v-if="copied" />
         <Copy v-else />
-        {{ copied ? '已复制' : '复制链接' }}
+        {{ copied ? t('common.copied') : t('overview.invite.copyLink') }}
       </Button>
     </div>
     <p class="form-hint" :class="{ 'danger-text': inviteExpired }">
-      {{ inviteExpired ? '课堂码已过期，请重新生成' : '有效至 ' + inviteExpires }} ·
-      加入后由教师确认
+      {{
+        inviteExpired
+          ? t('overview.invite.expiredHint')
+          : t('overview.invite.validUntil', { time: inviteExpires })
+      }}
+      · {{ t('overview.invite.confirmJoin') }}
     </p>
-    <Button variant="outline" class="w-full" @click="regenerate = true">重新生成课堂码</Button>
+    <Button variant="outline" class="w-full" @click="regenerate = true">
+      {{ t('overview.invite.regenerate') }}
+    </Button>
   </Modal>
   <Modal
     v-model:open="regenerate"
-    title="使旧邀请链接失效？"
-    description="重新生成后需要把新课堂码交付给尚未加入的学生，已有成员不受影响。">
+    :title="t('overview.invite.regenTitle')"
+    :description="t('overview.invite.regenDescription')">
     <div class="modal-actions">
       <Button
         variant="outline"
         :disabled="busy"
         :data-disabled-reason="
-          regenerate ? '正在重新生成课堂码，请稍候' : '正在导出课堂作品，请稍候'
+          regenerate ? t('overview.reasons.regenerating') : t('overview.reasons.exporting')
         "
         @click="regenerate = false">
-        取消
+        {{ t('common.cancel') }}
       </Button>
       <Button
         variant="warning"
         :disabled="busy"
         :data-disabled-reason="
-          regenerate ? '正在重新生成课堂码，请稍候' : '正在导出课堂作品，请稍候'
+          regenerate ? t('overview.reasons.regenerating') : t('overview.reasons.exporting')
         "
         @click="regenerateInvite">
-        {{ busy ? '正在更新…' : '确认重新生成' }}
+        {{ busy ? t('overview.invite.updating') : t('overview.invite.confirmRegenerate') }}
       </Button>
     </div>
   </Modal>

@@ -1,4 +1,5 @@
 import type { DependencyCheck } from '@classroom/contracts'
+import { t } from '../i18n'
 export type ProbeState = 'idle' | 'checking' | 'healthy' | 'unavailable' | 'unconfigured'
 export interface ProbeResult {
   status: ProbeState
@@ -42,7 +43,7 @@ export async function probePlatform(
 ): Promise<{ api: ProbeResult; database: ProbeResult; runner: ProbeResult }> {
   const failed: ProbeResult = {
     status: 'unavailable',
-    message: '无法读取业务服务的健康结果，请检查 API 与反向代理。',
+    message: t('lib.health.readFailed'),
   }
   const started = performance.now()
   const [live, readiness] = await Promise.allSettled([
@@ -66,7 +67,7 @@ export async function probePlatform(
   ])
   const api: ProbeResult =
     live.status === 'fulfilled' && live.value.ok && isLivePayload(live.value.body)
-      ? { status: 'healthy', message: '业务 API 存活检查通过。', latencyMs: live.value.latencyMs }
+      ? { status: 'healthy', message: t('lib.health.liveOk'), latencyMs: live.value.latencyMs }
       : failed
   const checks =
     readiness.status === 'fulfilled' && [200, 503].includes(readiness.value.status)
