@@ -158,12 +158,12 @@ export default {
     numberLabel: 'Student ID',
     numberPlaceholder: 'e.g. 2026001 (leading zeros preserved)',
     usernameLabel: 'Username (optional)',
-    usernamePlaceholder: 'Leave blank to auto-generate; letters, digits and . _ @ - only',
+    usernamePlaceholder: "Leave blank to auto-generate; letters, digits and . _ {'@'} - only",
     passwordLabel: 'Initial password (optional)',
     passwordPlaceholder: 'Leave blank to auto-generate',
     submitting: 'Adding…',
     submit: 'Add student',
-    usernameInvalid: 'Username may only contain letters, digits and . _ @ -',
+    usernameInvalid: "Username may only contain letters, digits and . _ {'@'} -",
     addedWithCredential: 'Student added; copy or export the login credentials',
     addedExisting: 'The student has joined the class; the existing password is unchanged',
     failed: 'Failed to add',
@@ -181,7 +181,7 @@ export default {
     excelFileName: 'student-roster-template.xlsx',
     csvFileName: 'student-roster-template.csv',
     hintTop:
-      'Replace the sample students in the template. Keep the student ID, username, and password columns as text to preserve leading zeros. Usernames may contain up to 80 letters, digits and . _ @ -; passwords up to 200 characters. Blank usernames or passwords are generated automatically.',
+      "Replace the sample students in the template. Keep the student ID, username, and password columns as text to preserve leading zeros. Usernames may contain up to 80 letters, digits and . _ {'@'} -; passwords up to 200 characters. Blank usernames or passwords are generated automatically.",
     contentLabel: 'Roster content',
     placeholder:
       'name,student ID,username,password\nLiu Yi-an,2026013,liuyian,Class2026!\nFang Kexin,2026014,,',
