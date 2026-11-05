@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { i18n } from '../i18n'
 import { describe, expect, it } from 'vitest'
 import { parseRoster } from './csv'
 import {
@@ -41,6 +42,22 @@ describe('roster file templates and import', () => {
     expect(parseRoster(await readRosterFile(file('名单.xlsx', blob)))).toEqual([
       { name: '张三', number: '0012026001', username: 'zhangsan', password: 'Class2026!' },
     ])
+  })
+
+  it('creates an English template when the English locale is selected', async () => {
+    i18n.global.locale.value = 'en'
+    try {
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(await (await rosterExcelTemplate()).arrayBuffer())
+      expect(
+        [1, 2, 3, 4].map((column) => workbook.worksheets[0]!.getCell(1, column).value),
+      ).toEqual(['Name', 'Student ID', 'Username', 'Password'])
+      expect(new TextDecoder().decode(await rosterCsvTemplate().arrayBuffer())).toBe(
+        'name,student ID,username,password\r\nZhang San,0012026001,zhangsan,Class2026!\r\n',
+      )
+    } finally {
+      i18n.global.locale.value = 'zh'
+    }
   })
 
   it('downloads actual GB2312 bytes and imports them without corrupting Chinese', async () => {

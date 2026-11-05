@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { ApiError } from './api'
 
 export interface MemberBatchFailure<T> {
@@ -28,7 +29,10 @@ export async function runMemberBatch<T>(
       await perform(member)
       result.succeeded.push(member)
     } catch (error) {
-      result.failed.push({ member, message: error instanceof Error ? error.message : '操作失败' })
+      result.failed.push({
+        member,
+        message: error instanceof Error ? error.message : t('roster.batch.result.operationFailed'),
+      })
       if (error instanceof ApiError && [0, 401].includes(error.status)) {
         result.pending = members.slice(index + 1)
         options.progress?.(index + 1)
@@ -41,9 +45,18 @@ export async function runMemberBatch<T>(
 }
 
 export function memberBatchMessage<T extends { name: string }>(result: MemberBatchResult<T>) {
-  const summary = `成功 ${result.succeeded.length} 位，失败 ${result.failed.length} 位${result.pending.length ? `，未处理 ${result.pending.length} 位` : ''}`
+  const summary = result.pending.length
+    ? t('roster.batch.result.summaryPending', {
+        succeeded: result.succeeded.length,
+        failed: result.failed.length,
+        pending: result.pending.length,
+      })
+    : t('roster.batch.result.summary', {
+        succeeded: result.succeeded.length,
+        failed: result.failed.length,
+      })
   const details = result.failed
-    .map(({ member, message }) => `${member.name}：${message}`)
-    .join('；')
-  return `${summary}。${details}${details ? '。' : ''}失败和未处理的成员已保留选择，可核对后重试。`
+    .map(({ member, message }) => `${member.name}: ${message}`)
+    .join(t('roster.batch.result.detailSeparator'))
+  return [summary, details, t('roster.batch.result.retryNote')].filter(Boolean).join(' ')
 }

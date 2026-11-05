@@ -1,4 +1,5 @@
 import hljs from 'highlight.js/lib/core'
+import { t } from '../i18n'
 import cpp from 'highlight.js/lib/languages/cpp'
 import python from 'highlight.js/lib/languages/python'
 import javascript from 'highlight.js/lib/languages/javascript'
@@ -101,14 +102,15 @@ export function renderCodeBlock(
   }
   const lines = highlightedLines(highlighted)
   const title =
-    options.label || (detected === 'text' ? '纯文本' : detected === 'cpp' ? 'C++' : detected)
+    options.label ||
+    (detected === 'text' ? t('common.codeBlock.plainText') : detected === 'cpp' ? 'C++' : detected)
   const toolbar =
     options.toolbar === false
       ? ''
-      : `<div class="code-block-toolbar"><span class="code-block-label">${escapeCode(title)}</span><button type="button" class="code-copy-button" data-disabled-reason="${source ? '正在复制，请稍候' : '没有可复制的内容'}" ${!source ? 'disabled ' : ''}aria-label="复制${escapeCode(title)}" title="复制${escapeCode(title)}" data-code-copy><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"/></svg><span class="code-copy-label">复制</span></button></div>`
+      : `<div class="code-block-toolbar"><span class="code-block-label">${escapeCode(title)}</span><button type="button" class="code-copy-button" data-disabled-reason="${source ? escapeCode(t('common.codeBlock.copying')) : escapeCode(t('common.codeBlock.empty'))}" ${!source ? 'disabled ' : ''}aria-label="${escapeCode(t('common.codeBlock.copyAria', { title }))}" title="${escapeCode(t('common.codeBlock.copyAria', { title }))}" data-code-copy><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"/></svg><span class="code-copy-label">${escapeCode(t('common.copy'))}</span></button></div>`
   const content = source
     ? `<pre class="code-block-pre" tabindex="0" aria-label="${escapeCode(title)}"><code class="code-block-code">${lines.map((line, index) => `<span class="code-block-line"><span class="code-block-number" aria-hidden="true">${index + 1}</span><span class="code-block-line-content">${line}</span></span>`).join('\n')}</code></pre>`
-    : `<p class="code-block-empty">${escapeCode(options.emptyText || '空内容')}</p>`
+    : `<p class="code-block-empty">${escapeCode(options.emptyText || t('common.codeBlock.empty'))}</p>`
   return `<div class="rendered-code-block" data-code-block data-terminal-newline="${terminalNewline ? 'true' : 'false'}" style="--code-gutter: ${String(lines.length).length + 2}ch">${toolbar}${content}</div>`
 }
 

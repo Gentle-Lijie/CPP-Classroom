@@ -114,6 +114,13 @@ export default {
     failed: 'Failed to update membership',
   },
   batch: {
+    result: {
+      operationFailed: 'Operation failed',
+      summary: '{succeeded} succeeded, {failed} failed.',
+      summaryPending: '{succeeded} succeeded, {failed} failed, {pending} unprocessed.',
+      detailSeparator: '; ',
+      retryNote: 'Failed and unprocessed members remain selected for review and retry.',
+    },
     confirm: 'Apply "{label}" to {count} selected students? {detail}',
     actions: {
       remove: {
@@ -180,6 +187,32 @@ export default {
     chooseFile: 'Choose roster file',
     excelFileName: 'student-roster-template.xlsx',
     csvFileName: 'student-roster-template.csv',
+    template: {
+      sheetName: 'Student roster',
+      name: 'Name',
+      number: 'Student ID',
+      username: 'Username',
+      password: 'Password',
+      sampleName: 'Zhang San',
+      usernameNote:
+        "Optional; blank is generated automatically. Maximum 80 characters: letters, digits, and . _ {'@'} -.",
+      passwordNote:
+        'Optional; blank is generated automatically. Maximum 200 characters. Existing accounts keep their username and password.',
+    },
+    errors: {
+      encoding:
+        'Cannot recognize the roster encoding; save it as UTF-8 or GB2312 CSV and try again',
+      tooLarge: 'The file exceeds 1 MiB; import in smaller batches',
+      unsupported: 'Choose an .xlsx, CSV, or text roster; save legacy .xls files as .xlsx first',
+      excelReadFailed:
+        'Cannot read the Excel file; use the template or save the file as .xlsx and try again',
+      noWorksheet: 'The Excel file has no worksheet',
+      tooManyColumns:
+        'The roster supports at most four columns: name, student ID, username, and password; use the template',
+      nonTextCell: 'Row {row} must contain text or an integer, not a formula or date',
+      unsafeInteger: 'Row {row} must contain text or an integer in the supported range',
+      tooManyRows: 'Each batch supports at most 50 students; split the roster and import again',
+    },
     hintTop:
       "Replace the sample students in the template. Keep the student ID, username, and password columns as text to preserve leading zeros. Usernames may contain up to 80 letters, digits and . _ {'@'} -; passwords up to 200 characters. Blank usernames or passwords are generated automatically.",
     contentLabel: 'Roster content',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { codeBlockText, highlightedLines, renderCodeBlock } from './code-block'
 import { renderMarkdown } from './markdown'
+import { i18n } from '../i18n'
 
 // Read rendered line content independently of the browser's layout and gutters.
 function lines(html: string) {
@@ -71,6 +72,17 @@ describe('shared Markdown code rendering', () => {
     expect(html).not.toContain('class="code-block-number"')
     expect(html).not.toContain('<pre')
     expect(html).toContain('disabled aria-label="复制样例输入"')
+  })
+
+  it('localizes the code-block copy control', () => {
+    i18n.global.locale.value = 'en'
+    const html = renderCodeBlock('', { label: 'Sample input' })
+    expect(html).toContain('data-disabled-reason="Empty content"')
+    expect(html).toContain('aria-label="Copy Sample input"')
+    expect(html).toContain('<span class="code-copy-label">Copy</span>')
+    expect(html).not.toContain('复制')
+    i18n.global.locale.value = 'zh'
+    expect(renderCodeBlock('', { label: '样例输入' })).toContain('复制样例输入')
   })
 
   it('keeps nested syntax spans balanced on every line', () => {

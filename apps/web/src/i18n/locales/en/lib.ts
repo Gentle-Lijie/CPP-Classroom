@@ -57,6 +57,13 @@ export default {
     canceled: 'Python language service startup was canceled',
     loadFailed: 'The Python language service could not load; check your network and retry',
     timeout: 'Python language service startup timed out; check your network and retry',
+    loading: 'Loading the Python language service and standard-library types…',
+    markerSource: 'Pyright · browser · Beta',
+    readyLabel: 'Python · in-browser analysis · Beta',
+    analyzing: 'Analyzing your code…',
+    notInitialized: 'Python language service did not finish initializing',
+    encodingMismatch: 'Incompatible Python language service character position encoding',
+    stopped: 'Python language service stopped: {message}',
   },
   import: {
     chooseFile: 'Please choose a .md, .markdown, or exercise backup .json file',

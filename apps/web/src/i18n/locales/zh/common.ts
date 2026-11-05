@@ -14,6 +14,12 @@ export default {
   create: '新建',
   copy: '复制',
   copied: '已复制',
+  codeBlock: {
+    plainText: '纯文本',
+    copyAria: '复制{title}',
+    copying: '正在复制，请稍候',
+    empty: '空内容',
+  },
   refresh: '刷新',
   back: '返回',
   enabled: '启用',

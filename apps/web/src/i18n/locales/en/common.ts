@@ -14,6 +14,12 @@ export default {
   create: 'New',
   copy: 'Copy',
   copied: 'Copied',
+  codeBlock: {
+    plainText: 'Plain text',
+    copyAria: 'Copy {title}',
+    copying: 'Copying, please wait…',
+    empty: 'Empty content',
+  },
   refresh: 'Refresh',
   back: 'Back',
   enabled: 'Enabled',

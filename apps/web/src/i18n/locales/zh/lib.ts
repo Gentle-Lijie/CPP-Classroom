@@ -51,6 +51,13 @@ export default {
     canceled: 'Python 语言服务启动已取消',
     loadFailed: 'Python 语言服务无法加载，请检查网络后重试',
     timeout: 'Python 语言服务启动超时，请检查网络后重试',
+    loading: '正在加载 Python 语言服务与标准库类型信息…',
+    markerSource: 'Pyright · 浏览器 · Beta',
+    readyLabel: 'Python · 浏览器内分析 · Beta',
+    analyzing: '正在分析当前代码…',
+    notInitialized: 'Python 语言服务初始化未完成',
+    encodingMismatch: 'Python 语言服务字符位置编码不兼容',
+    stopped: 'Python 语言服务已停止：{message}',
   },
   import: {
     chooseFile: '请选择 .md、.markdown 或题目备份 .json 文件',

@@ -1,4 +1,5 @@
 import type * as Monaco from 'monaco-editor'
+import { t } from '../i18n'
 import workerUrl from 'monaco-pyright-lsp/dist/worker.js?url'
 import { openPyrightWorker } from './browser-pyright-worker'
 import {
@@ -58,7 +59,7 @@ export async function attachBrowserPyright(
     state: 'loading',
     errors: 0,
     warnings: 0,
-    message: '正在加载 Python 语言服务与标准库类型信息…',
+    message: t('lib.pyright.loading'),
   })
   const session = await openPyrightWorker(workerUrl, signal)
   let disposed = false
@@ -183,14 +184,14 @@ export async function attachBrowserPyright(
           ...range,
           message: diagnostic.message,
           severity: severity[diagnostic.severity ?? 1] ?? api.MarkerSeverity.Error,
-          source: 'Pyright · 浏览器 · Beta',
+          source: t('lib.pyright.markerSource'),
           ...(diagnostic.code !== undefined ? { code: String(diagnostic.code) } : {}),
         })
       }
       api.editor.setModelMarkers(model, markerOwner, markers)
       status(
         'ready',
-        'Python · 浏览器内分析 · Beta',
+        t('lib.pyright.readyLabel'),
         markers.filter((m) => m.severity === api.MarkerSeverity.Error).length,
         markers.filter((m) => m.severity === api.MarkerSeverity.Warning).length,
       )
@@ -222,12 +223,12 @@ export async function attachBrowserPyright(
         },
       },
     )
-    if (!initialized || signal.aborted || disposed) throw new Error('Python 语言服务初始化未完成')
+    if (!initialized || signal.aborted || disposed) throw new Error(t('lib.pyright.notInitialized'))
     if (
       initialized.capabilities?.positionEncoding &&
       initialized.capabilities.positionEncoding !== 'utf-16'
     )
-      throw new Error('Python 语言服务字符位置编码不兼容')
+      throw new Error(t('lib.pyright.encodingMismatch'))
     await connection.sendNotification('initialized', {})
     await connection.sendNotification('workspace/didChangeConfiguration', {
       settings: {
@@ -255,7 +256,7 @@ export async function attachBrowserPyright(
       model.onDidChangeContent(() => {
         if (disposed || model.isDisposed()) return
         api.editor.setModelMarkers(model, markerOwner, [])
-        status('analyzing', '正在分析当前代码…')
+        status('analyzing', t('lib.pyright.analyzing'))
         clearTimeout(changeTimer)
         changeTimer = setTimeout(syncModel, 250)
       }),
@@ -482,10 +483,10 @@ export async function attachBrowserPyright(
         },
       }),
     )
-    status('analyzing', '正在分析当前代码…')
+    status('analyzing', t('lib.pyright.analyzing'))
     void session.closed.then((error) => {
       if (!disposed) {
-        status('error', 'Python 语言服务已停止：' + error.message)
+        status('error', t('lib.pyright.stopped', { message: error.message }))
         dispose()
       }
     })
