@@ -296,6 +296,7 @@ docs/                 设计、运维、验收与实现说明
 | -------------------------------------------------------- | ------------------------------------------------ |
 | [后端实现说明](docs/backend-implementation.md)           | 功能、权限、运行限额、验收与边界                 |
 | [部署指南](docs/deployment.md)                           | Makers 前端、同源 API 代理、PM2 后端、升级与维护 |
+| [题目导入指南](docs/exercise-import.md)                  | Markdown／JSON 格式、批量导入、校验与限制        |
 | [原生 go-judge 部署](infra/go-judge/README.md)           | Linux 安装、systemd 模板、固定构建版本与课堂补丁 |
 | [评测节点连接](docs/aim-radar-connection.md)             | 现有节点接入与连通检查                           |
 | [浏览器 clangd](docs/browser-clangd.md)                  | 浏览器兼容性、资源加载、生命周期与分析限制       |

@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it'
 import { t } from '../i18n'
 import type { SourceLanguage } from '@classroom/contracts'
 import { validSourceFilename } from './source-file'
+import { enableMarkdownMath } from './markdown-math'
 
 // Labels resolve lazily so they follow the active locale.
 export const exerciseFields = [
@@ -77,7 +78,7 @@ export interface MarkdownImport {
   errors: string[]
 }
 
-const markdown = new MarkdownIt({ html: false })
+const markdown = enableMarkdownMath(new MarkdownIt({ html: false }))
 const aliases: Record<ExerciseField, string[]> = {
   title: ['题目', '标题', '题目标题', 'title'],
   topic: ['知识点', '标签', 'topic', 'tags'],
@@ -235,7 +236,12 @@ export function parseExerciseMarkdown(source: string): MarkdownImport {
     const body = fields.description.split('\n')
     const excluded = new Set<number>()
     for (const token of markdown.parse(fields.description, {})) {
-      if (['fence', 'code_block', 'blockquote_open'].includes(token.type) && token.map)
+      if (
+        ['fence', 'code_block', 'blockquote_open', 'math_block', 'math_block_eqno'].includes(
+          token.type,
+        ) &&
+        token.map
+      )
         for (let line = token.map[0]; line < token.map[1]; line++) excluded.add(line)
     }
     fields.description = body
