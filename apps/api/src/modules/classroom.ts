@@ -40,7 +40,7 @@ const defaults = {
 }
 const settingsSchema = z
   .object({
-    access: z.enum(['approval', 'roster']),
+    access: z.enum(['direct', 'approval', 'roster']),
     allowJoin: z.boolean(),
     allowRun: z.boolean(),
     allowResubmit: z.boolean(),
@@ -358,12 +358,15 @@ export class ClassroomController {
         if (count >= settings.capacity)
           throw new ConflictException('课堂人数已满，请联系教师增加名额后再申请')
       }
-      await client.query(
-        `insert into memberships(classroom_id,user_id) values($1,$2) on conflict(classroom_id,user_id) do nothing`,
-        [c.id, user.id],
-      )
+      const initialStatus = settings.access === 'direct' ? 'active' : 'pending'
+      if (!member) {
+        await client.query(
+          'insert into memberships(classroom_id,user_id,status) values($1,$2,$3) on conflict(classroom_id,user_id) do nothing',
+          [c.id, user.id, initialStatus],
+        )
+      }
       await client.query('commit')
-      return { id: c.id, status: member?.status ?? 'pending' }
+      return { id: c.id, status: member?.status ?? initialStatus }
     } catch (e) {
       await client.query('rollback').catch(() => {})
       throw e

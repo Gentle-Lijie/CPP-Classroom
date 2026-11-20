@@ -43,6 +43,7 @@ export default {
     allowJoin: '允许新成员加入',
     allowJoinHint: '关闭后，已有成员仍可访问课堂。',
     access: '入班方式',
+    accessDirect: '凭课堂码直接加入',
     accessApproval: '教师审批后加入',
     accessRoster: '仅名单中的学生可加入',
     currentCode: '当前课堂码',

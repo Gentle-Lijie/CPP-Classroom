@@ -375,6 +375,7 @@ const busyReason = ref(t('settings.busyDefault'))
           <label>
             {{ t('settings.join.access') }}
             <Select v-model="form.access">
+              <SelectOption value="direct">{{ t('settings.join.accessDirect') }}</SelectOption>
               <SelectOption value="approval">{{ t('settings.join.accessApproval') }}</SelectOption>
               <SelectOption value="roster">{{ t('settings.join.accessRoster') }}</SelectOption>
             </Select>

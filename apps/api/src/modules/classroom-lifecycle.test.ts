@@ -80,6 +80,34 @@ describe('classroom lifecycle transitions', () => {
     },
   )
 
+  it('admits a new member immediately when direct joining is enabled', async () => {
+    const mock = setup(async (sql) => {
+      if (sql.startsWith('select * from classrooms'))
+        return {
+          rows: [
+            {
+              id: classId,
+              invite_expires_at: new Date(Date.now() + 60000),
+              status: 'ongoing',
+              settings: { access: 'direct' },
+            },
+          ],
+        }
+      if (sql.startsWith('select * from memberships')) return { rows: [] }
+      if (sql.startsWith('select count(*)')) return { rows: [{ count: 0 }] }
+      return { rows: [] }
+    })
+    await expect(mock.controller.join({ code: 'ABC' }, req('student'))).resolves.toEqual({
+      id: classId,
+      status: 'active',
+    })
+    expect(
+      mock.client.query.mock.calls.some(
+        ([sql, values]) => sql.startsWith('insert into memberships') && values?.[2] === 'active',
+      ),
+    ).toBe(true)
+  })
+
   it('rejects reducing capacity below the active roster', async () => {
     const mock = setup(async (sql) => {
       if (sql.startsWith('select * from classrooms')) return { rows: [{ settings: {} }] }

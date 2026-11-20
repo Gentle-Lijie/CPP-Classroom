@@ -45,6 +45,7 @@ export default {
     allowJoin: 'Allow new members to join',
     allowJoinHint: 'When off, existing members can still access the class.',
     access: 'How students join',
+    accessDirect: 'Join directly with the class code',
     accessApproval: 'Join after teacher approval',
     accessRoster: 'Only students on the roster may join',
     currentCode: 'Current class code',
