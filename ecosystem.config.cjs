@@ -15,6 +15,11 @@ module.exports = {
     kill_timeout: 20000,
     max_memory_restart: '512M',
     time: true,
-    env: { NODE_ENV: 'production', API_HOST: '127.0.0.1', API_PORT: '3020' },
+    env: {
+      NODE_ENV: 'production',
+      API_HOST: '127.0.0.1',
+      API_PORT: '3020',
+      WEB_ORIGIN: 'https://cpp.lijie.space',
+    },
   })),
 }

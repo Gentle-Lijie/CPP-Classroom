@@ -33,6 +33,18 @@ export async function verifyPassword(password: string, hash: string) {
   return expected.length === actual.length && timingSafeEqual(expected, actual)
 }
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
+const forwardedHost = (req: AuthRequest) =>
+  firstValue(req.headers['x-forwarded-host']) || req.headers.host || ''
+const firstValue = (value: string | string[] | undefined) =>
+  (Array.isArray(value) ? value[0] : value)?.split(',')[0]?.trim()
+const allowedMutationOrigins = (req: AuthRequest) => {
+  const requestHost = forwardedHost(req)
+  const origins = [`https://${requestHost}`, `http://${requestHost}`]
+  if (process.env.WEB_ORIGIN) origins.push(process.env.WEB_ORIGIN)
+  return origins
+}
+const isConfiguredWebOrigin = (req: AuthRequest) =>
+  !!process.env.WEB_ORIGIN && req.headers.origin === process.env.WEB_ORIGIN
 const sessionCookie = (req: AuthRequest) =>
   req.headers.cookie
     ?.split(';')
@@ -46,14 +58,8 @@ export class AuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<AuthRequest>()
     // Browser mutations must originate from the same host. JSON APIs reject simple cross-site forms.
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-      if (req.headers.origin) {
-        try {
-          if (new URL(req.headers.origin).host !== req.headers.host)
-            throw new UnauthorizedException('请求来源不匹配')
-        } catch {
-          throw new UnauthorizedException('请求来源不匹配')
-        }
-      }
+      if (req.headers.origin && !allowedMutationOrigins(req).includes(req.headers.origin))
+        throw new UnauthorizedException('请求来源不匹配')
       if (req.headers['sec-fetch-site'] === 'cross-site')
         throw new UnauthorizedException('跨站请求被拒绝')
       if (req.headers['content-type']?.split(';')[0] !== 'application/json')
@@ -138,8 +144,9 @@ export class AuthController {
     const { user, token } = authenticated
     res.cookie('classroom_session', token, {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: req.secure,
+      sameSite: isConfiguredWebOrigin(req) ? 'none' : 'strict',
+      secure: req.secure || isConfiguredWebOrigin(req),
+      partitioned: isConfiguredWebOrigin(req),
       maxAge: 604800000,
       path: '/',
     })
@@ -160,7 +167,10 @@ export class AuthController {
     await this.database.database.pool.query('delete from sessions where token=$1', [
       digest(sessionCookie(req) ?? ''),
     ])
-    res.clearCookie('classroom_session', { path: '/' })
+    res.clearCookie('classroom_session', {
+      path: '/',
+      ...(isConfiguredWebOrigin(req) ? { sameSite: 'none', secure: true } : {}),
+    })
     return { ok: true }
   }
   @Post('password') async password(@Body() body: unknown, @Req() req: AuthRequest) {

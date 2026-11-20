@@ -1,5 +1,23 @@
 import { ref } from 'vue'
 import { t } from '../i18n'
+
+const apiOrigin = normalizeApiOrigin(import.meta.env.VITE_API_BASE_URL)
+
+function normalizeApiOrigin(value: unknown) {
+  if (typeof value !== 'string' || !value) return ''
+  const parsed = new URL(value)
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
+    throw new Error('API 地址协议不受支持')
+  return parsed.origin
+}
+
+function requestCredentials(): RequestCredentials {
+  return apiOrigin ? 'include' : 'same-origin'
+}
+export const apiCredentials = requestCredentials
+
+export const apiUrl = makeApiUrl(apiOrigin)
+
 export const connectionState = ref<'connected' | 'disconnected' | 'expired'>('connected')
 
 export class ApiError extends Error {
@@ -10,12 +28,17 @@ export class ApiError extends Error {
     super(message)
   }
 }
+
+function makeApiUrl(value: string) {
+  return (path: string) => value + '/api' + path
+}
+
 export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   let response: Response
   try {
-    response = await fetch('/api' + path, {
+    response = await fetch(apiUrl(path), {
       method,
-      credentials: 'same-origin',
+      credentials: requestCredentials(),
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
       signal: AbortSignal.timeout(method === 'GET' ? 15000 : 60000),

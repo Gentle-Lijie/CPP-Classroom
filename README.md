@@ -281,7 +281,6 @@ packages/
   config/              服务端环境配置
   database/            Drizzle schema、迁移与 PostgreSQL 连接
 infra/go-judge/        原生服务模板、挂载配置与补丁
-edge-functions/       托管前端的同源 API 代理
 scripts/              本地启动、部署、备份、验收与压力测试工具
 docs/                 设计、运维、验收与实现说明
 ```

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api, ApiError, connectionState } from './api'
+import { api, ApiError, apiUrl, connectionState } from './api'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -7,6 +7,15 @@ afterEach(() => {
 })
 
 describe('API connection handling', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('builds same-origin URLs by default and HTTPS cross-origin URLs for Makers', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '')
+    expect(apiUrl('/health')).toBe('/api/health')
+  })
+
   it('bounds write requests and gives a recoverable timeout error', async () => {
     const fetch = vi.fn(async (_url: string, options: RequestInit) => {
       expect(options.signal).toBeInstanceOf(AbortSignal)

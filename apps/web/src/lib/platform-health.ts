@@ -1,5 +1,6 @@
 import type { DependencyCheck } from '@classroom/contracts'
 import { t } from '../i18n'
+import { apiCredentials, apiUrl } from './api'
 export type ProbeState = 'idle' | 'checking' | 'healthy' | 'unavailable' | 'unconfigured'
 export interface ProbeResult {
   status: ProbeState
@@ -47,10 +48,10 @@ export async function probePlatform(
   }
   const started = performance.now()
   const [live, readiness] = await Promise.allSettled([
-    fetch('/api/health', {
+    fetch(apiUrl('/health'), {
       signal,
       cache: 'no-store',
-      credentials: 'same-origin',
+      credentials: apiCredentials(),
       headers: { Accept: 'application/json' },
     }).then(async (response) => ({
       ok: response.ok,
@@ -58,10 +59,10 @@ export async function probePlatform(
       latencyMs: Math.round(performance.now() - started),
     })),
     // A valid 503 body still carries useful dependency diagnostics.
-    fetch('/api/health/readiness', {
+    fetch(apiUrl('/health/readiness'), {
       signal,
       cache: 'no-store',
-      credentials: 'same-origin',
+      credentials: apiCredentials(),
       headers: { Accept: 'application/json' },
     }).then(async (response) => ({ status: response.status, body: await response.json() })),
   ])

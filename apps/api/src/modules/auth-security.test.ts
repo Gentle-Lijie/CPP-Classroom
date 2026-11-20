@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { HttpException, UnauthorizedException, type ExecutionContext } from '@nestjs/common'
 import type { Response } from 'express'
-import { AuthController, AuthGuard } from './auth.js'
+import { AuthController, AuthGuard, passwordHash } from './auth.js'
 import type { AuthRequest } from './common.js'
 import type { DatabaseService } from '../database.service.js'
 
@@ -43,6 +43,22 @@ describe('API authentication gate', () => {
         ),
       ).rejects.toBeInstanceOf(UnauthorizedException)
     }
+  })
+
+  it('allows the configured Makers browser origin while rejecting other origins', async () => {
+    vi.stubEnv('WEB_ORIGIN', 'https://cpp.lijie.space')
+    const headers = {
+      host: 'cpp-backend.lijie.space',
+      origin: 'https://cpp.lijie.space',
+      'content-type': 'application/json',
+    }
+    await expect(guard.canActivate(context(request({ headers })))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
+    headers.origin = 'https://elsewhere.example'
+    await expect(guard.canActivate(context(request({ headers })))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
   })
 
   it('admits public paths and rejects missing or invalid sessions', async () => {
@@ -164,5 +180,55 @@ describe('authentication attempt limits', () => {
       HttpException,
     )
     expect(query).toHaveBeenCalledOnce()
+  })
+
+  it('issues a partitioned cross-site cookie for the configured Makers origin', async () => {
+    vi.stubEnv('WEB_ORIGIN', 'https://cpp.lijie.space')
+    const query = vi.fn()
+    const cookie = vi.fn()
+    const client = { query, release: vi.fn() }
+    const connect = vi.fn(async () => client)
+    query.mockImplementation(async (sql: string) => {
+      if (sql.startsWith('insert into login_attempts')) return { rows: [{ count: 1 }] }
+      if (sql === 'select * from users where username=$1 and not disabled for update')
+        return {
+          rows: [
+            {
+              id: 'user',
+              username: 'example',
+              name: 'Example',
+              number: '123',
+              role: 'teacher',
+              password_hash: await passwordHash('a-long-password'),
+            },
+          ],
+        }
+      return { rows: [] }
+    })
+    const controller = new AuthController({
+      database: { pool: { query, connect } },
+    } as unknown as DatabaseService)
+    await controller.login(
+      { username: 'example', password: 'a-long-password' },
+      request({
+        secure: false,
+        headers: {
+          host: 'cpp-backend.lijie.space',
+          origin: 'https://cpp.lijie.space',
+          'content-type': 'application/json',
+        },
+      }),
+      { cookie } as unknown as Response,
+    )
+    expect(cookie).toHaveBeenCalledWith(
+      'classroom_session',
+      expect.any(String),
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'none',
+        secure: true,
+        partitioned: true,
+      }),
+    )
   })
 })

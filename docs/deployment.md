@@ -16,19 +16,20 @@
 | 产物目录     | `apps/web/dist`                                                |
 | 启动器 Node  | `22.11.0`（脚本安装并使用独立 Node 24.18.0、pnpm 11.20.0）     |
 | 前端域名     | `cpp.lijie.space`，在 Makers 控制台配置其 CNAME 和 HTTPS       |
-| 可选函数变量 | `API_ORIGIN=https://cpp-backend.lijie.space`（代码已默认该值） |
+| 前端环境变量 | `VITE_API_BASE_URL=https://cpp-backend.lijie.space` |
 
-不要把本地 `.env`、数据库连接、评测令牌或管理员密码上传到 Makers。无需设置 `VITE_API_TARGET`：它只用于 Vite 开发代理。
-`edge-functions/api/[[path]].js` 仅转发浏览器同源 `/api/*`，不承载业务或执行代码。
-它先拒绝跨源写请求，再转换上游 Origin；Cookie 保持 HttpOnly、SameSite=Strict，并加 Secure。
-全部 API 响应禁止缓存，后端失联返回 JSON 502，避免被 SPA fallback 返回 HTML。
-因此生产和预览站点都使用自己的第一方 Cookie，无需开放跨域凭据或第三方 Cookie。
+不要把本地 `.env`、数据库连接、评测令牌或管理员密码上传到 Makers。`VITE_API_TARGET` 只用于 Vite 开发代理。
+生产前端不部署任何 Edge Function，浏览器直接请求 `https://cpp-backend.lijie.space/api/*`。
+后端通过 `WEB_ORIGIN=https://cpp.lijie.space` 只允许该前端的 CORS 凭据请求。
+登录 Cookie 在跨站部署下使用 `SameSite=None; Secure`，仍保持 HttpOnly；第三方站点无法读取它。
+
+若使用 Makers 预览域名访问前端，需要为该部署临时设置对应的 `VITE_API_BASE_URL`，并临时调整后端 `WEB_ORIGIN`；不要把 `WEB_ORIGIN` 放宽为 `*`。
 
 Makers 单文件上限为 25 MB。生产构建从固定版本的 jsDelivr npm CDN 加载 clangd WASM、标准库数据和系统索引，SharedWorker 与运行时代码保留在本站。
 Makers 将 `.mjs` 静态文件返回为 `application/octet-stream`，浏览器会拒绝动态导入。因此 Worker 构建将本站 clangd runtime 资产输出为 `.js`，构建检查同时确认 Worker 引用的 runtime 文件存在。
 Vite 的 Worker 构建插件在打包前替换资源地址，避免把超过限制的资源打入发布产物；Makers 构建还会检查产物大小和固定版本 CDN 引用。
 CDN 使用 `@algoproclub/clangd-wasm@0.1.1`，不使用浮动版本。首次加载依赖浏览器到公共 CDN 的网络连通性；CDN 不接收学生源码，分析仍在浏览器内完成。
-参考：[Makers 配置](https://cloud.tencent.com/document/product/1552/127389)、[函数路由](https://pages.edgeone.ai/document/edge-functions)、[文件限制](https://pages.edgeone.ai/document/limits-and-quotas)。
+参考：[Makers 配置](https://cloud.tencent.com/document/product/1552/127389)、[文件限制](https://pages.edgeone.ai/document/limits-and-quotas)。
 
 ## 后端部署
 
@@ -102,7 +103,7 @@ curl --fail https://cpp-backend.lijie.space/api/health/readiness
 ```
 
 Makers 上线后必须确认首页、直接打开／刷新 `/login` 和教师嵌套路由、JS/CSS、clangd CDN 加载，以及真实登录、`/api/auth/me` 和退出。
-错误 Origin 的 POST 应返回 403；浏览器的同源请求不需要跨域 CORS 预检。
+跨源 POST 到 `/api/auth/login` 的错误 Origin 应被拒绝；正确 Origin 的预检和凭据请求应包含 `Access-Control-Allow-Credentials: true`。
 此前本地构建和服务器验证不能替代 Makers 上线后的浏览器验证。
 
 手动 Git pull 建议使用 `--ff-only`。发布失败时检查日志，必要时人工检出已知兼容的旧提交，再运行 `bash deploy.sh`。
